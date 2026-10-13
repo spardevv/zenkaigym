@@ -1,0 +1,293 @@
+package com.zenkaigym.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.zenkaigym.data.AppFlags
+import com.zenkaigym.data.entity.Availability
+import com.zenkaigym.data.entity.Exercise
+import com.zenkaigym.data.entity.Food
+import com.zenkaigym.data.entity.MealType
+import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.data.repo.ZenRepository
+import com.zenkaigym.domain.DietPlanner
+import com.zenkaigym.domain.IntroGate
+import com.zenkaigym.domain.NutritionCalculator
+import com.zenkaigym.domain.NutritionTarget
+import com.zenkaigym.domain.ThemeMode
+import com.zenkaigym.util.Clock
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ZenViewModel(
+    private val repo: ZenRepository,
+    private val introGate: IntroGate,
+    private val flags: AppFlags
+) : ViewModel() {
+    private val _showIntro = MutableStateFlow(introGate.shouldShow())
+    val showIntro: StateFlow<Boolean> = _showIntro
+
+    fun finishIntro() {
+        introGate.markSeen()
+        _showIntro.value = false
+    }
+
+    fun replayIntro() {
+        _showIntro.value = true
+    }
+
+    // ---- Tema e configuração inicial ----
+
+    private val _themeMode = MutableStateFlow(flags.themeMode)
+    val themeMode: StateFlow<ThemeMode> = _themeMode
+
+    fun setThemeMode(mode: ThemeMode) {
+        flags.themeMode = mode
+        _themeMode.value = mode
+    }
+
+    private val _showSetup = MutableStateFlow(!flags.setupDone)
+    val showSetup: StateFlow<Boolean> = _showSetup
+
+    /** Conclui a configuração inicial: salva o perfil (que já repondera dieta e treino). */
+    fun finishSetup(profile: UserProfile) = viewModelScope.launch {
+        working("Montando seu treino e sua dieta…") { repo.updateProfile(profile) }
+        flags.setupDone = true
+        _showSetup.value = false
+        toast("Tudo pronto! Revise as sugestões de treino e dieta.")
+    }
+
+    // ---- Carregamento inicial ----
+    // Os fluxos principais ficam ativos enquanto o processo vive (o banco é pequeno), então a troca de
+    // abas é instantânea. `ready` só vira true quando todos já entregaram o primeiro valor: a tela de
+    // carregamento aparece apenas na abertura a frio, nunca ao voltar do segundo plano.
+
+    private val pending = MutableStateFlow(0)
+
+    private fun <T> Flow<T>.eager(initial: T): StateFlow<T> {
+        pending.update { it + 1 }
+        var first = true
+        return onEach {
+            if (first) {
+                first = false
+                pending.update { n -> n - 1 }
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, initial)
+    }
+
+    val profile = repo.profile.eager(null)
+    val weights = repo.weights.eager(emptyList())
+    val availability = repo.availability.eager(emptyList())
+    val foods = repo.foods.eager(emptyList())
+    val exercises = repo.exercises.eager(emptyList())
+    val mealSlots = repo.mealSlots.eager(emptyList())
+    val proposedWorkout = repo.proposedWorkout.eager(null)
+    val activeWorkout = repo.activeWorkout.eager(null)
+    val proposedDiet = repo.proposedDiet.eager(null)
+    val activeDiet = repo.activeDiet.eager(null)
+
+    private val _ready = MutableStateFlow(false)
+    val ready: StateFlow<Boolean> = _ready
+
+    /** Dia e hora atuais, renovados a cada 30 s enquanto alguma tela os observa. */
+    val clock: StateFlow<Clock> = flow {
+        while (true) {
+            emit(Clock.now())
+            delay(30_000)
+        }
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Clock.now())
+
+    /** Refeições já marcadas como feitas hoje. */
+    val mealsDone: StateFlow<Set<MealType>> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.mealChecks(it) }
+        .map { list -> list.map { it.type }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** Meta sugerida a partir do perfil e dos dias de treino salvos. */
+    val suggestedTarget: StateFlow<NutritionTarget?> =
+        combine(repo.profile, repo.availability) { profile, availability ->
+            profile?.let { repo.suggestTarget(it, availability) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val messages: SharedFlow<String> = _messages
+
+    init {
+        viewModelScope.launch {
+            val started = System.currentTimeMillis()
+            repo.ensureSeed(seedFoods = !flags.foodsSeeded)
+            flags.foodsSeeded = true
+            pending.first { it == 0 }
+            // Quem já tinha perfil antes desta versão não precisa refazer a configuração inicial.
+            if (profile.value != null && !flags.setupDone) {
+                flags.setupDone = true
+                _showSetup.value = false
+            }
+            val remaining = MIN_LOADING_MS - (System.currentTimeMillis() - started)
+            if (remaining > 0) delay(remaining)
+            _ready.value = true
+        }
+    }
+
+    private fun toast(text: String?) {
+        if (text != null) _messages.tryEmit(text)
+    }
+
+    /** Texto do que está sendo salvo/recalculado agora; null quando ocioso. Alimenta o indicador de carregamento. */
+    private val _busy = MutableStateFlow<String?>(null)
+    val busy: StateFlow<String?> = _busy
+
+    /** Mostra o carregamento por um tempo mínimo, para o usuário perceber que algo aconteceu. */
+    private suspend fun <T> working(label: String, block: suspend () -> T): T {
+        val started = System.currentTimeMillis()
+        _busy.value = label
+        try {
+            return block()
+        } finally {
+            val remaining = MIN_BUSY_MS - (System.currentTimeMillis() - started)
+            if (remaining > 0) delay(remaining)
+            _busy.value = null
+        }
+    }
+
+    // ---- Perfil, peso e metas ----
+
+    fun saveProfile(profile: UserProfile) = viewModelScope.launch {
+        working("Atualizando dieta e treino…") { repo.updateProfile(profile) }
+        toast("Perfil salvo! Dieta e treino foram reponderados — revise as sugestões.")
+    }
+
+    fun saveAvailability(list: List<Availability>) = viewModelScope.launch {
+        val changed = working("Salvando agenda…") { repo.updateAvailability(list) }
+        toast(if (changed) "Agenda salva! Treino e dieta reponderados — revise as sugestões." else "Agenda salva.")
+    }
+
+    fun addWeight(kg: Double) = viewModelScope.launch {
+        working("Registrando peso…") { repo.registerWeight(kg) }
+        toast("Peso registrado! Dieta e treino reponderados.")
+    }
+
+    fun acceptTarget(target: NutritionTarget) = viewModelScope.launch {
+        working("Aplicando meta…") { repo.updateTarget(target) }
+        toast("Meta salva! A dieta foi ajustada a ela.")
+    }
+
+    fun acceptCustomTarget(kcal: Int, protein: Int) =
+        acceptTarget(NutritionCalculator.fromKcalAndProtein(kcal, protein))
+
+    // ---- Alimentos ----
+
+    fun saveFood(food: Food) = viewModelScope.launch {
+        working("Salvando alimento…") { repo.saveFood(food) }
+        toast("Alimento salvo.")
+    }
+    fun deleteFood(id: Long) = viewModelScope.launch {
+        working("Removendo alimento…") { repo.deleteFood(id) }
+        toast("Alimento removido.")
+    }
+    fun deleteAllFoods() = viewModelScope.launch {
+        working("Removendo alimentos…") { repo.deleteAllFoods() }
+        toast("Todos os alimentos foram removidos.")
+    }
+    fun resetFoods() = viewModelScope.launch {
+        working("Refazendo lista e dieta…") { repo.resetFoodsToSuggestion() }
+        toast("Lista sugerida restaurada! Revise a nova dieta.")
+    }
+    fun addFoodExamples() = viewModelScope.launch {
+        working("Adicionando alimentos…") { repo.addFoodExamples() }
+        toast("Lista pronta adicionada.")
+    }
+
+    // ---- Treino ----
+
+    fun generateWorkout() = viewModelScope.launch {
+        toast(working("Montando treino…") { repo.generateWorkoutProposal() } ?: "Nova sugestão de treino pronta.")
+    }
+    fun ensureWorkoutSuggestion() = viewModelScope.launch { repo.ensureWorkoutSuggestion() }
+    fun acceptWorkout(planId: Long) = viewModelScope.launch {
+        repo.acceptWorkout(planId)
+        toast("Ficha de treino ativada!")
+    }
+    fun discardWorkout() = viewModelScope.launch { repo.discardWorkoutProposal() }
+    fun removeWorkoutItem(id: Long) = viewModelScope.launch { repo.removeWorkoutItem(id) }
+    fun setWorkoutSets(id: Long, sets: Int) = viewModelScope.launch { repo.setWorkoutSets(id, sets) }
+    fun replaceExercise(itemId: Long, exercise: Exercise) = viewModelScope.launch { repo.replaceExercise(itemId, exercise.id) }
+    fun addWorkoutItem(dayId: Long, exercise: Exercise) = viewModelScope.launch { repo.addWorkoutItem(dayId, exercise.id) }
+
+    fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
+        repo.replaceExercise(itemId, repo.addExercise(name, group))
+    }
+
+    fun createExerciseAndAdd(name: String, group: MuscleGroup, dayId: Long) = viewModelScope.launch {
+        repo.addWorkoutItem(dayId, repo.addExercise(name, group))
+    }
+
+    // ---- Dieta ----
+
+    fun generateDiet() = viewModelScope.launch {
+        toast(working("Montando dieta…") { repo.generateDietProposal() } ?: "Nova sugestão de dieta pronta.")
+    }
+    fun ensureDietSuggestion() = viewModelScope.launch { repo.ensureDietSuggestion() }
+    fun acceptDiet(planId: Long) = viewModelScope.launch {
+        repo.acceptDiet(planId)
+        toast("Dieta ativada!")
+    }
+    fun discardDiet() = viewModelScope.launch { repo.discardDietProposal() }
+    fun removeMealItem(id: Long) = viewModelScope.launch { repo.removeMealItem(id) }
+    fun setMealItemGrams(id: Long, grams: Int) = viewModelScope.launch { repo.setMealItemGrams(id, grams) }
+
+    /** Troca o alimento mantendo o equivalente em proteína (ou calorias) do item atual. */
+    fun replaceFood(itemId: Long, old: Food, oldGrams: Int, new: Food) = viewModelScope.launch {
+        repo.replaceMealItemFood(itemId, new.id, DietPlanner.equivalentGrams(old, oldGrams, new))
+    }
+
+    fun addFoodToMeal(mealId: Long, food: Food) = viewModelScope.launch {
+        repo.addMealItem(mealId, food.id, DietPlanner.defaultGrams(food))
+    }
+
+    fun createFoodAndReplace(food: Food, itemId: Long, old: Food, oldGrams: Int) = viewModelScope.launch {
+        val id = repo.addFood(food)
+        repo.replaceMealItemFood(itemId, id, DietPlanner.equivalentGrams(old, oldGrams, food))
+    }
+
+    fun createFoodAndAdd(food: Food, mealId: Long) = viewModelScope.launch {
+        val id = repo.addFood(food)
+        repo.addMealItem(mealId, id, DietPlanner.defaultGrams(food))
+    }
+
+    // ---- Agenda de refeições ----
+
+    fun setMealCount(count: Int) = viewModelScope.launch {
+        working("Ajustando refeições…") { repo.updateMealCount(count) }
+        toast("$count refeições por dia. Dieta reponderada — revise a sugestão.")
+    }
+    fun setMealTime(type: MealType, time: String) = viewModelScope.launch {
+        repo.setMealTime(type, time)
+        toast("Horário de ${type.label.lowercase()} salvo: $time.")
+    }
+    fun setMealDone(type: MealType, done: Boolean) = viewModelScope.launch {
+        repo.setMealDone(type, clock.value.epochDay, done)
+    }
+
+    private companion object {
+        const val MIN_LOADING_MS = 600L
+        const val MIN_BUSY_MS = 450L
+    }
+}

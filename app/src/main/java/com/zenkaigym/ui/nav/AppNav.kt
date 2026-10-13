@@ -1,0 +1,171 @@
+package com.zenkaigym.ui.nav
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import com.zenkaigym.ui.components.FeedbackHost
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.zenkaigym.ui.ZenViewModel
+import com.zenkaigym.ui.screens.DietScreen
+import com.zenkaigym.ui.screens.FoodsScreen
+import com.zenkaigym.ui.screens.HomeScreen
+import com.zenkaigym.ui.screens.ProfileScreen
+import com.zenkaigym.ui.screens.SettingsScreen
+import com.zenkaigym.ui.screens.WorkoutScreen
+import com.zenkaigym.ui.theme.Aka
+import com.zenkaigym.ui.theme.Ao
+import com.zenkaigym.ui.theme.Ki
+import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sumi
+import com.zenkaigym.ui.theme.Zen
+
+object Routes {
+    const val HOME = "home"
+    const val WORKOUT = "workout"
+    const val DIET = "diet"
+    const val FOODS = "foods"
+    const val PROFILE = "profile"
+    const val SETTINGS = "settings"
+}
+
+private class Tab(val route: String, val kanji: String, val label: String, val color: Color)
+
+private val tabs = listOf(
+    Tab(Routes.HOME, "道", "Dojo", Aka),
+    Tab(Routes.WORKOUT, "体", "Treino", Ki),
+    Tab(Routes.DIET, "食", "Dieta", Midori),
+    Tab(Routes.PROFILE, "己", "Perfil", Aka),
+    Tab(Routes.SETTINGS, "設", "Ajustes", Ao)
+)
+
+@Composable
+fun AppNav(viewModel: ZenViewModel) {
+    val navController = rememberNavController()
+    val backStack by navController.currentBackStackEntryAsState()
+    val current = backStack?.destination?.route ?: Routes.HOME
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
+    var message by remember { mutableStateOf<String?>(null) }
+
+    // Confirmações aparecem por alguns segundos; uma nova substitui a anterior.
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collectLatest {
+            message = it
+            delay(3200)
+            message = null
+        }
+    }
+
+    fun go(route: String) = navController.navigate(route) {
+        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+
+    Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {
+        Box(Modifier.weight(1f).statusBarsPadding()) {
+            // Troca de aba só com fade curto: barato de desenhar mesmo em aparelhos modestos.
+            NavHost(
+                navController,
+                startDestination = Routes.HOME,
+                enterTransition = { fadeIn(tween(140)) },
+                exitTransition = { fadeOut(tween(90)) },
+                popEnterTransition = { fadeIn(tween(140)) },
+                popExitTransition = { fadeOut(tween(90)) }
+            ) {
+                composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go) }
+                composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
+                composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
+                composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
+                composable(Routes.PROFILE) { ProfileScreen(viewModel) }
+                composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
+            }
+            FeedbackHost(busy, message, Modifier.align(Alignment.TopCenter))
+        }
+        // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
+        BottomBar(if (current == Routes.FOODS) Routes.DIET else current, onSelect = ::go)
+    }
+}
+
+@Composable
+private fun BottomBar(current: String, onSelect: (String) -> Unit) {
+    val p = Zen.p
+    Column(Modifier.background(p.card).navigationBarsPadding()) {
+        Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
+        Row(Modifier.fillMaxWidth()) {
+            tabs.forEach { tab ->
+                val selected = tab.route == current
+                val background by animateColorAsState(
+                    if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
+                )
+                val scale by animateFloatAsState(
+                    if (selected) 1.25f else 1f,
+                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                    label = "tab-scale"
+                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .background(background)
+                        .clickable { onSelect(tab.route) }
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        tab.kanji,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (selected) Sumi else p.ink
+                    )
+                    Text(
+                        tab.label.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selected) Sumi else p.muted
+                    )
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,303 @@
+package com.zenkaigym.data.repo
+
+import androidx.room.withTransaction
+import com.zenkaigym.data.AppDatabase
+import com.zenkaigym.data.ExerciseCatalog
+import com.zenkaigym.data.FoodExamples
+import com.zenkaigym.data.entity.Availability
+import com.zenkaigym.data.entity.DietPlan
+import com.zenkaigym.data.entity.Food
+import com.zenkaigym.data.entity.Exercise
+import com.zenkaigym.data.entity.Meal
+import com.zenkaigym.data.entity.MealCheck
+import com.zenkaigym.data.entity.MealItem
+import com.zenkaigym.data.entity.MealType
+import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.PlanStatus
+import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.data.entity.WeightEntry
+import com.zenkaigym.data.entity.WorkoutDay
+import com.zenkaigym.data.entity.WorkoutItem
+import com.zenkaigym.data.entity.WorkoutPlan
+import com.zenkaigym.domain.MealSchedule
+import com.zenkaigym.domain.NutritionCalculator
+import com.zenkaigym.domain.NutritionTarget
+import com.zenkaigym.domain.SuggestionEngine
+import com.zenkaigym.util.todayEpochDay
+
+class ZenRepository(
+    private val db: AppDatabase,
+    private val engine: SuggestionEngine
+) {
+    private val profileDao = db.profileDao()
+    private val foodDao = db.foodDao()
+    private val workoutDao = db.workoutDao()
+    private val dietDao = db.dietDao()
+
+    val profile = profileDao.observeProfile()
+    val weights = profileDao.observeWeights()
+    val availability = profileDao.observeAvailability()
+    val foods = foodDao.observeFoods()
+    val exercises = workoutDao.observeExercises()
+    val mealSlots = dietDao.observeSlots()
+    fun mealChecks(epochDay: Long) = dietDao.observeChecks(epochDay)
+    val proposedWorkout = workoutDao.observeByStatus(PlanStatus.PROPOSED)
+    val activeWorkout = workoutDao.observeByStatus(PlanStatus.ACTIVE)
+    val proposedDiet = dietDao.observeByStatus(PlanStatus.PROPOSED)
+    val activeDiet = dietDao.observeByStatus(PlanStatus.ACTIVE)
+
+    /** Dados iniciais: exercícios, agenda de refeições padrão e (uma única vez) alimentos de exemplo. */
+    suspend fun ensureSeed(seedFoods: Boolean = false) {
+        if (workoutDao.exerciseCount() == 0) workoutDao.insertExercises(ExerciseCatalog.all())
+        if (dietDao.getSlots().isEmpty()) dietDao.insertSlots(MealSchedule.build(4))
+        if (seedFoods && foodDao.getFoods().isEmpty()) foodDao.insertAll(FoodExamples.all())
+        dietDao.pruneChecksBefore(todayEpochDay() - 7)
+    }
+
+    // ---- Perfil, peso e disponibilidade ----
+
+    suspend fun saveProfile(profile: UserProfile, availability: List<Availability>? = null) {
+        db.withTransaction {
+            val old = profileDao.getProfile()
+            profileDao.upsertProfile(
+                profile.copy(
+                    targetKcal = old?.targetKcal,
+                    targetProtein = old?.targetProtein,
+                    targetCarbs = old?.targetCarbs,
+                    targetFat = old?.targetFat
+                )
+            )
+            if (old == null || old.weightKg != profile.weightKg) {
+                profileDao.insertWeight(WeightEntry(epochDay = todayEpochDay(), weightKg = profile.weightKg))
+            }
+            if (availability != null) profileDao.upsertAvailability(availability)
+        }
+    }
+
+    suspend fun saveAvailability(availability: List<Availability>) = profileDao.upsertAvailability(availability)
+
+    suspend fun addWeight(weightKg: Double) {
+        db.withTransaction {
+            val current = profileDao.getProfile() ?: return@withTransaction
+            profileDao.upsertProfile(current.copy(weightKg = weightKg))
+            profileDao.insertWeight(WeightEntry(epochDay = todayEpochDay(), weightKg = weightKg))
+        }
+    }
+
+    suspend fun acceptTarget(target: NutritionTarget) {
+        val current = profileDao.getProfile() ?: return
+        profileDao.upsertProfile(
+            current.copy(
+                targetKcal = target.kcal, targetProtein = target.protein,
+                targetCarbs = target.carbs, targetFat = target.fat
+            )
+        )
+    }
+
+    suspend fun suggestTarget(profile: UserProfile, availability: List<Availability>): NutritionTarget =
+        engine.nutritionTarget(profile, availability.count { it.available })
+
+    // ---- Reponderação automática ----
+    // Quando o corpo, o peso, os dias de treino ou a meta mudam, o app recalcula a meta (se o usuário
+    // ainda usa a sugerida) e monta novas sugestões de treino e dieta para revisão.
+
+    private suspend fun availableDays() = profileDao.getAvailability().filter { it.available }.map { it.dayOfWeek }.toSet()
+
+    private suspend fun <T> reweigh(refreshWorkout: Boolean = true, refreshDiet: Boolean = true, change: suspend () -> T): T {
+        val oldProfile = profileDao.getProfile()
+        val oldDays = availableDays()
+        val oldTarget = oldProfile?.let { engine.nutritionTarget(it, oldDays.size) }
+        val result = change()
+        val profile = profileDao.getProfile() ?: return result
+        val days = availableDays()
+        val target = engine.nutritionTarget(profile, days.size)
+        val usesSuggested = oldTarget != null && profile.targetKcal == oldTarget.kcal && profile.targetProtein == oldTarget.protein
+        if (usesSuggested && target != oldTarget) acceptTarget(target)
+        if (refreshWorkout && days.isNotEmpty()) generateWorkoutProposal()
+        if (refreshDiet) generateDietProposal()
+        return result
+    }
+
+    suspend fun updateProfile(profile: UserProfile) = reweigh { saveProfile(profile) }
+
+    suspend fun registerWeight(kg: Double) = reweigh { addWeight(kg) }
+
+    /** Salva a agenda de treino; só remonta treino e dieta se os dias disponíveis mudaram. Devolve true se remontou. */
+    suspend fun updateAvailability(list: List<Availability>): Boolean {
+        val before = availableDays()
+        val after = list.filter { it.available }.map { it.dayOfWeek }.toSet()
+        if (before == after) {
+            saveAvailability(list)
+            return false
+        }
+        reweigh { saveAvailability(list) }
+        return true
+    }
+
+    /** Meta escolhida pelo usuário: refaz só a dieta. */
+    suspend fun updateTarget(target: NutritionTarget) = reweigh(refreshWorkout = false) { acceptTarget(target) }
+
+    suspend fun updateMealCount(count: Int) {
+        setMealCount(count)
+        generateDietProposal()
+    }
+
+    // ---- Alimentos ----
+
+    suspend fun saveFood(food: Food) {
+        if (food.id == 0L) foodDao.insert(food) else foodDao.update(food)
+    }
+
+    suspend fun deleteFood(id: Long) = foodDao.delete(id)
+
+    suspend fun deleteAllFoods() = foodDao.deleteAll()
+
+    /** Apaga todos os alimentos e volta para a lista sugerida; a dieta é remontada com ela. */
+    suspend fun resetFoodsToSuggestion() {
+        db.withTransaction {
+            foodDao.deleteAll()
+            foodDao.insertAll(FoodExamples.all())
+        }
+        generateDietProposal()
+    }
+
+    suspend fun addFoodExamples() = foodDao.insertAll(FoodExamples.all())
+
+    // ---- Treino ----
+
+    /** Retorna uma mensagem de erro, ou null se a sugestão foi gerada. */
+    suspend fun generateWorkoutProposal(): String? {
+        val profile = profileDao.getProfile() ?: return "Preencha seu perfil primeiro."
+        val days = profileDao.getAvailability().filter { it.available }.map { it.dayOfWeek }
+        if (days.isEmpty()) return "Marque ao menos um dia disponível no perfil."
+        val planned = engine.workoutPlan(days, profile.goal, workoutDao.exercises())
+        db.withTransaction {
+            workoutDao.deleteByStatus(PlanStatus.PROPOSED)
+            val planId = workoutDao.insertPlan(
+                WorkoutPlan(status = PlanStatus.PROPOSED, splitName = planned.splitName, createdAt = System.currentTimeMillis())
+            )
+            planned.days.forEach { day ->
+                val dayId = workoutDao.insertDay(WorkoutDay(planId = planId, dayOfWeek = day.dayOfWeek, name = day.name))
+                day.items.forEachIndexed { index, item ->
+                    workoutDao.insertItem(
+                        WorkoutItem(dayId = dayId, exerciseId = item.exerciseId, sets = item.sets, reps = item.reps, position = index)
+                    )
+                }
+            }
+        }
+        return null
+    }
+
+    suspend fun acceptWorkout(planId: Long) {
+        db.withTransaction {
+            workoutDao.deleteByStatus(PlanStatus.ACTIVE)
+            workoutDao.setStatus(planId, PlanStatus.ACTIVE)
+        }
+    }
+
+    suspend fun discardWorkoutProposal() = workoutDao.deleteByStatus(PlanStatus.PROPOSED)
+
+    suspend fun removeWorkoutItem(id: Long) = workoutDao.deleteItem(id)
+
+    suspend fun setWorkoutSets(id: Long, sets: Int) = workoutDao.updateSets(id, sets.coerceIn(1, 10))
+
+    suspend fun replaceExercise(itemId: Long, exerciseId: Long) = workoutDao.updateExercise(itemId, exerciseId)
+
+    suspend fun addWorkoutItem(dayId: Long, exerciseId: Long) {
+        db.withTransaction {
+            val position = workoutDao.lastPosition(dayId) + 1
+            workoutDao.insertItem(WorkoutItem(dayId = dayId, exerciseId = exerciseId, sets = 3, reps = "10-12", position = position))
+        }
+    }
+
+    /** Cadastra um exercício próprio do usuário e devolve o id. */
+    suspend fun addExercise(name: String, group: MuscleGroup): Long =
+        workoutDao.insertExercise(Exercise(name = name.trim(), group = group))
+
+    /** Gera uma sugestão em silêncio quando o usuário ainda não tem nenhuma ficha. */
+    suspend fun ensureWorkoutSuggestion() {
+        if (workoutDao.planCount() == 0) generateWorkoutProposal()
+    }
+
+    // ---- Dieta ----
+
+    /** Meta efetiva: a aceita pelo usuário ou, na falta dela, a sugerida. */
+    private suspend fun effectiveTarget(profile: UserProfile): NutritionTarget {
+        val kcal = profile.targetKcal
+        val protein = profile.targetProtein
+        if (kcal != null && protein != null) {
+            val carbs = profile.targetCarbs ?: NutritionCalculator.fromKcalAndProtein(kcal, protein).carbs
+            val fat = profile.targetFat ?: NutritionCalculator.fromKcalAndProtein(kcal, protein).fat
+            return NutritionTarget(kcal, protein, carbs, fat)
+        }
+        return engine.nutritionTarget(profile, profileDao.getAvailability().count { it.available })
+    }
+
+    /** Retorna uma mensagem (erro ou aviso) ou null se tudo certo. */
+    suspend fun generateDietProposal(): String? {
+        val profile = profileDao.getProfile() ?: return "Preencha seu perfil primeiro."
+        val foods = foodDao.getFoods()
+        if (foods.isEmpty()) return "Cadastre seus alimentos primeiro."
+        val target = effectiveTarget(profile)
+        val slots = dietDao.getSlots().ifEmpty { MealSchedule.build(4) }
+        val suggestion = engine.dietPlan(target, foods, slots.map { it.type })
+        if (suggestion.meals.all { it.items.isEmpty() }) return suggestion.warnings.firstOrNull() ?: "Não foi possível montar a dieta."
+        db.withTransaction {
+            dietDao.deleteByStatus(PlanStatus.PROPOSED)
+            val planId = dietDao.insertPlan(
+                DietPlan(
+                    status = PlanStatus.PROPOSED, kcal = target.kcal, protein = target.protein,
+                    carbs = target.carbs, fat = target.fat, createdAt = System.currentTimeMillis()
+                )
+            )
+            suggestion.meals.forEachIndexed { index, meal ->
+                val mealId = dietDao.insertMeal(Meal(planId = planId, name = meal.name, position = index, type = meal.type))
+                meal.items.forEach { dietDao.insertItem(MealItem(mealId = mealId, foodId = it.foodId, grams = it.grams)) }
+            }
+        }
+        return suggestion.warnings.firstOrNull()
+    }
+
+    suspend fun acceptDiet(planId: Long) {
+        db.withTransaction {
+            dietDao.deleteByStatus(PlanStatus.ACTIVE)
+            dietDao.setStatus(planId, PlanStatus.ACTIVE)
+        }
+    }
+
+    suspend fun discardDietProposal() = dietDao.deleteByStatus(PlanStatus.PROPOSED)
+
+    suspend fun removeMealItem(id: Long) = dietDao.deleteItem(id)
+
+    suspend fun setMealItemGrams(id: Long, grams: Int) = dietDao.updateGrams(id, grams.coerceIn(5, 1000))
+
+    suspend fun replaceMealItemFood(itemId: Long, foodId: Long, grams: Int) =
+        dietDao.updateFood(itemId, foodId, grams.coerceIn(5, 1000))
+
+    suspend fun addMealItem(mealId: Long, foodId: Long, grams: Int) {
+        dietDao.insertItem(MealItem(mealId = mealId, foodId = foodId, grams = grams.coerceIn(5, 1000)))
+    }
+
+    /** Cadastra um alimento e devolve o id (para já usá-lo numa troca). */
+    suspend fun addFood(food: Food): Long = foodDao.insert(food)
+
+    suspend fun ensureDietSuggestion() {
+        if (dietDao.planCount() == 0) generateDietProposal()
+    }
+
+    // ---- Agenda de refeições e check diário ----
+
+    suspend fun setMealCount(count: Int) {
+        db.withTransaction {
+            val rebuilt = MealSchedule.build(count, dietDao.getSlots())
+            dietDao.clearSlots()
+            dietDao.insertSlots(rebuilt)
+        }
+    }
+
+    suspend fun setMealTime(type: MealType, time: String) = dietDao.updateSlotTime(type, time)
+
+    suspend fun setMealDone(type: MealType, epochDay: Long, done: Boolean) {
+        if (done) dietDao.insertCheck(MealCheck(type, epochDay)) else dietDao.deleteCheck(type, epochDay)
+    }
+}
