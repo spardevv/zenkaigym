@@ -15,6 +15,7 @@ interface SuggestionEngine {
     suspend fun nutritionTarget(profile: UserProfile, trainingDays: Int): NutritionTarget
     suspend fun workoutPlan(availableDays: List<Int>, goal: Goal, catalog: List<Exercise>): PlannedWorkout
     suspend fun dietPlan(target: NutritionTarget, foods: List<Food>, mealTypes: List<MealType>): DietSuggestion
+    suspend fun weeklyDietPlan(target: NutritionTarget, foods: List<Food>, mealTypes: List<MealType>, cheat: CheatDay?): WeeklySuggestion
 }
 
 class RuleBasedEngine : SuggestionEngine {
@@ -28,4 +29,7 @@ class RuleBasedEngine : SuggestionEngine {
 
     override suspend fun dietPlan(target: NutritionTarget, foods: List<Food>, mealTypes: List<MealType>) =
         DietPlanner.plan(target, foods, mealTypes)
+
+    override suspend fun weeklyDietPlan(target: NutritionTarget, foods: List<Food>, mealTypes: List<MealType>, cheat: CheatDay?) =
+        WeeklyDietPlanner.plan(target, foods, mealTypes, cheat)
 }

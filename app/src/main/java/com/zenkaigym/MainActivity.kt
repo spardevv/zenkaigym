@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.zenkaigym.domain.I18n
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.nav.AppNav
 import com.zenkaigym.ui.screens.IntroScreen
@@ -30,8 +31,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        // Processo novo (inclusive após o sistema matá-lo): descarta o estado salvo para abrir sempre no Dojo.
+        // Rotação e troca de tema no mesmo processo continuam restaurando normalmente.
+        super.onCreate(if (freshProcess) null else savedInstanceState)
+        freshProcess = false
         enableEdgeToEdge()
+        I18n.select((application as ZenApp).appFlags.language)
         setContent {
             val mode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dark = mode.isDark(isSystemInDarkTheme())
@@ -53,5 +58,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private companion object {
+        var freshProcess = true
     }
 }

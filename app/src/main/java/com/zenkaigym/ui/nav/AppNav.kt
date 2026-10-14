@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.nav
 
+import com.zenkaigym.domain.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,6 +53,7 @@ import com.zenkaigym.ui.screens.ProfileScreen
 import com.zenkaigym.ui.screens.SettingsScreen
 import com.zenkaigym.ui.screens.WorkoutScreen
 import com.zenkaigym.ui.theme.Aka
+import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
@@ -67,14 +69,15 @@ object Routes {
     const val SETTINGS = "settings"
 }
 
-private class Tab(val route: String, val kanji: String, val label: String, val color: Color)
+private class Tab(val route: String, val kanji: String, val label: String, val color: Color, val hero: Boolean = false)
 
-private val tabs = listOf(
-    Tab(Routes.HOME, "道", "Dojo", Aka),
-    Tab(Routes.WORKOUT, "体", "Treino", Ki),
-    Tab(Routes.DIET, "食", "Dieta", Midori),
-    Tab(Routes.PROFILE, "己", "Perfil", Aka),
-    Tab(Routes.SETTINGS, "設", "Ajustes", Ao)
+// O Dojo (home) fica sempre no centro e com destaque maior.
+private fun tabs() = listOf(
+    Tab(Routes.WORKOUT, "体", tr("Treino"), Ki),
+    Tab(Routes.DIET, "食", tr("Dieta"), Midori),
+    Tab(Routes.HOME, "道", tr("Dojo"), Aka, hero = true),
+    Tab(Routes.PROFILE, "己", tr("Perfil"), Daidai),
+    Tab(Routes.SETTINGS, "設", tr("Ajustes"), Ao)
 )
 
 @Composable
@@ -94,10 +97,16 @@ fun AppNav(viewModel: ZenViewModel) {
         }
     }
 
-    fun go(route: String) = navController.navigate(route) {
-        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
+    fun go(route: String) {
+        // "Meus alimentos" é uma subtela da Dieta: ao trocar de aba ela sai da pilha, e a Dieta volta limpa.
+        if (navController.currentDestination?.route == Routes.FOODS) {
+            navController.popBackStack(Routes.FOODS, inclusive = true)
+        }
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 
     Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {
@@ -131,7 +140,7 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
     Column(Modifier.background(p.card).navigationBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
         Row(Modifier.fillMaxWidth()) {
-            tabs.forEach { tab ->
+            tabs().forEach { tab ->
                 val selected = tab.route == current
                 val background by animateColorAsState(
                     if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
@@ -143,7 +152,7 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
                 )
                 Column(
                     Modifier
-                        .weight(1f)
+                        .weight(if (tab.hero) 1.25f else 1f)
                         .background(background)
                         .clickable { onSelect(tab.route) }
                         .padding(vertical = 8.dp),
@@ -155,14 +164,15 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
                             scaleX = scale
                             scaleY = scale
                         },
-                        fontSize = 22.sp,
+                        fontSize = if (tab.hero) 28.sp else 22.sp,
                         fontWeight = FontWeight.Black,
-                        color = if (selected) Sumi else p.ink
+                        color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
                     )
                     Text(
                         tab.label.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (selected) Sumi else p.muted
+                        fontWeight = if (tab.hero) FontWeight.Black else null,
+                        color = if (selected) Sumi else if (tab.hero) tab.color else p.muted
                     )
                 }
             }

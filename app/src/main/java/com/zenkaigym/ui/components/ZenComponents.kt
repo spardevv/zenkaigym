@@ -31,6 +31,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -119,14 +123,30 @@ fun ZenButton(
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text.uppercase(), color = if (enabled && (accent == p.card || accent == p.bg)) p.ink else Sumi, style = MaterialTheme.typography.labelLarge,
-                fontSize = if (small) 12.sp else 14.sp, letterSpacing = if (small) 0.5.sp else 1.sp,
-                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis
+            FitLabel(
+                text.uppercase(), if (enabled && (accent == p.card || accent == p.bg)) p.ink else Sumi,
+                baseSp = if (small) 12f else 14f, letterSpacing = if (small) 0.5.sp else 1.sp
             )
         }
     }
 }
+
+/**
+ * Rótulo de botão/chip numa linha só: se não couber (idioma mais longo, tela estreita, botões lado a lado),
+ * a fonte encolhe até um mínimo, para que todos os botões de uma fileira fiquem com a mesma altura.
+ */
+@Composable
+private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: TextUnit) {
+    var size by remember(text, baseSp) { mutableFloatStateOf(baseSp) }
+    Text(
+        text, color = color, style = MaterialTheme.typography.labelLarge,
+        fontSize = size.sp, letterSpacing = if (size < baseSp) 0.sp else letterSpacing,
+        maxLines = 1, softWrap = false, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis,
+        onTextLayout = { if (it.hasVisualOverflow && size > MIN_LABEL_SP) size = (size - 1f).coerceAtLeast(MIN_LABEL_SP) }
+    )
+}
+
+private const val MIN_LABEL_SP = 9f
 
 @Composable
 fun ZenChip(
@@ -150,11 +170,7 @@ fun ZenChip(
             .padding(horizontal = if (compact) 0.dp else 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text, color = content, style = MaterialTheme.typography.labelLarge,
-            fontSize = if (compact) 12.sp else 14.sp, letterSpacing = if (compact) 0.sp else 1.sp,
-            maxLines = 1, softWrap = false
-        )
+        FitLabel(text, content, baseSp = if (compact) 12f else 14f, letterSpacing = if (compact) 0.sp else 1.sp)
     }
 }
 
@@ -273,11 +289,15 @@ fun StatPill(label: String, value: String, modifier: Modifier = Modifier, color:
         modifier
             .background(color)
             .border(BorderWidth, p.border)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(value, color = Sumi, style = MaterialTheme.typography.titleMedium)
-        Text(label.uppercase(), color = Sumi, style = MaterialTheme.typography.labelSmall)
+        // Uma linha só: o valor encolhe e o rótulo usa fonte menor, para caber em telas estreitas.
+        Text(value, color = Sumi, style = MaterialTheme.typography.titleMedium, fontSize = 16.sp, maxLines = 1, softWrap = false)
+        Text(
+            label.uppercase(), color = Sumi, style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp, letterSpacing = 0.sp, maxLines = 1, softWrap = false
+        )
     }
 }

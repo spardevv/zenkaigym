@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.RepeatMode
@@ -86,7 +87,7 @@ fun IntroScreen(onFinish: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (!flow.isLast) ZenButton("Pular", onFinish, accent = Zen.p.card, small = true)
+                if (!flow.isLast) ZenButton(tr("Pular"), onFinish, accent = Zen.p.card, small = true)
             }
 
             AnimatedContent(
@@ -138,9 +139,9 @@ fun IntroScreen(onFinish: () -> Unit) {
             Dots(count = pages.size, current = flow.index)
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!flow.isFirst) ZenButton("Voltar", { go(false) }, accent = Zen.p.card)
+                if (!flow.isFirst) ZenButton(tr("Voltar"), { go(false) }, accent = Zen.p.card)
                 ZenButton(
-                    if (flow.isLast) "Começar" else "Próximo",
+                    if (flow.isLast) tr("Começar") else tr("Próximo"),
                     { if (flow.isLast) onFinish() else go(true) },
                     modifier = Modifier.weight(1f),
                     accent = accents[flow.index % accents.size],

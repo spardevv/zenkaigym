@@ -4,36 +4,50 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.zenkaigym.domain.tr
 
-enum class Sex(val label: String) { MALE("Masculino"), FEMALE("Feminino") }
+enum class Sex(val pt: String) {
+    MALE("Masculino"), FEMALE("Feminino");
 
-enum class Goal(val label: String) {
-    LOSE("Emagrecer"),
-    MAINTAIN("Manter"),
-    GAIN("Ganhar massa")
+    val label: String get() = tr(pt)
 }
 
-enum class FoodCategory(val label: String, val kanji: String) {
+enum class Goal(val pt: String) {
+    LOSE("Emagrecer"),
+    MAINTAIN("Manter"),
+    GAIN("Ganhar massa");
+
+    val label: String get() = tr(pt)
+}
+
+enum class FoodCategory(val pt: String, val kanji: String) {
     PROTEIN("Proteína", "肉"),
     CARB("Carboidrato", "米"),
     VEGETABLE("Legume", "野"),
     SALAD("Salada", "菜"),
-    FRUIT("Fruta", "果")
+    FRUIT("Fruta", "果");
+
+    val label: String get() = tr(pt)
 }
 
 /** Tipo de refeição; define quais alimentos combinam e o horário padrão. */
-enum class MealType(val label: String, val defaultTime: String) {
+enum class MealType(val pt: String, val defaultTime: String) {
     BREAKFAST("Café da manhã", "07:00"),
     SNACK_AM("Lanche da manhã", "10:00"),
     LUNCH("Almoço", "12:30"),
     SNACK_PM("Lanche da tarde", "16:00"),
     DINNER("Jantar", "19:30"),
-    SUPPER("Ceia", "22:00")
+    SUPPER("Ceia", "22:00");
+
+    /** Nome no idioma atual; [pt] é o nome guardado nas refeições do cardápio. */
+    val label: String get() = tr(pt)
 }
 
-enum class MuscleGroup(val label: String) {
+enum class MuscleGroup(val pt: String) {
     CHEST("Peito"), BACK("Costas"), LEGS("Pernas"), SHOULDERS("Ombros"),
-    BICEPS("Bíceps"), TRICEPS("Tríceps"), CORE("Abdômen")
+    BICEPS("Bíceps"), TRICEPS("Tríceps"), CORE("Abdômen");
+
+    val label: String get() = tr(pt)
 }
 
 enum class PlanStatus { PROPOSED, ACTIVE }
@@ -77,7 +91,10 @@ data class Food(
     val kcalPer100: Double,
     val proteinPer100: Double,
     val carbsPer100: Double,
-    val fatPer100: Double
+    val fatPer100: Double,
+    /** Medida caseira (ex.: "ovo", "fatia") e o peso de uma unidade em gramas; ambos nulos se o alimento é só por peso. */
+    val unitLabel: String? = null,
+    val unitGrams: Double? = null
 )
 
 @Entity(tableName = "exercise")
@@ -132,7 +149,9 @@ data class DietPlan(
     val protein: Int,
     val carbs: Int,
     val fat: Int,
-    val createdAt: Long
+    val createdAt: Long,
+    /** Dia da semana (1 = segunda ... 7 = domingo) com refeições livres ("dia do lixo"); null se não há. */
+    val cheatDay: Int? = null
 )
 
 @Entity(
@@ -145,7 +164,11 @@ data class Meal(
     val planId: Long,
     val name: String,
     val position: Int,
-    val type: MealType = MealType.LUNCH
+    val type: MealType = MealType.LUNCH,
+    /** 1 = segunda ... 7 = domingo; 0 = vale para todos os dias (planos de antes do cardápio semanal). */
+    val dayOfWeek: Int = 0,
+    /** Não nulo = refeição livre (fora da dieta) com essas calorias estimadas; não tem itens. */
+    val cheatKcal: Int? = null
 )
 
 /** Agenda de refeições do usuário: uma linha por refeição do dia, com seu horário (HH:mm). */

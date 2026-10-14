@@ -20,6 +20,7 @@ object Zen {
 @Composable
 fun ZenkaigymTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val palette = if (darkTheme) DarkPalette else LightPalette
+    accentsDark = darkTheme
     val scheme = if (darkTheme) {
         darkColorScheme(primary = Aka, onPrimary = Sumi, background = palette.bg, surface = palette.card, onBackground = palette.ink, onSurface = palette.ink)
     } else {

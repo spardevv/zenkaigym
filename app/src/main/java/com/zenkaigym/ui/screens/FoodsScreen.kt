@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.FoodCategory
+import com.zenkaigym.domain.Portions
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.FoodFormDialog
 import com.zenkaigym.ui.components.KanjiBadge
@@ -41,6 +43,8 @@ import com.zenkaigym.ui.components.fmt
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
+import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Zen
 
 private enum class FoodsAction { RESET, CLEAR }
@@ -63,13 +67,13 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
         ) {
             item(key = "header") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ZenButton("←  Voltar à dieta", onBack, accent = Zen.p.card, small = true)
-                    ZenHeader("Alimentos", "米", accent = Ao, subtitle = "Valores por 100 g · a dieta usa estes")
-                    ZenButton("+ Novo alimento", { creating = true }, accent = Ao, fill = true)
+                    ZenButton(tr("←  Voltar à dieta"), onBack, accent = Zen.p.card, small = true)
+                    ZenHeader(tr("Alimentos"), "米", accent = Midori, subtitle = tr("Valores por 100 g · a dieta usa estes"))
+                    ZenButton(tr("+ Novo alimento"), { creating = true }, accent = Ao, fill = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ZenButton("Refazer sugestão", { confirm = FoodsAction.RESET }, Modifier.weight(1f), accent = Ki, fill = true, small = true)
+                        ZenButton(tr("Refazer sugestão"), { confirm = FoodsAction.RESET }, Modifier.weight(1f), accent = Sakura, fill = true, small = true)
                         if (foods.isNotEmpty()) {
-                            ZenButton("Remover tudo", { confirm = FoodsAction.CLEAR }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+                            ZenButton(tr("Remover tudo"), { confirm = FoodsAction.CLEAR }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
                         }
                     }
                 }
@@ -77,11 +81,11 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
             if (foods.isEmpty()) {
                 item(key = "empty") {
                     ZenCard(entranceIndex = 1) {
-                        Text("Nenhum alimento cadastrado.", style = MaterialTheme.typography.titleMedium)
+                        Text(tr("Nenhum alimento cadastrado."), style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
-                        Text("Cadastre os seus ou comece com uma lista pronta (dá para editar depois).", color = Zen.p.muted)
+                        Text(tr("Cadastre os seus ou comece com uma lista pronta (dá para editar depois)."), color = Zen.p.muted)
                         Spacer(Modifier.height(10.dp))
-                        ZenButton("Adicionar lista pronta", viewModel::addFoodExamples, accent = Ki)
+                        ZenButton(tr("Adicionar lista pronta"), viewModel::addFoodExamples, accent = Ao)
                     }
                 }
             }
@@ -92,11 +96,14 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             KanjiBadge(cat.kanji, color = cat.accent(), size = 40.dp)
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(food.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(tr(food.name), style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    "${food.kcalPer100.fmt()} kcal · P ${food.proteinPer100.fmt()} · C ${food.carbsPer100.fmt()} · G ${food.fatPer100.fmt()}",
+                                    tr("{0} kcal · P {1} · C {2} · G {3}", food.kcalPer100.fmt(), food.proteinPer100.fmt(), food.carbsPer100.fmt(), food.fatPer100.fmt()),
                                     color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                                 )
+                                Portions.unitGrams(food)?.let {
+                                    Text(tr("1 {0} = {1} g", tr(food.unitLabel.orEmpty()), it.fmt()), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                             Text("✎", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
                         }
@@ -109,19 +116,19 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
 
     confirm?.let { action ->
         val reset = action == FoodsAction.RESET
-        ZenDialog(if (reset) "Refazer sugestão?" else "Remover tudo?", { confirm = null }, accent = if (reset) Ki else Aka) {
+        ZenDialog(if (reset) tr("Refazer sugestão?") else tr("Remover tudo?"), { confirm = null }, accent = if (reset) Sakura else Aka) {
             Text(
-                if (reset) "Todos os seus alimentos serão apagados e trocados pela lista sugerida. A dieta será remontada."
-                else "Todos os alimentos serão apagados e as dietas perdem seus itens. Você pode cadastrar de novo ou refazer a sugestão.",
+                if (reset) tr("Todos os seus alimentos serão apagados e trocados pela lista sugerida. A dieta será remontada.")
+                else tr("Todos os alimentos serão apagados e as dietas perdem seus itens. Você pode cadastrar de novo ou refazer a sugestão."),
                 color = Zen.p.muted
             )
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(if (reset) "Refazer" else "Remover", {
+                ZenButton(if (reset) tr("Refazer") else tr("Remover"), {
                     if (reset) viewModel.resetFoods() else viewModel.deleteAllFoods()
                     confirm = null
-                }, Modifier.weight(1f), accent = if (reset) Ki else Aka, fill = true)
-                ZenButton("Cancelar", { confirm = null }, accent = Zen.p.card)
+                }, Modifier.weight(1f), accent = if (reset) Sakura else Aka, fill = true)
+                ZenButton(tr("Cancelar"), { confirm = null }, accent = Zen.p.card)
             }
         }
     }

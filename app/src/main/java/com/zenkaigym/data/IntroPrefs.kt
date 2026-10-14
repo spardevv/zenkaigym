@@ -1,6 +1,7 @@
 package com.zenkaigym.data
 
 import android.content.Context
+import com.zenkaigym.domain.AppLanguage
 import com.zenkaigym.domain.IntroStore
 import com.zenkaigym.domain.ThemeMode
 
@@ -26,6 +27,11 @@ class AppFlags(context: Context) {
     var themeMode: ThemeMode
         get() = ThemeMode.fromName(prefs.getString("theme_mode", null))
         set(value) = prefs.edit().putString("theme_mode", value.name).apply()
+
+    /** Idioma escolhido em Ajustes; padrão: seguir o sistema. */
+    var language: AppLanguage
+        get() = AppLanguage.fromName(prefs.getString("language", null))
+        set(value) = prefs.edit().putString("language", value.name).apply()
 
     /** Configuração inicial (tema + perfil) já concluída. */
     var setupDone: Boolean

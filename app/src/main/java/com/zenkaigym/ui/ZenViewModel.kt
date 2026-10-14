@@ -1,5 +1,6 @@
 package com.zenkaigym.ui
 
+import com.zenkaigym.domain.tr
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zenkaigym.data.AppFlags
@@ -10,7 +11,10 @@ import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.repo.ZenRepository
+import com.zenkaigym.domain.AppLanguage
+import com.zenkaigym.domain.CheatDay
 import com.zenkaigym.domain.DietPlanner
+import com.zenkaigym.domain.I18n
 import com.zenkaigym.domain.IntroGate
 import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
@@ -63,15 +67,24 @@ class ZenViewModel(
         _themeMode.value = mode
     }
 
+    private val _language = MutableStateFlow(flags.language)
+    val language: StateFlow<AppLanguage> = _language
+
+    fun setLanguage(choice: AppLanguage) {
+        flags.language = choice
+        _language.value = choice
+        I18n.select(choice)
+    }
+
     private val _showSetup = MutableStateFlow(!flags.setupDone)
     val showSetup: StateFlow<Boolean> = _showSetup
 
     /** Conclui a configuração inicial: salva o perfil (que já repondera dieta e treino). */
     fun finishSetup(profile: UserProfile) = viewModelScope.launch {
-        working("Montando seu treino e sua dieta…") { repo.updateProfile(profile) }
+        working(tr("Montando seu treino e sua dieta…")) { repo.updateProfile(profile) }
         flags.setupDone = true
         _showSetup.value = false
-        toast("Tudo pronto! Revise as sugestões de treino e dieta.")
+        toast(tr("Tudo pronto! Revise as sugestões de treino e dieta."))
     }
 
     // ---- Carregamento inicial ----
@@ -170,23 +183,23 @@ class ZenViewModel(
     // ---- Perfil, peso e metas ----
 
     fun saveProfile(profile: UserProfile) = viewModelScope.launch {
-        working("Atualizando dieta e treino…") { repo.updateProfile(profile) }
-        toast("Perfil salvo! Dieta e treino foram reponderados — revise as sugestões.")
+        working(tr("Atualizando dieta e treino…")) { repo.updateProfile(profile) }
+        toast(tr("Perfil salvo! Dieta e treino foram reponderados — revise as sugestões."))
     }
 
     fun saveAvailability(list: List<Availability>) = viewModelScope.launch {
-        val changed = working("Salvando agenda…") { repo.updateAvailability(list) }
-        toast(if (changed) "Agenda salva! Treino e dieta reponderados — revise as sugestões." else "Agenda salva.")
+        val changed = working(tr("Salvando agenda…")) { repo.updateAvailability(list) }
+        toast(if (changed) tr("Agenda salva! Treino e dieta reponderados — revise as sugestões.") else tr("Agenda salva."))
     }
 
     fun addWeight(kg: Double) = viewModelScope.launch {
-        working("Registrando peso…") { repo.registerWeight(kg) }
-        toast("Peso registrado! Dieta e treino reponderados.")
+        working(tr("Registrando peso…")) { repo.registerWeight(kg) }
+        toast(tr("Peso registrado! Dieta e treino reponderados."))
     }
 
     fun acceptTarget(target: NutritionTarget) = viewModelScope.launch {
-        working("Aplicando meta…") { repo.updateTarget(target) }
-        toast("Meta salva! A dieta foi ajustada a ela.")
+        working(tr("Aplicando meta…")) { repo.updateTarget(target) }
+        toast(tr("Meta salva! A dieta foi ajustada a ela."))
     }
 
     fun acceptCustomTarget(kcal: Int, protein: Int) =
@@ -195,35 +208,35 @@ class ZenViewModel(
     // ---- Alimentos ----
 
     fun saveFood(food: Food) = viewModelScope.launch {
-        working("Salvando alimento…") { repo.saveFood(food) }
-        toast("Alimento salvo.")
+        working(tr("Salvando alimento…")) { repo.saveFood(food) }
+        toast(tr("Alimento salvo."))
     }
     fun deleteFood(id: Long) = viewModelScope.launch {
-        working("Removendo alimento…") { repo.deleteFood(id) }
-        toast("Alimento removido.")
+        working(tr("Removendo alimento…")) { repo.deleteFood(id) }
+        toast(tr("Alimento removido."))
     }
     fun deleteAllFoods() = viewModelScope.launch {
-        working("Removendo alimentos…") { repo.deleteAllFoods() }
-        toast("Todos os alimentos foram removidos.")
+        working(tr("Removendo alimentos…")) { repo.deleteAllFoods() }
+        toast(tr("Todos os alimentos foram removidos."))
     }
     fun resetFoods() = viewModelScope.launch {
-        working("Refazendo lista e dieta…") { repo.resetFoodsToSuggestion() }
-        toast("Lista sugerida restaurada! Revise a nova dieta.")
+        working(tr("Refazendo lista e dieta…")) { repo.resetFoodsToSuggestion() }
+        toast(tr("Lista sugerida restaurada! Revise a nova dieta."))
     }
     fun addFoodExamples() = viewModelScope.launch {
-        working("Adicionando alimentos…") { repo.addFoodExamples() }
-        toast("Lista pronta adicionada.")
+        working(tr("Adicionando alimentos…")) { repo.addFoodExamples() }
+        toast(tr("Lista pronta adicionada."))
     }
 
     // ---- Treino ----
 
     fun generateWorkout() = viewModelScope.launch {
-        toast(working("Montando treino…") { repo.generateWorkoutProposal() } ?: "Nova sugestão de treino pronta.")
+        toast(working(tr("Montando treino…")) { repo.generateWorkoutProposal() } ?: tr("Nova sugestão de treino pronta."))
     }
     fun ensureWorkoutSuggestion() = viewModelScope.launch { repo.ensureWorkoutSuggestion() }
     fun acceptWorkout(planId: Long) = viewModelScope.launch {
         repo.acceptWorkout(planId)
-        toast("Ficha de treino ativada!")
+        toast(tr("Ficha de treino ativada!"))
     }
     fun discardWorkout() = viewModelScope.launch { repo.discardWorkoutProposal() }
     fun removeWorkoutItem(id: Long) = viewModelScope.launch { repo.removeWorkoutItem(id) }
@@ -242,12 +255,18 @@ class ZenViewModel(
     // ---- Dieta ----
 
     fun generateDiet() = viewModelScope.launch {
-        toast(working("Montando dieta…") { repo.generateDietProposal() } ?: "Nova sugestão de dieta pronta.")
+        toast(working(tr("Montando dieta…")) { repo.generateDietProposal() } ?: tr("Nova sugestão de dieta pronta."))
+    }
+    /** Cria o cardápio da semana, sugerido ou em branco, com o dia do lixo escolhido (se houver). */
+    fun createWeek(manual: Boolean, cheat: CheatDay?) = viewModelScope.launch {
+        val label = if (manual) tr("Preparando cardápio…") else tr("Montando cardápio da semana…")
+        val error = working(label) { repo.generateDietProposal(ZenRepository.WeekRequest(manual, cheat)) }
+        toast(error ?: if (manual) tr("Cardápio em branco pronto — adicione os alimentos de cada dia.") else tr("Cardápio da semana pronto — revise e aceite."))
     }
     fun ensureDietSuggestion() = viewModelScope.launch { repo.ensureDietSuggestion() }
     fun acceptDiet(planId: Long) = viewModelScope.launch {
         repo.acceptDiet(planId)
-        toast("Dieta ativada!")
+        toast(tr("Dieta ativada!"))
     }
     fun discardDiet() = viewModelScope.launch { repo.discardDietProposal() }
     fun removeMealItem(id: Long) = viewModelScope.launch { repo.removeMealItem(id) }
@@ -275,12 +294,12 @@ class ZenViewModel(
     // ---- Agenda de refeições ----
 
     fun setMealCount(count: Int) = viewModelScope.launch {
-        working("Ajustando refeições…") { repo.updateMealCount(count) }
-        toast("$count refeições por dia. Dieta reponderada — revise a sugestão.")
+        working(tr("Ajustando refeições…")) { repo.updateMealCount(count) }
+        toast(tr("{0} refeições por dia. Dieta reponderada — revise a sugestão.", count))
     }
     fun setMealTime(type: MealType, time: String) = viewModelScope.launch {
         repo.setMealTime(type, time)
-        toast("Horário de ${type.label.lowercase()} salvo: $time.")
+        toast(tr("Horário de {0} salvo: {1}.", type.label.lowercase(), time))
     }
     fun setMealDone(type: MealType, done: Boolean) = viewModelScope.launch {
         repo.setMealDone(type, clock.value.epochDay, done)

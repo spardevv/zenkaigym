@@ -40,7 +40,7 @@ data class TimeOfDay(val hour: Int, val minute: Int) : Comparable<TimeOfDay> {
 data class TimeWindow(val start: TimeOfDay, val end: TimeOfDay) {
     init {
         require(end.totalMinutes - start.totalMinutes >= MIN_DURATION_MINUTES) {
-            "O fim deve ser ao menos $MIN_DURATION_MINUTES min depois do início."
+            tr("O fim deve ser ao menos {0} min depois do início.", MIN_DURATION_MINUTES)
         }
     }
 

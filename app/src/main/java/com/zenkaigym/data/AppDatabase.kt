@@ -30,7 +30,7 @@ import com.zenkaigym.data.entity.WorkoutPlan
         Exercise::class, WorkoutPlan::class, WorkoutDay::class, WorkoutItem::class,
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,9 +61,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v4: cardápio semanal (dia da semana e refeição livre) e medida caseira dos alimentos. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE meal ADD COLUMN dayOfWeek INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE meal ADD COLUMN cheatKcal INTEGER")
+                db.execSQL("ALTER TABLE diet_plan ADD COLUMN cheatDay INTEGER")
+                db.execSQL("ALTER TABLE food ADD COLUMN unitLabel TEXT")
+                db.execSQL("ALTER TABLE food ADD COLUMN unitGrams REAL")
+                // Alimentos da lista pronta ganham a medida caseira; os cadastrados pelo usuário ficam como estão.
+                FoodExamples.all().filter { it.unitLabel != null }.forEach {
+                    db.execSQL(
+                        "UPDATE food SET unitLabel = ?, unitGrams = ? WHERE name = ? AND unitLabel IS NULL",
+                        arrayOf<Any>(it.unitLabel!!, it.unitGrams!!, it.name)
+                    )
+                }
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

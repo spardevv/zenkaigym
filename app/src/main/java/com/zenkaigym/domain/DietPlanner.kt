@@ -23,6 +23,12 @@ object DietPlanner {
         MealType.SNACK_PM to 0.12, MealType.DINNER to 0.26, MealType.SUPPER to 0.08
     )
 
+    /** Fatia das calorias do dia que [type] ocupa quando o dia tem as refeições [allTypes]. */
+    fun shareOf(type: MealType, allTypes: List<MealType>): Double {
+        val total = allTypes.distinct().sumOf { shares.getValue(it) }
+        return if (total > 0) shares.getValue(type) / total else 0.0
+    }
+
     private fun rolesOf(type: MealType): List<Role> = when (type) {
         MealType.BREAKFAST -> listOf(Role.PROTEIN, Role.PROTEIN2, Role.CARB, Role.FRUIT)
         MealType.SNACK_AM, MealType.SNACK_PM -> listOf(Role.PROTEIN, Role.FRUIT, Role.CARB)
@@ -44,20 +50,21 @@ object DietPlanner {
     fun plan(
         target: NutritionTarget,
         foods: List<Food>,
-        types: List<MealType> = MealSchedule.typesFor(4)
+        types: List<MealType> = MealSchedule.typesFor(4),
+        // Quantas vezes cada alimento já foi usado; compartilhar entre os dias da semana gera variedade.
+        used: MutableMap<Long, Int> = mutableMapOf()
     ): DietSuggestion {
         val warnings = mutableListOf<String>()
         listOf(FoodCategory.PROTEIN, FoodCategory.CARB, FoodCategory.VEGETABLE, FoodCategory.SALAD).forEach { cat ->
             if (foods.none { it.category == cat }) {
                 val required = cat == FoodCategory.PROTEIN || cat == FoodCategory.CARB
-                warnings += if (required) "Cadastre ao menos um alimento de ${cat.label.lowercase()}."
-                else "Sem ${cat.label.lowercase()} cadastrado: a dieta ficará sem esse item."
+                warnings += if (required) tr("Cadastre ao menos um alimento de {0}.", cat.label.lowercase())
+                else tr("Sem {0} cadastrado: a dieta ficará sem esse item.", cat.label.lowercase())
             }
         }
 
         val ordered = types.distinct().sortedBy { it.ordinal }
         val totalShare = ordered.sumOf { shares.getValue(it) }
-        val used = mutableMapOf<Long, Int>()
         val byId = foods.associateBy { it.id }
 
         fun pick(category: FoodCategory, type: MealType, exclude: Set<Long>): Food? {
@@ -149,10 +156,14 @@ object DietPlanner {
                 val g = grams[role]
                 if (f != null && g != null) PlannedMealItem(f.id, g) else null
             }
-            PlannedMeal(type.label, type, items)
+            PlannedMeal(type.pt, type, items)
         }
-        return DietSuggestion(balanceCarbs(meals, byId, target), warnings)
+        return DietSuggestion(snapToUnits(balanceCarbs(meals, byId, target), byId), warnings)
     }
+
+    /** Alimentos com medida caseira (ovo, fatia, fruta) entram em unidades inteiras. */
+    private fun snapToUnits(meals: List<PlannedMeal>, byId: Map<Long, Food>): List<PlannedMeal> =
+        meals.map { meal -> meal.copy(items = meal.items.map { it.copy(grams = Portions.snap(byId.getValue(it.foodId), it.grams)) }) }
 
     private fun minProtein(f: Food) = if (f.proteinPer100 >= 60) 20.0 else 30.0
 
@@ -194,14 +205,16 @@ object DietPlanner {
                 else kcalEquivalent(old, oldGrams, new)
             else -> kcalEquivalent(old, oldGrams, new)
         }
-        return round5(grams).coerceIn(5, 1000)
+        return Portions.snap(new, round5(grams).coerceIn(5, 1000))
     }
 
     private fun kcalEquivalent(old: Food, oldGrams: Int, new: Food): Double =
         if (new.kcalPer100 > 0) old.kcalPer100 * oldGrams / new.kcalPer100 else oldGrams.toDouble()
 
     /** Porção inicial ao adicionar um alimento a uma refeição. */
-    fun defaultGrams(food: Food): Int = if (food.category == FoodCategory.SALAD) 80 else 100
+    fun defaultGrams(food: Food): Int =
+        if (Portions.unitGrams(food) != null) Portions.snap(food, 1)
+        else if (food.category == FoodCategory.SALAD) 80 else 100
 
     /** Alimentos da mesma categoria, os que combinam com a refeição primeiro. */
     fun alternatives(foods: List<Food>, category: FoodCategory, type: MealType, excludeId: Long? = null): List<Food> =

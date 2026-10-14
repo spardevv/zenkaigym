@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -57,7 +58,7 @@ fun LoadingScreen() {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Text("Preparando o dojo…", color = p.muted, style = MaterialTheme.typography.labelSmall)
+            Text(tr("Preparando o dojo…"), color = p.muted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

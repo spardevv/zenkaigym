@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,7 +36,14 @@ import com.zenkaigym.data.entity.MealItemFull
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.domain.CheatDay
+import com.zenkaigym.domain.CheatMeal
+import com.zenkaigym.domain.CheatRules
 import com.zenkaigym.domain.DietPlanner
+import com.zenkaigym.domain.Portions
+import com.zenkaigym.util.WEEK_DAYS_SHORT
+import com.zenkaigym.util.todayDayOfWeek
+import androidx.compose.runtime.mutableStateMapOf
 import com.zenkaigym.domain.MealSchedule
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.ui.ZenViewModel
@@ -59,10 +67,20 @@ import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Zen
 import kotlin.math.roundToInt
 
-private const val GRAM_STEP = 10
+private val WEEK_DAYS_LONG: List<String> get() = listOf(tr("Segunda"), tr("Terça"), tr("Quarta"), tr("Quinta"), tr("Sexta"), tr("Sábado"), tr("Domingo"))
+
+/** Refeições de um dia; planos antigos (dia 0) valem para todos os dias. */
+private fun DietPlanFull.mealsOf(day: Int) = meals.filter { it.meal.dayOfWeek == day || it.meal.dayOfWeek == 0 }
+
+private fun MealFull.kcal(): Int =
+    meal.cheatKcal ?: items.sumOf { it.food.kcalPer100 * it.item.grams / 100 }.roundToInt()
+
+private fun MealFull.protein(): Int =
+    if (meal.cheatKcal != null) 0 else items.sumOf { it.food.proteinPer100 * it.item.grams / 100 }.roundToInt()
 
 @Composable
 fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
@@ -80,6 +98,8 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
 
     var editingId by remember { mutableStateOf<Long?>(null) }
     var addingTo by remember { mutableStateOf<Long?>(null) }
+    var day by remember { mutableStateOf(todayDayOfWeek()) }
+    var setup by remember { mutableStateOf(false) }
 
     ZenPage {
         val listState = rememberLazyListState()
@@ -90,17 +110,19 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
         ) {
             item(key = "header") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ZenHeader("Dieta", "食", accent = Midori, subtitle = "Meta, horários e refeições")
-                    ZenButton("Meus alimentos  →", onOpenFoods, accent = Ao, fill = true, small = true)
+                    ZenHeader(tr("Dieta"), "食", accent = Midori, subtitle = tr("Meta, horários e refeições"))
+                    ZenButton(tr("Meus alimentos  →"), onOpenFoods, accent = Ao, fill = true, small = true)
                 }
             }
             profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
             item(key = "schedule") { ScheduleCard(slots, viewModel) }
             item(key = "plan") {
-                PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel)
+                PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel, onSetup = { setup = true })
             }
             if (shown != null) {
-                items(shown.meals.sortedBy { it.meal.position }, key = { it.meal.id }) { meal ->
+                item(key = "days") { DayPicker(shown, day) { day = it } }
+                item(key = "day-summary") { DaySummary(shown, day, slots) }
+                items(shown.mealsOf(day).sortedBy { it.meal.position }, key = { it.meal.id }) { meal ->
                     MealCard(
                         meal, MealSchedule.timeOf(meal.meal.type, slots).format(),
                         onEdit = { editingId = it }, onAdd = { addingTo = meal.meal.id }
@@ -109,6 +131,15 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+    }
+
+    if (setup) {
+        val goal = (profile?.targetKcal ?: suggested?.kcal) ?: shown?.plan?.kcal
+        WeekSetupDialog(
+            slots = slots, goalKcal = goal, initial = shown?.cheatDay(),
+            onDismiss = { setup = false },
+            onCreate = { manual, cheat -> viewModel.createWeek(manual, cheat); setup = false }
+        )
     }
 
     // As janelas procuram o item/refeição no plano atual, então refletem cada alteração na hora.
@@ -140,26 +171,26 @@ private fun TargetCard(profile: UserProfile, suggested: NutritionTarget?, viewMo
     var proteinText by remember(shown) { mutableStateOf(shown.protein.toString()) }
 
     ZenCard(accent = Midori, entranceIndex = 0) {
-        SectionTitle(if (accepted != null) "Sua meta diária" else "Meta sugerida", accent = Midori)
+        SectionTitle(if (accepted != null) tr("Sua meta diária") else tr("Meta sugerida"), accent = Midori)
         if (accepted == null) {
             Spacer(Modifier.height(4.dp))
-            Text("Calculada com seu corpo, objetivo e dias de treino. Aceite ou ajuste.", color = Zen.p.muted)
+            Text(tr("Calculada com seu corpo, objetivo e dias de treino. Aceite ou ajuste."), color = Zen.p.muted)
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatPill("kcal", "${shown.kcal}", Modifier.weight(1f), Aka)
-            StatPill("proteína", "${shown.protein}g", Modifier.weight(1f), Ki)
-            StatPill("carbo", "${shown.carbs}g", Modifier.weight(1f), Ao)
-            StatPill("gordura", "${shown.fat}g", Modifier.weight(1f), Midori)
+            StatPill(tr("proteína"), "${shown.protein}g", Modifier.weight(1f), Ki)
+            StatPill(tr("carbo"), "${shown.carbs}g", Modifier.weight(1f), Ao)
+            StatPill(tr("gordura"), "${shown.fat}g", Modifier.weight(1f), Midori)
         }
         Spacer(Modifier.height(12.dp))
         if (editing) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ZenField("Calorias", kcalText, { kcalText = it }, Modifier.weight(1f), KeyboardType.Number)
-                ZenField("Proteína (g)", proteinText, { proteinText = it }, Modifier.weight(1f), KeyboardType.Number)
+                ZenField(tr("Calorias"), kcalText, { kcalText = it }, Modifier.weight(1f), KeyboardType.Number)
+                ZenField(tr("Proteína (g)"), proteinText, { proteinText = it }, Modifier.weight(1f), KeyboardType.Number)
             }
             Spacer(Modifier.height(10.dp))
-            ZenButton("Salvar minha meta", {
+            ZenButton(tr("Salvar minha meta"), {
                 val k = kcalText.trim().toIntOrNull()
                 val p = proteinText.trim().toIntOrNull()
                 if (k != null && p != null && k in 800..6000 && p in 20..500) {
@@ -169,10 +200,10 @@ private fun TargetCard(profile: UserProfile, suggested: NutritionTarget?, viewMo
             }, accent = Midori, fill = true)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (accepted == null && suggested != null) ZenButton("Aceitar", { viewModel.acceptTarget(suggested) }, accent = Midori)
-                ZenButton("Ajustar", { editing = true }, accent = Ki)
+                if (accepted == null && suggested != null) ZenButton(tr("Aceitar"), { viewModel.acceptTarget(suggested) }, accent = Midori)
+                ZenButton(tr("Ajustar"), { editing = true }, accent = Sakura)
                 if (accepted != null && suggested != null && suggested != accepted && suggested.kcal != accepted.kcal) {
-                    ZenButton("Usar sugerida", { viewModel.acceptTarget(suggested) }, accent = Zen.p.card)
+                    ZenButton(tr("Usar sugerida"), { viewModel.acceptTarget(suggested) }, accent = Zen.p.card)
                 }
             }
         }
@@ -184,12 +215,12 @@ private fun TargetCard(profile: UserProfile, suggested: NutritionTarget?, viewMo
 @Composable
 private fun ScheduleCard(slots: List<MealSlot>, viewModel: ZenViewModel) {
     var picker by remember { mutableStateOf<MealType?>(null) }
-    ZenCard(accent = Ki, entranceIndex = 1) {
-        SectionTitle("Refeições por dia", accent = Ki)
+    ZenCard(accent = Midori, entranceIndex = 1) {
+        SectionTitle(tr("Refeições por dia"), accent = Midori)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             (MealSchedule.MIN_MEALS..MealSchedule.MAX_MEALS).forEach { n ->
-                ZenChip("$n", slots.size == n, { viewModel.setMealCount(n) }, Modifier.weight(1f), accent = Ki)
+                ZenChip("$n", slots.size == n, { viewModel.setMealCount(n) }, Modifier.weight(1f), accent = Midori)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -212,89 +243,241 @@ private fun ScheduleCard(slots: List<MealSlot>, viewModel: ZenViewModel) {
 
 // ---- Plano ----
 
+private fun DietPlanFull.cheatDay(): CheatDay? {
+    val day = plan.cheatDay ?: return null
+    val cheat = meals.filter { it.meal.dayOfWeek == day && it.meal.cheatKcal != null }
+    if (cheat.isEmpty()) return null
+    return CheatDay(day, cheat.map { CheatMeal(it.meal.type, it.meal.cheatKcal ?: 0) })
+}
+
 @Composable
 private fun PlanCard(
     shown: DietPlanFull?,
     isProposal: Boolean,
     hasActive: Boolean,
     slots: List<MealSlot>,
-    viewModel: ZenViewModel
+    viewModel: ZenViewModel,
+    onSetup: () -> Unit
 ) {
     if (shown == null) {
         ZenCard(accent = Midori, entranceIndex = 2) {
-            SectionTitle("Sem dieta ainda", accent = Midori)
+            SectionTitle(tr("Sem cardápio ainda"), accent = Midori)
             Spacer(Modifier.height(6.dp))
-            Text("Preencha o perfil e tenha alimentos cadastrados para receber uma sugestão.")
+            Text(tr("Preencha o perfil e tenha alimentos cadastrados para montar o cardápio da semana."))
             Spacer(Modifier.height(12.dp))
-            ZenButton("Gerar sugestão", viewModel::generateDiet, accent = Midori, fill = true)
+            ZenButton(tr("Montar cardápio da semana"), onSetup, accent = Midori, fill = true)
         }
         return
     }
     val stale = shown.meals.map { it.meal.type }.toSet() != slots.map { it.type }.toSet()
-    ZenCard(accent = if (isProposal) Ki else Midori, entranceIndex = 2) {
-        Text(if (isProposal) "SUGESTÃO · REVISE E ACEITE" else "DIETA ATIVA", style = MaterialTheme.typography.labelLarge)
+    ZenCard(accent = Midori, entranceIndex = 2) {
+        Text(if (isProposal) tr("CARDÁPIO DA SEMANA · REVISE E ACEITE") else tr("CARDÁPIO DA SEMANA ATIVO"), style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        Totals(shown)
+        WeekTotals(shown)
         if (stale) {
             Spacer(Modifier.height(8.dp))
-            Text("Você mudou a quantidade de refeições. Gere uma nova sugestão para aplicar.", color = Aka, style = MaterialTheme.typography.bodyMedium)
+            Text(tr("Você mudou a quantidade de refeições. Monte um novo cardápio para aplicar."), color = Aka, style = MaterialTheme.typography.bodyMedium)
         }
         Spacer(Modifier.height(10.dp))
+        Text(tr("Escolha o dia abaixo. Toque num alimento para trocar, ajustar ou remover."), color = Zen.p.muted)
+        Spacer(Modifier.height(10.dp))
         if (isProposal) {
-            Text("Toque num alimento para trocar, ajustar ou remover.", color = Zen.p.muted)
-            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton("Aceitar", { viewModel.acceptDiet(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
-                ZenButton("Outra", viewModel::generateDiet, Modifier.weight(1f), accent = Ki, fill = true)
+                ZenButton(tr("Aceitar"), { viewModel.acceptDiet(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
+                ZenButton(tr("Outra"), viewModel::generateDiet, Modifier.weight(1f), accent = Sakura, fill = true)
             }
-            if (hasActive) {
-                Spacer(Modifier.height(4.dp))
-                ZenButton("Descartar e manter a ativa", viewModel::discardDiet, accent = Zen.p.card, small = true)
+            Spacer(Modifier.height(8.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("Novo cardápio…"), onSetup, Modifier.weight(1f), accent = Sakura, fill = true, small = true)
+            if (isProposal && hasActive) {
+                ZenButton(tr("Manter a ativa"), viewModel::discardDiet, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
             }
-        } else {
-            Text("Toque num alimento para trocar, ajustar ou remover.", color = Zen.p.muted)
-            Spacer(Modifier.height(10.dp))
-            ZenButton("Nova sugestão", viewModel::generateDiet, accent = if (stale) Ki else Midori, small = !stale)
         }
     }
 }
 
-/** Uma linha com o total do plano (a meta fica no cartão de cima, sem repetir os números em destaque). */
+/** Média diária da semana contra a meta. */
 @Composable
-private fun Totals(plan: DietPlanFull) {
-    val items = plan.meals.flatMap { it.items }
-    val kcal = items.sumOf { it.food.kcalPer100 * it.item.grams / 100 }.roundToInt()
-    val protein = items.sumOf { it.food.proteinPer100 * it.item.grams / 100 }.roundToInt()
-    Text("Plano: $kcal kcal · $protein g de proteína", style = MaterialTheme.typography.titleMedium)
+private fun WeekTotals(plan: DietPlanFull) {
+    val perDay = (1..7).map { d -> plan.mealsOf(d).sumOf { it.kcal() } }
+    val avg = perDay.average().roundToInt()
+    Text(tr("Semana: média de {0} kcal/dia · meta {1}", avg, plan.plan.kcal), style = MaterialTheme.typography.titleMedium)
+}
+
+@Composable
+private fun DayPicker(plan: DietPlanFull, day: Int, onSelect: (Int) -> Unit) {
+    val cheatDay = plan.plan.cheatDay
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            WEEK_DAYS_SHORT.forEachIndexed { index, label ->
+                val dow = index + 1
+                ZenChip(if (dow == cheatDay) "$label★" else label, day == dow, { onSelect(dow) }, Modifier.weight(1f), accent = if (dow == cheatDay) Aka else Midori, compact = true)
+            }
+        }
+        if (cheatDay != null) {
+            Text(tr("★ Dia do lixo: {0}", WEEK_DAYS_LONG[cheatDay - 1]), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+/** Total do dia escolhido e quanto ele deveria somar (a compensação do dia do lixo muda a meta dos outros dias). */
+@Composable
+private fun DaySummary(plan: DietPlanFull, day: Int, slots: List<MealSlot>) {
+    val meals = plan.mealsOf(day)
+    val kcal = meals.sumOf { it.kcal() }
+    val protein = meals.sumOf { it.protein() }
+    val cheat = plan.cheatDay()
+    val types = slots.map { it.type }
+    val isCheatDay = cheat != null && day == cheat.dayOfWeek
+    val dayGoal = if (cheat != null) CheatRules.dayTarget(plan.plan.kcal, types, cheat.meals, isCheatDay) else plan.plan.kcal
+    ZenCard(accent = if (isCheatDay) Aka else Midori, entranceIndex = -1) {
+        Text(WEEK_DAYS_LONG[day - 1].uppercase() + if (isCheatDay) tr(" · DIA DO LIXO") else "", style = MaterialTheme.typography.titleMedium)
+        Text(tr("{0} kcal · {1} g proteína · meta do dia {2} kcal", kcal, protein, dayGoal), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+        if (cheat != null && !isCheatDay) {
+            val comp = CheatRules.compensationPerDay(plan.plan.kcal, types, cheat.meals)
+            if (comp > 0) Text(tr("−{0} kcal para compensar o dia do lixo", comp), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+// ---- Montagem do cardápio semanal ----
+
+/** Escolhe como montar a semana (sugestão ou à mão) e, se quiser, o dia do lixo com suas refeições livres. */
+@Composable
+private fun WeekSetupDialog(
+    slots: List<MealSlot>,
+    goalKcal: Int?,
+    initial: CheatDay?,
+    onDismiss: () -> Unit,
+    onCreate: (manual: Boolean, cheat: CheatDay?) -> Unit
+) {
+    val types = remember(slots) { slots.sortedBy { it.position }.map { it.type } }
+    val goal = goalKcal ?: 2000
+    val limit = CheatRules.limit(goal)
+    var manual by remember { mutableStateOf(false) }
+    var useCheat by remember { mutableStateOf(initial != null) }
+    var cheatDay by remember { mutableStateOf(initial?.dayOfWeek ?: 6) }
+    val kcalByType = remember {
+        mutableStateMapOf<MealType, Int>().apply { initial?.meals?.filter { it.type in types }?.forEach { put(it.type, it.kcal) } }
+    }
+    val chosen = types.filter { it in kcalByType }.map { CheatMeal(it, kcalByType.getValue(it)) }
+    val total = chosen.sumOf { it.kcal }
+    val comp = CheatRules.compensationPerDay(goal, types, chosen)
+
+    ZenDialog(tr("Cardápio da semana"), onDismiss, accent = Midori) {
+        Text(tr("COMO MONTAR"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ZenChip(tr("Sugestão"), !manual, { manual = false }, Modifier.weight(1f), accent = Midori, compact = true)
+            ZenChip(tr("À mão"), manual, { manual = true }, Modifier.weight(1f), accent = Midori, compact = true)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (manual) tr("Cria a semana em branco: você adiciona os alimentos de cada refeição.")
+            else tr("O app monta os sete dias variando os pratos com seus alimentos. Dá para ajustar depois."),
+            color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(tr("DIA DO LIXO"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ZenChip(tr("Não"), !useCheat, { useCheat = false }, Modifier.weight(1f), accent = Midori, compact = true)
+            ZenChip(tr("Sim"), useCheat, { useCheat = true }, Modifier.weight(1f), accent = Aka, compact = true)
+        }
+        if (useCheat) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                WEEK_DAYS_SHORT.forEachIndexed { index, label ->
+                    ZenChip(label, cheatDay == index + 1, { cheatDay = index + 1 }, Modifier.weight(1f), accent = Aka, compact = true)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(tr("REFEIÇÕES FORA DA DIETA"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(4.dp))
+            types.forEach { type ->
+                val on = type in kcalByType
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ZenChip(type.label, on, {
+                        if (on) kcalByType.remove(type)
+                        else {
+                            val room = (limit - total).coerceAtLeast(0)
+                            val suggestion = (goal * DietPlanner.shareOf(type, types) * 1.5 / 50).roundToInt() * 50
+                            kcalByType[type] = suggestion.coerceAtMost(room / 10 * 10)
+                        }
+                    }, Modifier.weight(1f), accent = Aka, compact = true)
+                }
+                if (on) {
+                    Stepper(
+                        "${kcalByType.getValue(type)} kcal",
+                        onMinus = { kcalByType[type] = (kcalByType.getValue(type) - 50).coerceAtLeast(0) },
+                        onPlus = { if (total + 50 <= limit) kcalByType[type] = kcalByType.getValue(type) + 50 },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                tr("Livres: {0} de no máximo {1} kcal (sua meta diária).", total, limit),
+                color = if (total >= limit) Aka else Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+            )
+            if (chosen.isNotEmpty()) {
+                Text(
+                    if (comp > 0) tr("Os outros 6 dias perdem cerca de {0} kcal cada para compensar.", comp)
+                    else tr("Sem compensação: as refeições livres não passam do que a dieta teria."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(if (manual) tr("Criar em branco") else tr("Montar cardápio"), {
+                val cheat = if (useCheat && chosen.isNotEmpty()) CheatDay(cheatDay, chosen) else null
+                onCreate(manual, cheat)
+            }, Modifier.weight(1f), accent = Midori, fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+        }
+    }
 }
 
 @Composable
 private fun MealCard(meal: MealFull, time: String, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
-    ZenCard(entranceIndex = -1) {
-        val kcal = meal.items.sumOf { it.food.kcalPer100 * it.item.grams / 100 }.roundToInt()
-        val protein = meal.items.sumOf { it.food.proteinPer100 * it.item.grams / 100 }.roundToInt()
+    val cheatKcal = meal.meal.cheatKcal
+    ZenCard(accent = if (cheatKcal != null) Aka else null, entranceIndex = -1) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(meal.meal.name.uppercase(), style = MaterialTheme.typography.titleMedium)
-                Text("$kcal kcal · $protein g proteína", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                Text(tr(meal.meal.name).uppercase(), style = MaterialTheme.typography.titleMedium)
+                if (cheatKcal != null) {
+                    Text(tr("Refeição livre · cerca de {0} kcal", cheatKcal), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text(tr("{0} kcal · {1} g proteína", meal.kcal(), meal.protein()), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                }
             }
             Text(time, style = MaterialTheme.typography.headlineSmall)
         }
+        if (cheatKcal != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(tr("Fora da dieta: coma o que quiser, sem passar desse valor."), color = Zen.p.muted)
+            return@ZenCard
+        }
         Spacer(Modifier.height(6.dp))
+        if (meal.items.isEmpty()) {
+            Text(tr("Nenhum alimento ainda. Toque em + Adicionar."), color = Zen.p.muted)
+        }
         meal.items.forEach { entry ->
             Row(
                 Modifier.fillMaxWidth().clickable { onEdit(entry.item.id) }.padding(vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(entry.food.name, style = MaterialTheme.typography.bodyLarge)
-                    Text("${entry.item.grams} g · ${entry.food.category.label}", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text(tr(entry.food.name), style = MaterialTheme.typography.bodyLarge)
+                    Text("${Portions.text(entry.food, entry.item.grams)} · ${entry.food.category.label}", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                 }
                 Text("⇄", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
             }
         }
         Spacer(Modifier.height(6.dp))
-        ZenButton("+ Adicionar", onAdd, accent = Zen.p.card, small = true)
+        ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
     }
 }
 
@@ -310,36 +493,37 @@ private fun FoodItemDialog(meal: MealFull, entry: MealItemFull, foods: List<Food
         DietPlanner.alternatives(foods, food.category, meal.meal.type, excludeId = food.id)
     }
 
-    ZenDialog(food.name, onClose, accent = food.category.accent()) {
+    ZenDialog(tr(food.name), onClose, accent = food.category.accent()) {
+        val step = Portions.stepGrams(food)
         Stepper(
-            "$grams g",
-            onMinus = { viewModel.setMealItemGrams(entry.item.id, grams - GRAM_STEP) },
-            onPlus = { viewModel.setMealItemGrams(entry.item.id, grams + GRAM_STEP) },
+            Portions.text(food, grams),
+            onMinus = { viewModel.setMealItemGrams(entry.item.id, grams - step) },
+            onPlus = { viewModel.setMealItemGrams(entry.item.id, grams + step) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "${(food.kcalPer100 * grams / 100).roundToInt()} kcal · ${(food.proteinPer100 * grams / 100).roundToInt()} g proteína",
+            tr("{0} kcal · {1} g proteína", (food.kcalPer100 * grams / 100).roundToInt(), (food.proteinPer100 * grams / 100).roundToInt()),
             color = Zen.p.muted
         )
         Spacer(Modifier.height(14.dp))
-        Text("TROCAR POR (${food.category.label.uppercase()})", color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Text(tr("TROCAR POR ({0})", food.category.label.uppercase()), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
-        if (alternatives.isEmpty()) Text("Nenhuma outra opção cadastrada.", color = Zen.p.muted)
+        if (alternatives.isEmpty()) Text(tr("Nenhuma outra opção cadastrada."), color = Zen.p.muted)
         alternatives.forEach { alt ->
             val equivalent = DietPlanner.equivalentGrams(food, grams, alt)
-            PickRow(alt.name, "${alt.kcalPer100.toInt()} kcal/100 g", "≈ $equivalent g", alt.category.accent()) {
+            PickRow(tr(alt.name), tr("{0} kcal/100 g", alt.kcalPer100.toInt()), "≈ ${Portions.text(alt, equivalent)}", alt.category.accent()) {
                 viewModel.replaceFood(entry.item.id, food, grams, alt)
                 onClose()
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("+ Cadastrar outro", { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton("Remover", { viewModel.removeMealItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Remover"), { viewModel.removeMealItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
         }
         Spacer(Modifier.height(8.dp))
-        ZenButton("Fechar", onClose, accent = Zen.p.card, fill = true, small = true)
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
     }
 
     if (registering) {
@@ -363,24 +547,24 @@ private fun AddFoodDialog(meal: MealFull, foods: List<Food>, viewModel: ZenViewM
     var registering by remember { mutableStateOf(false) }
     val options = remember(foods, category, meal.meal.type) { DietPlanner.alternatives(foods, category, meal.meal.type) }
 
-    ZenDialog("Adicionar · ${meal.meal.name}", onClose, accent = category.accent()) {
+    ZenDialog(tr("Adicionar · {0}", tr(meal.meal.name)), onClose, accent = category.accent()) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             FoodCategory.entries.forEach {
                 ZenChip(it.shortLabel(), category == it, { category = it }, Modifier.weight(1f), accent = it.accent(), compact = true)
             }
         }
         Spacer(Modifier.height(10.dp))
-        if (options.isEmpty()) Text("Nenhum alimento nesta categoria.", color = Zen.p.muted)
+        if (options.isEmpty()) Text(tr("Nenhum alimento nesta categoria."), color = Zen.p.muted)
         options.forEach { food ->
-            PickRow(food.name, "${food.kcalPer100.toInt()} kcal/100 g", "${DietPlanner.defaultGrams(food)} g", food.category.accent()) {
+            PickRow(tr(food.name), tr("{0} kcal/100 g", food.kcalPer100.toInt()), Portions.text(food, DietPlanner.defaultGrams(food)), food.category.accent()) {
                 viewModel.addFoodToMeal(meal.meal.id, food)
                 onClose()
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("+ Cadastrar novo", { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton("Fechar", onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
         }
     }
 

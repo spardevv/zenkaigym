@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,10 +66,10 @@ fun SetupScreen(viewModel: ZenViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader("Vamos começar", "始", subtitle = "Seu treino e sua dieta saem prontos em seguida")
+            ZenHeader(tr("Vamos começar"), "始", subtitle = tr("Seu treino e sua dieta saem prontos em seguida"))
 
             ZenCard(accent = Ao, entranceIndex = 0) {
-                SectionTitle("Aparência", accent = Ao)
+                SectionTitle(tr("Aparência"), accent = Ao)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemeMode.entries.forEach {
@@ -76,36 +77,36 @@ fun SetupScreen(viewModel: ZenViewModel) {
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("Você pode mudar isso depois em Ajustes.", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                Text(tr("Você pode mudar isso depois em Ajustes."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
             }
 
             ZenCard(accent = Aka, entranceIndex = 1) {
-                SectionTitle("Seus dados")
+                SectionTitle(tr("Seus dados"))
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ZenField("Altura (cm)", height, { height = it }, Modifier.weight(1f), KeyboardType.Number)
-                    ZenField("Peso (kg)", weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal)
-                    ZenField("Idade", age, { age = it }, Modifier.weight(1f), KeyboardType.Number)
+                    ZenField(tr("Altura (cm)"), height, { height = it }, Modifier.weight(1f), KeyboardType.Number)
+                    ZenField(tr("Peso (kg)"), weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal)
+                    ZenField(tr("Idade"), age, { age = it }, Modifier.weight(1f), KeyboardType.Number)
                 }
                 Spacer(Modifier.height(12.dp))
-                Label("Sexo")
+                Label(tr("Sexo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Sex.entries.forEach { ZenChip(it.label, sex == it, { sex = it }, accent = Ao) }
                 }
                 Spacer(Modifier.height(12.dp))
-                Label("Objetivo")
+                Label(tr("Objetivo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }) }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("Tudo fica salvo só neste aparelho.", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                Text(tr("Tudo fica salvo só neste aparelho."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                 error?.let {
                     Spacer(Modifier.height(10.dp))
                     Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
                 }
             }
 
-            ZenButton("Começar", {
+            ZenButton(tr("Começar"), {
                 when (val r = ProfileValidator.validate(height, weight, age)) {
                     is ProfileValidation.Invalid -> error = r.message
                     is ProfileValidation.Valid -> {

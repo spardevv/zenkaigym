@@ -160,6 +160,12 @@ interface DietDao {
     @Query("SELECT COUNT(*) FROM diet_plan")
     suspend fun planCount(): Int
 
+    @Query("SELECT * FROM diet_plan ORDER BY id DESC LIMIT 1")
+    suspend fun latestPlan(): DietPlan?
+
+    @Query("SELECT * FROM meal WHERE planId = :planId AND cheatKcal IS NOT NULL")
+    suspend fun cheatMeals(planId: Long): List<Meal>
+
     // ---- Agenda de refeições e checagem diária ----
 
     @Query("SELECT * FROM meal_slot ORDER BY position")

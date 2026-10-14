@@ -3,26 +3,26 @@ package com.zenkaigym.domain
 data class IntroPage(val kanji: String, val title: String, val body: String)
 
 object IntroPages {
-    val all = listOf(
+    val all: List<IntroPage> get() = listOf(
         IntroPage(
-            "禅", "Bem-vindo ao Zenkaigym",
-            "Treino e dieta com a disciplina de um mestre e a energia de um shonen. Seus dados ficam salvos só neste aparelho, de forma local: sem login, sem internet e sem enviar nada para fora."
+            "禅", tr("Bem-vindo ao Zenkaigym"),
+            tr("Treino e dieta com a disciplina de um mestre e a energia de um shonen. Seus dados ficam salvos só neste aparelho, de forma local: sem login, sem internet e sem enviar nada para fora.")
         ),
         IntroPage(
-            "己", "Conte quem você é",
-            "Altura, peso, idade e objetivo. Ao salvar, o app já pondera sozinho a sua dieta e o seu treino."
+            "己", tr("Conte quem você é"),
+            tr("Altura, peso, idade e objetivo. Ao salvar, o app já pondera sozinho a sua dieta e o seu treino.")
         ),
         IntroPage(
-            "体", "Treino sob medida",
-            "Marque os dias e horários em que pode treinar. Distribuímos treinos e descanso de forma equilibrada."
+            "体", tr("Treino sob medida"),
+            tr("Marque os dias e horários em que pode treinar. Distribuímos treinos e descanso de forma equilibrada.")
         ),
         IntroPage(
-            "食", "Dieta simples",
-            "Escolha quantas refeições faz por dia e os horários. Sugerimos ovos e pão de manhã, frango e arroz no almoço, e assim por diante. No Dojo, é só marcar o que já comeu."
+            "食", tr("Dieta simples"),
+            tr("Escolha quantas refeições faz por dia e os horários. Sugerimos ovos e pão de manhã, frango e arroz no almoço, e assim por diante. No Dojo, é só marcar o que já comeu.")
         ),
         IntroPage(
-            "決", "A decisão é sua",
-            "Tudo que o app gera é só uma sugestão. Você decide: ajuste, aceite ou descarte. Suas informações ficam guardadas localmente neste celular."
+            "決", tr("A decisão é sua"),
+            tr("Tudo que o app gera é só uma sugestão. Você decide: ajuste, aceite ou descarte. Suas informações ficam guardadas localmente neste celular.")
         )
     )
 }

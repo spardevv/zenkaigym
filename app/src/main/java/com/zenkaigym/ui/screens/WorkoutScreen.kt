@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +56,7 @@ import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Sumi
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.WEEK_DAYS_SHORT
 
@@ -88,7 +90,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "header") { ZenHeader("Treino", "体", accent = Ki, subtitle = "Dias, horários e ficha") }
+            item(key = "header") { ZenHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha")) }
             item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
             item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
             if (shown != null) {
@@ -117,31 +119,31 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
 private fun PlanCard(shown: WorkoutPlanFull?, isProposal: Boolean, hasActive: Boolean, viewModel: ZenViewModel) {
     if (shown == null) {
         ZenCard(accent = Ki, entranceIndex = 1) {
-            SectionTitle("Sem ficha ainda", accent = Ki)
+            SectionTitle(tr("Sem ficha ainda"), accent = Ki)
             Spacer(Modifier.height(6.dp))
-            Text("Preencha o perfil e marque ao menos um dia de treino para receber uma sugestão.")
+            Text(tr("Preencha o perfil e marque ao menos um dia de treino para receber uma sugestão."))
             Spacer(Modifier.height(12.dp))
-            ZenButton("Gerar sugestão", viewModel::generateWorkout, accent = Ki, fill = true)
+            ZenButton(tr("Gerar sugestão"), viewModel::generateWorkout, accent = Sakura, fill = true)
         }
         return
     }
-    ZenCard(accent = if (isProposal) Ki else Midori, entranceIndex = 1) {
-        Text(if (isProposal) "SUGESTÃO · REVISE E ACEITE" else "FICHA ATIVA", style = MaterialTheme.typography.labelLarge)
-        Text(shown.plan.splitName, style = MaterialTheme.typography.titleMedium)
+    ZenCard(accent = Ki, entranceIndex = 1) {
+        Text(if (isProposal) tr("SUGESTÃO · REVISE E ACEITE") else tr("FICHA ATIVA"), style = MaterialTheme.typography.labelLarge)
+        Text(tr(shown.plan.splitName), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(6.dp))
-        Text("Toque num exercício para trocar, ajustar séries ou remover.", color = Zen.p.muted)
+        Text(tr("Toque num exercício para trocar, ajustar séries ou remover."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
         if (isProposal) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton("Aceitar", { viewModel.acceptWorkout(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
-                ZenButton("Outra", viewModel::generateWorkout, Modifier.weight(1f), accent = Ki, fill = true)
+                ZenButton(tr("Aceitar"), { viewModel.acceptWorkout(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
+                ZenButton(tr("Outra"), viewModel::generateWorkout, Modifier.weight(1f), accent = Sakura, fill = true)
             }
             if (hasActive) {
                 Spacer(Modifier.height(4.dp))
-                ZenButton("Descartar e manter a ativa", viewModel::discardWorkout, accent = Zen.p.card, small = true)
+                ZenButton(tr("Descartar e manter a ativa"), viewModel::discardWorkout, accent = Zen.p.card, small = true)
             }
         } else {
-            ZenButton("Nova sugestão", viewModel::generateWorkout, accent = Midori, small = true)
+            ZenButton(tr("Nova sugestão"), viewModel::generateWorkout, accent = Sakura, small = true)
         }
     }
 }
@@ -149,7 +151,7 @@ private fun PlanCard(shown: WorkoutPlanFull?, isProposal: Boolean, hasActive: Bo
 @Composable
 private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
     ZenCard(entranceIndex = -1) {
-        Text("${WEEK_DAYS_SHORT[day.day.dayOfWeek - 1].uppercase()} · ${day.day.name}", style = MaterialTheme.typography.titleMedium)
+        Text("${WEEK_DAYS_SHORT[day.day.dayOfWeek - 1].uppercase()} · ${tr(day.day.name)}", style = MaterialTheme.typography.titleMedium)
         window?.let {
             Text("${it.format()} · ${it.durationLabel()}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
         }
@@ -160,9 +162,9 @@ private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(entry.exercise.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(tr(entry.exercise.name), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "${entry.item.sets} séries × ${entry.item.reps} · ${entry.exercise.group.label}",
+                        tr("{0} séries × {1} · {2}", entry.item.sets, entry.item.reps, entry.exercise.group.label),
                         color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -170,7 +172,7 @@ private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> 
             }
         }
         Spacer(Modifier.height(6.dp))
-        ZenButton("+ Adicionar", onAdd, accent = Zen.p.card, small = true)
+        ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
     }
 }
 
@@ -186,32 +188,32 @@ private fun ExerciseItemDialog(day: WorkoutDayFull, entry: WorkoutItemFull, exer
         exercises.filter { it.group == group && it.id !in inDay }
     }
 
-    ZenDialog(entry.exercise.name, onClose, accent = Ki) {
+    ZenDialog(tr(entry.exercise.name), onClose, accent = Ki) {
         Stepper(
-            "${entry.item.sets} séries",
+            tr("{0} séries", entry.item.sets),
             onMinus = { viewModel.setWorkoutSets(entry.item.id, entry.item.sets - 1) },
             onPlus = { viewModel.setWorkoutSets(entry.item.id, entry.item.sets + 1) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(4.dp))
-        Text("${entry.item.reps} repetições · ${group.label}", color = Zen.p.muted)
+        Text(tr("{0} repetições · {1}", entry.item.reps, group.label), color = Zen.p.muted)
         Spacer(Modifier.height(14.dp))
-        Text("TROCAR POR (${group.label.uppercase()})", color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Text(tr("TROCAR POR ({0})", group.label.uppercase()), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
-        if (alternatives.isEmpty()) Text("Nenhuma outra opção neste grupo.", color = Zen.p.muted)
+        if (alternatives.isEmpty()) Text(tr("Nenhuma outra opção neste grupo."), color = Zen.p.muted)
         alternatives.forEach { alt ->
-            PickRow(alt.name, group.label, null, Ki) {
+            PickRow(tr(alt.name), group.label, null, Ki) {
                 viewModel.replaceExercise(entry.item.id, alt)
                 onClose()
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("+ Cadastrar outro", { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton("Remover", { viewModel.removeWorkoutItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Remover"), { viewModel.removeWorkoutItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
         }
         Spacer(Modifier.height(8.dp))
-        ZenButton("Fechar", onClose, accent = Zen.p.card, fill = true, small = true)
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
     }
 
     if (registering) {
@@ -232,24 +234,24 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
     val options = remember(exercises, group, inDay) { exercises.filter { it.group == group && it.id !in inDay } }
     val groups = MuscleGroup.entries
 
-    ZenDialog("Adicionar · ${day.day.name}", onClose, accent = Ki) {
+    ZenDialog(tr("Adicionar · {0}", tr(day.day.name)), onClose, accent = Ki) {
         listOf(groups.take(4), groups.drop(4)).forEach { row ->
             Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row.forEach { ZenChip(it.label, group == it, { group = it }, Modifier.weight(1f), accent = Ki, compact = true) }
             }
         }
         Spacer(Modifier.height(6.dp))
-        if (options.isEmpty()) Text("Nenhum exercício disponível neste grupo.", color = Zen.p.muted)
+        if (options.isEmpty()) Text(tr("Nenhum exercício disponível neste grupo."), color = Zen.p.muted)
         options.forEach { ex ->
-            PickRow(ex.name, ex.group.label, null, Ki) {
+            PickRow(tr(ex.name), ex.group.label, null, Ki) {
                 viewModel.addWorkoutItem(day.day.id, ex)
                 onClose()
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("+ Cadastrar novo", { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton("Fechar", onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
         }
     }
 
@@ -266,18 +268,18 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
 private fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ZenDialog("Novo exercício · ${group.label}", onDismiss, accent = Ao) {
-        ZenField("Nome", name, { name = it }, placeholder = "ex.: Supino na máquina")
+    ZenDialog(tr("Novo exercício · {0}", group.label), onDismiss, accent = Ki) {
+        ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Supino na máquina"))
         error?.let {
             Spacer(Modifier.height(8.dp))
             Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("Salvar", {
-                if (name.isBlank()) error = "Informe o nome do exercício." else onSave(name.trim())
-            }, Modifier.weight(1f), accent = Ao, fill = true)
-            ZenButton("Cancelar", onDismiss, accent = Zen.p.card)
+            ZenButton(tr("Salvar"), {
+                if (name.isBlank()) error = tr("Informe o nome do exercício.") else onSave(name.trim())
+            }, Modifier.weight(1f), accent = Ki, fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
         }
     }
 }

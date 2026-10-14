@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,9 +45,11 @@ import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.FoodCategory
 import com.zenkaigym.domain.FoodValidation
 import com.zenkaigym.domain.FoodValidator
+import com.zenkaigym.domain.Portions
 import com.zenkaigym.domain.TimeOfDay
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
+import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Sumi
@@ -82,10 +85,10 @@ fun FoodCategory.accent(): Color = when (this) {
     FoodCategory.CARB -> Ki
     FoodCategory.VEGETABLE -> Midori
     FoodCategory.SALAD -> Ao
-    FoodCategory.FRUIT -> Color(0xFFFF8A00)
+    FoodCategory.FRUIT -> Daidai
 }
 
-fun FoodCategory.shortLabel() = if (this == FoodCategory.CARB) "Carbo" else label
+fun FoodCategory.shortLabel() = if (this == FoodCategory.CARB) tr("Carbo") else label
 
 fun Double.fmt() = if (this % 1.0 == 0.0) toInt().toString() else "%.1f".format(this)
 
@@ -135,11 +138,11 @@ fun ZenTimePickerDialog(
             if (keyboard) TimeInput(state, colors = colors) else TimePicker(state, colors = colors)
         }
         Spacer(Modifier.height(8.dp))
-        ZenChip(if (keyboard) "Relógio" else "Teclado", false, { keyboard = !keyboard }, accent = Ao)
+        ZenChip(if (keyboard) tr("Relógio") else tr("Teclado"), false, { keyboard = !keyboard }, accent = Ao)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ZenButton("Cancelar", onDismiss, accent = p.card)
-            ZenButton("OK", { onConfirm(TimeOfDay(state.hour, state.minute)) }, modifier = Modifier.weight(1f), fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, accent = p.card)
+            ZenButton(tr("OK"), { onConfirm(TimeOfDay(state.hour, state.minute)) }, modifier = Modifier.weight(1f), fill = true)
         }
     }
 }
@@ -195,10 +198,12 @@ fun FoodFormDialog(
     var protein by remember { mutableStateOf(initial?.proteinPer100?.fmt() ?: "") }
     var carbs by remember { mutableStateOf(initial?.carbsPer100?.fmt() ?: "") }
     var fat by remember { mutableStateOf(initial?.fatPer100?.fmt() ?: "") }
+    var unitLabel by remember { mutableStateOf(initial?.unitLabel ?: "") }
+    var unitGrams by remember { mutableStateOf(initial?.unitGrams?.fmt() ?: "") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    ZenDialog(if (initial == null) "Novo alimento" else "Editar alimento", onDismiss, accent = category.accent()) {
-        ZenField("Nome", name, { name = it }, placeholder = "ex.: Peito de frango")
+    ZenDialog(if (initial == null) tr("Novo alimento") else tr("Editar alimento"), onDismiss, accent = category.accent()) {
+        ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Peito de frango"))
         if (fixedCategory == null) {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -208,13 +213,21 @@ fun FoodFormDialog(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("VALORES POR 100 G", color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Text(tr("VALORES POR 100 G"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ZenField("Kcal", kcal, { kcal = it }, Modifier.weight(1f), KeyboardType.Decimal)
-            ZenField("Prot.", protein, { protein = it }, Modifier.weight(1f), KeyboardType.Decimal)
-            ZenField("Carbo", carbs, { carbs = it }, Modifier.weight(1f), KeyboardType.Decimal)
-            ZenField("Gord.", fat, { fat = it }, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenField(tr("Kcal"), kcal, { kcal = it }, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenField(tr("Prot."), protein, { protein = it }, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenField(tr("Carbo"), carbs, { carbs = it }, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenField(tr("Gord."), fat, { fat = it }, Modifier.weight(1f), KeyboardType.Decimal)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(tr("MEDIDA CASEIRA (OPCIONAL)"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        Text(tr("Para ovo, pão, fruta e afins: o app mostra em unidades e em gramas."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ZenField(tr("Unidade"), unitLabel, { unitLabel = it }, Modifier.weight(1f), placeholder = tr("ex.: ovo, fatia"))
+            ZenField(tr("Peso (g)"), unitGrams, { unitGrams = it }, Modifier.weight(1f), KeyboardType.Decimal, placeholder = tr("ex.: 50"))
         }
         error?.let {
             Spacer(Modifier.height(8.dp))
@@ -222,19 +235,23 @@ fun FoodFormDialog(
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton("Salvar", {
+            ZenButton(tr("Salvar"), {
+                val unit = Portions.parseUnit(unitLabel, unitGrams)
                 when (val r = FoodValidator.validate(name, kcal, protein, carbs, fat)) {
                     is FoodValidation.Invalid -> error = r.message
-                    is FoodValidation.Valid -> onSave(
-                        Food(initial?.id ?: 0L, r.name, category, r.kcal, r.protein, r.carbs, r.fat)
-                    )
+                    is FoodValidation.Valid -> when (unit) {
+                        is Portions.UnitInput.Invalid -> error = unit.message
+                        is Portions.UnitInput.Valid -> onSave(
+                            Food(initial?.id ?: 0L, r.name, category, r.kcal, r.protein, r.carbs, r.fat, unit.label, unit.grams)
+                        )
+                    }
                 }
             }, modifier = Modifier.weight(1f), accent = category.accent(), fill = true)
-            ZenButton("Cancelar", onDismiss, accent = Zen.p.card)
+            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
         }
         if (onDelete != null) {
             Spacer(Modifier.height(6.dp))
-            ZenButton("Excluir alimento", onDelete, accent = Aka, small = true)
+            ZenButton(tr("Excluir alimento"), onDelete, accent = Aka, small = true)
         }
     }
 }

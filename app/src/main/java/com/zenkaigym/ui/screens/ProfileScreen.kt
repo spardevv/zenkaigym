@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -44,7 +45,7 @@ import com.zenkaigym.ui.components.ZenField
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
 import com.zenkaigym.ui.theme.Aka
-import com.zenkaigym.ui.theme.Ao
+import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.formatEpochDay
 import com.zenkaigym.util.toDecimalOrNull
@@ -68,32 +69,32 @@ fun ProfileScreen(viewModel: ZenViewModel) {
             Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader("Perfil", "己", subtitle = "Seus dados")
+            ZenHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))
 
-            ZenCard(accent = Aka, entranceIndex = 0) {
-                SectionTitle("Corpo")
+            ZenCard(accent = Daidai, entranceIndex = 0) {
+                SectionTitle(tr("Corpo"), accent = Daidai)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ZenField("Altura (cm)", height, { height = it }, Modifier.weight(1f), KeyboardType.Number)
-                    ZenField("Peso (kg)", weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal)
-                    ZenField("Idade", age, { age = it }, Modifier.weight(1f), KeyboardType.Number)
+                    ZenField(tr("Altura (cm)"), height, { height = it }, Modifier.weight(1f), KeyboardType.Number)
+                    ZenField(tr("Peso (kg)"), weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal)
+                    ZenField(tr("Idade"), age, { age = it }, Modifier.weight(1f), KeyboardType.Number)
                 }
                 Spacer(Modifier.height(12.dp))
-                Label("Sexo")
+                Label(tr("Sexo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Sex.entries.forEach { ZenChip(it.label, sex == it, { sex = it }, accent = Ao) }
+                    Sex.entries.forEach { ZenChip(it.label, sex == it, { sex = it }, accent = Daidai) }
                 }
                 Spacer(Modifier.height(12.dp))
-                Label("Objetivo")
+                Label(tr("Objetivo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }) }
+                    Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }, accent = Daidai) }
                 }
                 error?.let {
                     Spacer(Modifier.height(10.dp))
                     Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
                 }
                 Spacer(Modifier.height(14.dp))
-                ZenButton("Salvar", {
+                ZenButton(tr("Salvar"), {
                     when (val result = ProfileValidator.validate(height, weight, age)) {
                         is ProfileValidation.Invalid -> error = result.message
                         is ProfileValidation.Valid -> {
@@ -103,7 +104,7 @@ fun ProfileScreen(viewModel: ZenViewModel) {
                             )
                         }
                     }
-                }, fill = true)
+                }, accent = Daidai, fill = true)
             }
 
             profile?.let { WeightCard(it, weights, viewModel::addWeight) }
@@ -119,8 +120,8 @@ private fun Label(text: String) {
 @Composable
 private fun WeightCard(profile: UserProfile, weights: List<WeightEntry>, onRegister: (Double) -> Unit) {
     var input by remember { mutableStateOf("") }
-    ZenCard(accent = Ao, entranceIndex = 1) {
-        SectionTitle("Evolução do peso", accent = Ao)
+    ZenCard(accent = Daidai, entranceIndex = 1) {
+        SectionTitle(tr("Evolução do peso"), accent = Daidai)
         Spacer(Modifier.height(8.dp))
         Text("%.1f kg".format(profile.weightKg), style = MaterialTheme.typography.displayMedium)
         if (weights.size >= 2) {
@@ -135,21 +136,21 @@ private fun WeightCard(profile: UserProfile, weights: List<WeightEntry>, onRegis
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ZenField("Novo peso (kg)", input, { input = it }, Modifier.weight(1f), KeyboardType.Decimal)
-            ZenButton("Registrar", {
+            ZenField(tr("Novo peso (kg)"), input, { input = it }, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenButton(tr("Registrar"), {
                 val kg = input.toDecimalOrNull()
                 if (kg != null && kg in 30.0..300.0) {
                     onRegister(kg)
                     input = ""
                 }
-            })
+            }, accent = Daidai)
         }
     }
 }
 
 @Composable
 private fun WeightChart(entries: List<WeightEntry>) {
-    val line = Aka
+    val line = Daidai
     val progress = remember { Animatable(0f) }
     LaunchedEffect(entries.size) {
         progress.snapTo(0f)

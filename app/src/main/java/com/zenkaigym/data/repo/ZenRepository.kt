@@ -1,5 +1,6 @@
 package com.zenkaigym.data.repo
 
+import com.zenkaigym.domain.tr
 import androidx.room.withTransaction
 import com.zenkaigym.data.AppDatabase
 import com.zenkaigym.data.ExerciseCatalog
@@ -19,7 +20,11 @@ import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
 import com.zenkaigym.data.entity.WorkoutPlan
+import com.zenkaigym.domain.CheatDay
+import com.zenkaigym.domain.CheatMeal
 import com.zenkaigym.domain.MealSchedule
+import com.zenkaigym.domain.WeeklyDietPlanner
+import com.zenkaigym.domain.WeeklySuggestion
 import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.SuggestionEngine
@@ -167,9 +172,9 @@ class ZenRepository(
 
     /** Retorna uma mensagem de erro, ou null se a sugestão foi gerada. */
     suspend fun generateWorkoutProposal(): String? {
-        val profile = profileDao.getProfile() ?: return "Preencha seu perfil primeiro."
+        val profile = profileDao.getProfile() ?: return tr("Preencha seu perfil primeiro.")
         val days = profileDao.getAvailability().filter { it.available }.map { it.dayOfWeek }
-        if (days.isEmpty()) return "Marque ao menos um dia disponível no perfil."
+        if (days.isEmpty()) return tr("Marque ao menos um dia disponível no perfil.")
         val planned = engine.workoutPlan(days, profile.goal, workoutDao.exercises())
         db.withTransaction {
             workoutDao.deleteByStatus(PlanStatus.PROPOSED)
@@ -233,29 +238,66 @@ class ZenRepository(
         return engine.nutritionTarget(profile, profileDao.getAvailability().count { it.available })
     }
 
-    /** Retorna uma mensagem (erro ou aviso) ou null se tudo certo. */
-    suspend fun generateDietProposal(): String? {
-        val profile = profileDao.getProfile() ?: return "Preencha seu perfil primeiro."
+    /** Como montar o cardápio da semana: sugerido pelo app ou em branco, com ou sem dia do lixo. */
+    data class WeekRequest(val manual: Boolean = false, val cheat: CheatDay? = null)
+
+    /** Dia do lixo do plano mais recente, para que remontar a dieta não o perca. */
+    private suspend fun currentCheat(): CheatDay? {
+        val plan = dietDao.latestPlan() ?: return null
+        val day = plan.cheatDay ?: return null
+        val meals = dietDao.cheatMeals(plan.id).filter { it.dayOfWeek == day }
+        if (meals.isEmpty()) return null
+        return CheatDay(day, meals.map { CheatMeal(it.type, it.cheatKcal ?: 0) })
+    }
+
+    /**
+     * Monta o cardápio da semana (segunda a domingo). Sem [request], mantém o dia do lixo atual.
+     * Retorna uma mensagem (erro ou aviso) ou null se tudo certo.
+     */
+    suspend fun generateDietProposal(request: WeekRequest? = null): String? {
+        val profile = profileDao.getProfile() ?: return tr("Preencha seu perfil primeiro.")
         val foods = foodDao.getFoods()
-        if (foods.isEmpty()) return "Cadastre seus alimentos primeiro."
+        if (foods.isEmpty() && request?.manual != true) return tr("Cadastre seus alimentos primeiro.")
         val target = effectiveTarget(profile)
         val slots = dietDao.getSlots().ifEmpty { MealSchedule.build(4) }
-        val suggestion = engine.dietPlan(target, foods, slots.map { it.type })
-        if (suggestion.meals.all { it.items.isEmpty() }) return suggestion.warnings.firstOrNull() ?: "Não foi possível montar a dieta."
+        val types = slots.map { it.type }.distinct().sortedBy { it.ordinal }
+        val cheat = if (request != null) request.cheat else currentCheat()
+        val week: WeeklySuggestion = if (request?.manual == true) {
+            WeeklyDietPlanner.blank(target, types, cheat)
+        } else {
+            val suggestion = engine.weeklyDietPlan(target, foods, types, cheat)
+            if (suggestion.days.all { day -> day.meals.all { it.items.isEmpty() } && day.cheat.isEmpty() }) {
+                return suggestion.warnings.firstOrNull() ?: tr("Não foi possível montar a dieta.")
+            }
+            suggestion
+        }
+        val cheatDay = week.days.firstOrNull { it.cheat.isNotEmpty() }?.dayOfWeek
         db.withTransaction {
             dietDao.deleteByStatus(PlanStatus.PROPOSED)
             val planId = dietDao.insertPlan(
                 DietPlan(
                     status = PlanStatus.PROPOSED, kcal = target.kcal, protein = target.protein,
-                    carbs = target.carbs, fat = target.fat, createdAt = System.currentTimeMillis()
+                    carbs = target.carbs, fat = target.fat, createdAt = System.currentTimeMillis(), cheatDay = cheatDay
                 )
             )
-            suggestion.meals.forEachIndexed { index, meal ->
-                val mealId = dietDao.insertMeal(Meal(planId = planId, name = meal.name, position = index, type = meal.type))
-                meal.items.forEach { dietDao.insertItem(MealItem(mealId = mealId, foodId = it.foodId, grams = it.grams)) }
+            week.days.forEach { day ->
+                types.forEachIndexed { index, type ->
+                    val cheatMeal = day.cheat.firstOrNull { it.type == type }
+                    val planned = day.meals.firstOrNull { it.type == type }
+                    if (cheatMeal != null) {
+                        dietDao.insertMeal(
+                            Meal(planId = planId, name = type.pt, position = index, type = type, dayOfWeek = day.dayOfWeek, cheatKcal = cheatMeal.kcal)
+                        )
+                    } else if (planned != null) {
+                        val mealId = dietDao.insertMeal(
+                            Meal(planId = planId, name = planned.name, position = index, type = type, dayOfWeek = day.dayOfWeek)
+                        )
+                        planned.items.forEach { dietDao.insertItem(MealItem(mealId = mealId, foodId = it.foodId, grams = it.grams)) }
+                    }
+                }
             }
         }
-        return suggestion.warnings.firstOrNull()
+        return week.warnings.firstOrNull()
     }
 
     suspend fun acceptDiet(planId: Long) {

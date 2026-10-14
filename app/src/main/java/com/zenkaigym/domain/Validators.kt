@@ -13,9 +13,9 @@ object ProfileValidator {
         val w = weight.toDecimalOrNull()
         val a = age.trim().toIntOrNull()
         return when {
-            h == null || h !in 100..250 -> ProfileValidation.Invalid("Altura inválida (100–250 cm).")
-            w == null || w !in 30.0..300.0 -> ProfileValidation.Invalid("Peso inválido (30–300 kg).")
-            a == null || a !in 10..100 -> ProfileValidation.Invalid("Idade inválida (10–100).")
+            h == null || h !in 100..250 -> ProfileValidation.Invalid(tr("Altura inválida (100–250 cm)."))
+            w == null || w !in 30.0..300.0 -> ProfileValidation.Invalid(tr("Peso inválido (30–300 kg)."))
+            a == null || a !in 10..100 -> ProfileValidation.Invalid(tr("Idade inválida (10–100)."))
             else -> ProfileValidation.Valid(h, w, a)
         }
     }
@@ -39,22 +39,22 @@ object FoodValidator {
 
     /** Valores nutricionais são por 100 g do alimento. */
     fun validate(name: String, kcal: String, protein: String, carbs: String, fat: String): FoodValidation {
-        if (name.isBlank()) return FoodValidation.Invalid("Informe o nome do alimento.")
+        if (name.isBlank()) return FoodValidation.Invalid(tr("Informe o nome do alimento."))
         val k = kcal.toDecimalOrNull()
         val p = protein.toDecimalOrNull()
         val c = carbs.toDecimalOrNull()
         val f = fat.toDecimalOrNull()
         if (k == null || p == null || c == null || f == null) {
-            return FoodValidation.Invalid("Preencha todos os valores nutricionais com números.")
+            return FoodValidation.Invalid(tr("Preencha todos os valores nutricionais com números."))
         }
         if (k < 0 || p < 0 || c < 0 || f < 0) {
-            return FoodValidation.Invalid("Os valores não podem ser negativos.")
+            return FoodValidation.Invalid(tr("Os valores não podem ser negativos."))
         }
         if (p + c + f > MAX_MACROS_PER_100G) {
-            return FoodValidation.Invalid("Proteína + carboidrato + gordura não podem passar de 100 g por 100 g.")
+            return FoodValidation.Invalid(tr("Proteína + carboidrato + gordura não podem passar de 100 g por 100 g."))
         }
         if (k > MAX_KCAL_PER_100G) {
-            return FoodValidation.Invalid("Mais de 900 kcal por 100 g não é possível.")
+            return FoodValidation.Invalid(tr("Mais de 900 kcal por 100 g não é possível."))
         }
         return FoodValidation.Valid(name.trim(), k, p, c, f)
     }

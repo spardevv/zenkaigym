@@ -1,5 +1,6 @@
 package com.zenkaigym.util
 
+import com.zenkaigym.domain.tr
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -7,7 +8,7 @@ import java.util.TimeZone
 
 private const val DAY_MS = 86_400_000L
 
-val WEEK_DAYS_SHORT = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+val WEEK_DAYS_SHORT: List<String> get() = listOf(tr("Seg"), tr("Ter"), tr("Qua"), tr("Qui"), tr("Sex"), tr("Sáb"), tr("Dom"))
 
 /** Dia local atual como número de dias desde 1970-01-01. */
 fun todayEpochDay(): Long {
@@ -17,6 +18,9 @@ fun todayEpochDay(): Long {
 
 /** Converte Calendar.DAY_OF_WEEK (domingo = 1) para 1 = segunda ... 7 = domingo. */
 fun dayOfWeekFromCalendar(calendarDay: Int): Int = (calendarDay + 5) % 7 + 1
+
+/** 1 = segunda ... 7 = domingo para um dia contado desde 1970-01-01 (uma quinta-feira). */
+fun dayOfWeekFromEpochDay(epochDay: Long): Int = Math.floorMod(epochDay + 3, 7L).toInt() + 1
 
 fun todayDayOfWeek(): Int = dayOfWeekFromCalendar(Calendar.getInstance().get(Calendar.DAY_OF_WEEK))
 

@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.domain.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,7 +34,7 @@ import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenTimePickerDialog
 import com.zenkaigym.ui.theme.Aka
-import com.zenkaigym.ui.theme.Ao
+import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.WEEK_DAYS_SHORT
@@ -75,9 +76,9 @@ fun AvailabilitySection(
     DisposableEffect(windows) { onDispose { if (dirty) save() } }
 
     ZenCard(accent = Ki, entranceIndex = entranceIndex) {
-        SectionTitle("Dias e horários", accent = Ki)
+        SectionTitle(tr("Dias e horários"), accent = Ki)
         Spacer(Modifier.height(4.dp))
-        Text("Marque os dias em que pode treinar e o horário de cada um. Salva sozinho.", color = Zen.p.muted)
+        Text(tr("Marque os dias em que pode treinar e o horário de cada um. Salva sozinho."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             WEEK_DAYS_SHORT.forEachIndexed { index, label ->
@@ -93,7 +94,7 @@ fun AvailabilitySection(
         val days = windows.keys.sorted()
         if (days.isEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text("Nenhum dia marcado ainda.", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+            Text(tr("Nenhum dia marcado ainda."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
         }
         days.forEach { day ->
             val window = windows.getValue(day)
@@ -103,21 +104,21 @@ fun AvailabilitySection(
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.width(52.dp)
                 )
-                TimeChip(window.start.format(), { picker = PickerTarget(day, true) }, Modifier.weight(1f), accent = Ao)
+                TimeChip(window.start.format(), { picker = PickerTarget(day, true) }, Modifier.weight(1f), accent = Ki.copy(alpha = 0.5f))
                 Text("→", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
-                TimeChip(window.end.format(), { picker = PickerTarget(day, false) }, Modifier.weight(1f), accent = Aka)
+                TimeChip(window.end.format(), { picker = PickerTarget(day, false) }, Modifier.weight(1f), accent = Daidai.copy(alpha = 0.5f))
             }
         }
         if (days.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${days.size} ${if (days.size == 1) "dia" else "dias"} · ${WeeklySchedule.totalLabel(windows.toMap())}/semana",
+                    tr("{0} {1} · {2}/semana", days.size, if (days.size == 1) tr("dia") else tr("dias"), WeeklySchedule.totalLabel(windows.toMap())),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.weight(1f)
                 )
                 if (days.size > 1) {
-                    ZenButton("Copiar 1º p/ todos", { windows.putAll(WeeklySchedule.copyToAll(windows.toMap(), days.first())) }, accent = Zen.p.card, small = true)
+                    ZenButton(tr("Copiar 1º p/ todos"), { windows.putAll(WeeklySchedule.copyToAll(windows.toMap(), days.first())) }, accent = Zen.p.card, small = true)
                 }
             }
         }
@@ -133,13 +134,13 @@ fun AvailabilitySection(
             picker = null
         } else {
             ZenTimePickerDialog(
-                title = (if (target.editingStart) "Início" else "Fim") + " · " + WEEK_DAYS_SHORT[target.day - 1],
+                title = (if (target.editingStart) tr("Início") else tr("Fim")) + " · " + WEEK_DAYS_SHORT[target.day - 1],
                 initial = if (target.editingStart) window.start else window.end,
                 onDismiss = { picker = null },
                 onConfirm = { time ->
                     val updated = if (target.editingStart) window.withStart(time) else window.withEnd(time)
                     if (updated == null) {
-                        error = "Horário inválido: o fim deve ser ao menos ${TimeWindow.MIN_DURATION_MINUTES} min depois do início."
+                        error = tr("Horário inválido: o fim deve ser ao menos {0} min depois do início.", TimeWindow.MIN_DURATION_MINUTES)
                     } else {
                         error = null
                         windows[target.day] = updated
