@@ -77,3 +77,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+// Roda toda a suíte: unitários na JVM e testes instrumentados/de interface (exigem emulador ou aparelho).
+tasks.register("testAll") {
+    group = "verification"
+    description = "Executa os testes unitários e os instrumentados (requer dispositivo conectado)."
+    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest")
+}

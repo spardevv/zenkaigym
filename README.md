@@ -30,8 +30,14 @@ app/src/main/java/com/zenkaigym/
 Pré-requisitos: Android Studio recente e JDK 17+.
 
 ```bash
-# testes unitários
+# testes unitários (JVM, sem emulador): regras de domínio, validadores, traduções, datas
 ./gradlew testDebugUnitTest
+
+# testes instrumentados e de interface (Compose + Room): exigem emulador ou aparelho conectado
+./gradlew connectedDebugAndroidTest
+
+# toda a suíte de uma vez
+./gradlew testAll
 
 # gerar o APK de debug (app/build/outputs/apk/debug/app-debug.apk)
 ./gradlew assembleDebug
