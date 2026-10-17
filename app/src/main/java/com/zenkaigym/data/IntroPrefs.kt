@@ -33,6 +33,16 @@ class AppFlags(context: Context) {
         get() = AppLanguage.fromName(prefs.getString("language", null))
         set(value) = prefs.edit().putString("language", value.name).apply()
 
+    /** Dia (epochDay) com o modo treino aberto; -1 = nenhum. Faz o app reabrir direto no treino em andamento. */
+    var trainingDay: Long
+        get() = prefs.getLong("training_day", -1L)
+        set(value) = prefs.edit().putLong("training_day", value).apply()
+
+    /** Manter a tela acesa no modo treino. */
+    var keepScreenOn: Boolean
+        get() = prefs.getBoolean("keep_screen_on", true)
+        set(value) = prefs.edit().putBoolean("keep_screen_on", value).apply()
+
     /** Configuração inicial (tema + perfil) já concluída. */
     var setupDone: Boolean
         get() = prefs.getBoolean("setup_done", false)

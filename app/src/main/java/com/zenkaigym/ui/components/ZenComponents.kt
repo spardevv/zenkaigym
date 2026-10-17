@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zenkaigym.ui.theme.Aka
@@ -100,11 +101,15 @@ fun ZenButton(
     val p = Zen.p
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by animateDpAsState(
+    // Afunda até a sombra ao pressionar. O valor é lido só no layout (offset com lambda),
+    // então a animação não recompõe o botão a cada quadro.
+    val press = animateDpAsState(
         if (pressed) 4.dp else 0.dp,
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "press"
     )
+    // Habilitar/desabilitar troca a cor suavemente (ex.: botão que libera ao preencher um campo).
+    val background by animateColorAsState(if (enabled) accent else p.muted, tween(180), label = "button-bg")
     Box(
         modifier
             .padding(end = 4.dp, bottom = 4.dp)
@@ -115,9 +120,12 @@ fun ZenButton(
     ) {
         Box(
             Modifier
-                .offset(press, press)
+                .offset {
+                    val o = press.value.roundToPx()
+                    IntOffset(o, o)
+                }
                 .then(if (fill) Modifier.fillMaxWidth() else Modifier)
-                .background(if (enabled) accent else p.muted)
+                .background(background)
                 .border(BorderWidth, p.border)
                 .clickable(interaction, null, enabled = enabled, onClick = onClick)
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),

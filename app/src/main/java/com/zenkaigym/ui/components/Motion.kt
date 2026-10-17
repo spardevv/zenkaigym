@@ -1,5 +1,11 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -40,6 +46,10 @@ fun Modifier.zenEntrance(index: Int = 0): Modifier {
         }
     }
 }
+
+/** Aparecer/sumir de trechos dentro de cartões (erros, botões condicionais): abre a altura e esmaece. */
+val Reveal: EnterTransition = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(180, delayMillis = 40))
+val Conceal: ExitTransition = fadeOut(tween(120)) + shrinkVertically(tween(220, easing = FastOutSlowInEasing))
 
 /** Encolhe levemente enquanto pressionado e volta com um pequeno quique. */
 @Composable

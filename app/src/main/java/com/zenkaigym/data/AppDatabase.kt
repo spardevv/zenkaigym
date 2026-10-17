@@ -18,19 +18,22 @@ import com.zenkaigym.data.entity.Meal
 import com.zenkaigym.data.entity.MealCheck
 import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealSlot
+import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
+import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
 
 @Database(
     entities = [
         UserProfile::class, WeightEntry::class, Availability::class, Food::class,
         Exercise::class, WorkoutPlan::class, WorkoutDay::class, WorkoutItem::class,
-        DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class
+        DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
+        WorkoutLog::class, SetLog::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -79,9 +82,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v5: registro de treino (séries realizadas com carga e repetições). */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_log (epochDay INTEGER NOT NULL, finished INTEGER NOT NULL, PRIMARY KEY(epochDay))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS set_log (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, epochDay INTEGER NOT NULL, exerciseId INTEGER NOT NULL, setIndex INTEGER NOT NULL, reps INTEGER NOT NULL, weightKg REAL NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_set_log_epochDay_exerciseId_setIndex ON set_log (epochDay, exerciseId, setIndex)")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }

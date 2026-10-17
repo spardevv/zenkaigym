@@ -9,6 +9,12 @@ import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.SetLog
+import com.zenkaigym.domain.DietProgress
+import com.zenkaigym.domain.DoneSet
+import com.zenkaigym.domain.Stats
+import com.zenkaigym.domain.TrainingProgress
+import com.zenkaigym.domain.Progression
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.repo.ZenRepository
 import com.zenkaigym.domain.AppLanguage
@@ -38,6 +44,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** O que se sabe de um exercício antes de hoje. */
+data class ExerciseHistory(val last: List<DoneSet>, val bestKg: Double)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ZenViewModel(
@@ -132,6 +141,95 @@ class ZenViewModel(
         .flatMapLatest { repo.mealChecks(it) }
         .map { list -> list.map { it.type }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** Séries já registradas hoje. */
+    val setsToday: StateFlow<List<SetLog>> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.setsLogged(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Treino de hoje marcado como concluído. */
+    val workoutDone: StateFlow<Boolean> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.workoutLog(it) }
+        .map { it?.finished == true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    // ---- Modo treino (tela cheia) ----
+    // Fica salvo em AppFlags: ao desbloquear o celular ou reabrir o app, o treino de hoje continua na tela.
+
+    private val trainingDay = MutableStateFlow(flags.trainingDay)
+
+    /** Modo treino aberto hoje (vale só no mesmo dia: no dia seguinte o app volta ao normal). */
+    val trainingActive: StateFlow<Boolean> = combine(trainingDay, clock) { day, now -> day == now.epochDay }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, flags.trainingDay == Clock.now().epochDay)
+
+    fun startTraining() {
+        val today = clock.value.epochDay
+        flags.trainingDay = today
+        trainingDay.value = today
+    }
+
+    fun stopTraining() {
+        flags.trainingDay = -1L
+        trainingDay.value = -1L
+        stopRest()
+    }
+
+    private val _keepScreenOn = MutableStateFlow(flags.keepScreenOn)
+    val keepScreenOn: StateFlow<Boolean> = _keepScreenOn
+
+    fun toggleKeepScreenOn() {
+        val value = !_keepScreenOn.value
+        flags.keepScreenOn = value
+        _keepScreenOn.value = value
+    }
+
+    /** Descanso em andamento: instante (System.currentTimeMillis) em que termina e a duração total. */
+    data class Rest(val endsAt: Long, val totalMs: Long)
+
+    private val _rest = MutableStateFlow<Rest?>(null)
+    val rest: StateFlow<Rest?> = _rest
+
+    fun startRest(seconds: Int) {
+        val total = seconds * 1000L
+        _rest.value = Rest(System.currentTimeMillis() + total, total)
+    }
+
+    fun stopRest() {
+        _rest.value = null
+    }
+
+    // ---- Progresso (gráficos do perfil) ----
+
+    private val today = clock.map { it.epochDay }.distinctUntilChanged()
+
+    val trainingProgress: StateFlow<TrainingProgress?> = today.flatMapLatest { day ->
+        val from = day - Stats.WEEKS * 7L
+        combine(repo.volumePerDay(from), repo.finishedWorkoutDays(from)) { volume, finished ->
+            Stats.training(
+                volumePerDay = volume.associate { it.epochDay to it.volume },
+                sessionDays = volume.filter { it.sets > 0 }.map { it.epochDay }.toSet() + finished,
+                today = day
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val dietProgress: StateFlow<DietProgress?> = today.flatMapLatest { day ->
+        combine(repo.mealsDonePerDay(day - Stats.DIET_DAYS), repo.mealSlots) { done, slots ->
+            Stats.diet(done.associate { it.epochDay to it.count }, slots.size, day)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ---- Apagar todos os dados ----
+
+    /** Apaga perfil, fichas, dietas, alimentos e histórico; mantém só tema e idioma. Volta à configuração inicial. */
+    fun wipeAllData() = viewModelScope.launch {
+        stopTraining()
+        working(tr("Apagando seus dados…")) { repo.wipeAll() }
+        flags.foodsSeeded = true // a lista inicial de alimentos já foi recriada
+        flags.setupDone = false
+        _showSetup.value = true
+        toast(tr("Todos os dados foram apagados."))
+    }
 
     /** Meta sugerida a partir do perfil e dos dias de treino salvos. */
     val suggestedTarget: StateFlow<NutritionTarget?> =
@@ -243,6 +341,34 @@ class ZenViewModel(
     fun setWorkoutSets(id: Long, sets: Int) = viewModelScope.launch { repo.setWorkoutSets(id, sets) }
     fun replaceExercise(itemId: Long, exercise: Exercise) = viewModelScope.launch { repo.replaceExercise(itemId, exercise.id) }
     fun addWorkoutItem(dayId: Long, exercise: Exercise) = viewModelScope.launch { repo.addWorkoutItem(dayId, exercise.id) }
+
+    /** Última vez e melhor carga anteriores a hoje, para pré-preencher e sugerir a progressão. */
+    suspend fun history(exerciseId: Long): ExerciseHistory {
+        val today = clock.value.epochDay
+        return ExerciseHistory(
+            last = repo.lastSets(exerciseId, today).map { DoneSet(it.reps, it.weightKg) },
+            bestKg = repo.bestWeight(exerciseId, today)
+        )
+    }
+
+    fun logSet(exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) = viewModelScope.launch {
+        val today = clock.value.epochDay
+        val best = repo.bestWeight(exerciseId, today)
+        repo.logSet(today, exerciseId, setIndex, reps, weightKg)
+        if (Progression.isPersonalRecord(weightKg, best) && best > 0) toast(tr("Novo recorde! {0} kg", weightKg))
+    }
+
+    fun unlogSet(exerciseId: Long, setIndex: Int) = viewModelScope.launch {
+        repo.unlogSet(clock.value.epochDay, exerciseId, setIndex)
+    }
+
+    fun setWorkoutDone(done: Boolean) = viewModelScope.launch {
+        repo.setWorkoutDone(clock.value.epochDay, done)
+        if (done) {
+            stopTraining() // também zera o descanso
+            toast(tr("Treino concluído! Bom trabalho."))
+        }
+    }
 
     fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
         repo.replaceExercise(itemId, repo.addExercise(name, group))

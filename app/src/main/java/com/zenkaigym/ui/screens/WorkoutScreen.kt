@@ -95,7 +95,10 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
             item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
             if (shown != null) {
                 items(shown.days.sortedBy { it.day.dayOfWeek }, key = { it.day.id }) { day ->
-                    DayCard(day, windows[day.day.dayOfWeek], onEdit = { editingId = it }, onAdd = { addingTo = day.day.id })
+                    // Dias que entram, saem ou mudam de lugar (nova sugestão) deslizam em vez de pular.
+                    Column(Modifier.animateItem()) {
+                        DayCard(day, windows[day.day.dayOfWeek], onEdit = { editingId = it }, onAdd = { addingTo = day.day.id })
+                    }
                 }
             }
         }

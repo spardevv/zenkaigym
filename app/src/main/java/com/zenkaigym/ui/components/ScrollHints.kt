@@ -37,10 +37,11 @@ fun ScrollHints(canUp: Boolean, canDown: Boolean, modifier: Modifier = Modifier)
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.Hint(visible: Boolean, symbol: String, align: Alignment, direction: Float) {
     val p = Zen.p
-    val bounce by rememberInfiniteTransition(label = "hint").animateFloat(
-        0f, 3f, infiniteRepeatable(tween(650), RepeatMode.Reverse), label = "bounce"
-    )
     AnimatedVisibility(visible, Modifier.align(align), enter = fadeIn(tween(150)), exit = fadeOut(tween(150))) {
+        // A animação infinita só existe enquanto a seta está visível: escondida, não gasta quadros.
+        val bounce by rememberInfiniteTransition(label = "hint").animateFloat(
+            0f, 3f, infiniteRepeatable(tween(650), RepeatMode.Reverse), label = "bounce"
+        )
         Box(
             Modifier
                 .padding(6.dp)

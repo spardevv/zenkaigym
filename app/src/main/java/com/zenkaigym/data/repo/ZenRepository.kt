@@ -18,7 +18,9 @@ import com.zenkaigym.data.entity.PlanStatus
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
+import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutItem
+import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
 import com.zenkaigym.domain.CheatDay
 import com.zenkaigym.domain.CheatMeal
@@ -29,6 +31,8 @@ import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.SuggestionEngine
 import com.zenkaigym.util.todayEpochDay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ZenRepository(
     private val db: AppDatabase,
@@ -56,7 +60,24 @@ class ZenRepository(
         if (workoutDao.exerciseCount() == 0) workoutDao.insertExercises(ExerciseCatalog.all())
         if (dietDao.getSlots().isEmpty()) dietDao.insertSlots(MealSchedule.build(4))
         if (seedFoods && foodDao.getFoods().isEmpty()) foodDao.insertAll(FoodExamples.all())
-        dietDao.pruneChecksBefore(todayEpochDay() - 7)
+        // Mantém cerca de um ano de refeições marcadas: alimentam o gráfico de aderência da dieta.
+        dietDao.pruneChecksBefore(todayEpochDay() - HISTORY_DAYS)
+    }
+
+    // ---- Progresso (gráficos do perfil) ----
+
+    fun volumePerDay(from: Long) = workoutDao.observeVolumePerDay(from)
+    fun finishedWorkoutDays(from: Long) = workoutDao.observeFinishedDays(from)
+    fun mealsDonePerDay(from: Long) = dietDao.observeChecksPerDay(from)
+
+    /** Apaga tudo o que o usuário registrou e recria só os dados iniciais (exercícios, agenda e alimentos). */
+    suspend fun wipeAll() {
+        withContext(Dispatchers.IO) { db.clearAllTables() }
+        ensureSeed(seedFoods = true)
+    }
+
+    private companion object {
+        const val HISTORY_DAYS = 400L
     }
 
     // ---- Perfil, peso e disponibilidade ----
@@ -338,6 +359,23 @@ class ZenRepository(
     }
 
     suspend fun setMealTime(type: MealType, time: String) = dietDao.updateSlotTime(type, time)
+
+    // ---- Registro de treino ----
+
+    fun setsLogged(epochDay: Long) = workoutDao.observeSets(epochDay)
+    fun workoutLog(epochDay: Long) = workoutDao.observeWorkoutLog(epochDay)
+
+    suspend fun logSet(epochDay: Long, exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) =
+        workoutDao.upsertSet(SetLog(epochDay = epochDay, exerciseId = exerciseId, setIndex = setIndex, reps = reps, weightKg = weightKg))
+
+    suspend fun unlogSet(epochDay: Long, exerciseId: Long, setIndex: Int) = workoutDao.deleteSet(epochDay, exerciseId, setIndex)
+
+    suspend fun lastSets(exerciseId: Long, beforeDay: Long) = workoutDao.lastSets(exerciseId, beforeDay)
+    suspend fun bestWeight(exerciseId: Long, beforeDay: Long) = workoutDao.bestWeight(exerciseId, beforeDay)
+
+    suspend fun setWorkoutDone(epochDay: Long, done: Boolean) {
+        if (done) workoutDao.upsertWorkoutLog(WorkoutLog(epochDay)) else workoutDao.deleteWorkoutLog(epochDay)
+    }
 
     suspend fun setMealDone(type: MealType, epochDay: Long, done: Boolean) {
         if (done) dietDao.insertCheck(MealCheck(type, epochDay)) else dietDao.deleteCheck(type, epochDay)

@@ -1,6 +1,12 @@
 package com.zenkaigym.ui.components
 
 import com.zenkaigym.domain.tr
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,25 +61,50 @@ import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Sumi
 import com.zenkaigym.ui.theme.Zen
 
-/** Janela no estilo do app; o conteúdo rola quando é maior que a tela. */
+/**
+ * Janela no estilo do app; o conteúdo rola quando é maior que a tela.
+ * [footer], quando informado, fica fixo embaixo (fora da rolagem) — bom para os botões de ação.
+ */
 @Composable
 fun ZenDialog(
     title: String,
     onDismiss: () -> Unit,
     accent: Color = Aka,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     // Usa quase toda a altura disponível, para só rolar quando o conteúdo realmente não cabe.
-    val maxBody = (LocalConfiguration.current.screenHeightDp - 190).dp
+    val maxBody = (LocalConfiguration.current.screenHeightDp - if (footer != null) 270 else 190).dp
     val scroll = rememberScrollState()
+    // Entrada: a janela "salta" de um pouco menor, com leve quique, em vez de surgir de uma vez.
+    val enter = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { enter.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        ZenCard(Modifier.padding(horizontal = 28.dp, vertical = 24.dp).widthIn(max = 380.dp), accent = accent, entranceIndex = -1) {
-            Column(Modifier.padding(6.dp)) {
+        ZenCard(
+            Modifier
+                .padding(horizontal = 28.dp, vertical = 24.dp)
+                .widthIn(max = 380.dp)
+                .graphicsLayer {
+                    val v = enter.value
+                    alpha = v.coerceIn(0f, 1f)
+                    scaleX = 0.9f + 0.1f * v
+                    scaleY = 0.9f + 0.1f * v
+                    translationY = (1f - v) * 24.dp.toPx()
+                },
+            accent = accent,
+            entranceIndex = -1
+        ) {
+            // Mudanças de altura do conteúdo (erros, trechos que aparecem) acontecem com suavidade.
+            Column(Modifier.padding(6.dp).animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))) {
                 SectionTitle(title, accent = accent)
                 Spacer(Modifier.height(14.dp))
                 Box(Modifier.heightIn(max = maxBody)) {
                     Column(Modifier.verticalScroll(scroll).padding(end = 2.dp, bottom = 4.dp), content = content)
                     ScrollHints(scroll.canScrollBackward, scroll.canScrollForward, Modifier.matchParentSize())
+                }
+                if (footer != null) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 10.dp).height(2.dp).background(Zen.p.border))
+                    footer()
                 }
             }
         }

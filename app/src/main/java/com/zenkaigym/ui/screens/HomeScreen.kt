@@ -60,6 +60,7 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val slots by viewModel.mealSlots.collectAsStateWithLifecycle()
     val done by viewModel.mealsDone.collectAsStateWithLifecycle()
     val clock by viewModel.clock.collectAsStateWithLifecycle()
+    val workoutDone by viewModel.workoutDone.collectAsStateWithLifecycle()
     val dow = todayDayOfWeek()
 
     ZenPage {
@@ -78,7 +79,7 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 }
             } else {
                 val window = remember(availability) { availability.windowsByDay()[dow] }
-                TodayWorkout(workout, window, dow, onNavigate)
+                TodayWorkout(workout, window, dow, onNavigate, workoutDone, onTrain = viewModel::startTraining)
                 NextMeal(diet, slots, done, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate, viewModel::setMealDone)
             }
         }
@@ -86,7 +87,14 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
 }
 
 @Composable
-private fun TodayWorkout(workout: WorkoutPlanFull?, window: TimeWindow?, dow: Int, onNavigate: (String) -> Unit) {
+private fun TodayWorkout(
+    workout: WorkoutPlanFull?,
+    window: TimeWindow?,
+    dow: Int,
+    onNavigate: (String) -> Unit,
+    done: Boolean,
+    onTrain: () -> Unit
+) {
     ZenCard(accent = Aka, entranceIndex = 0) {
         SectionTitle(tr("Treino de hoje"), accent = Aka)
         Spacer(Modifier.height(10.dp))
@@ -116,6 +124,8 @@ private fun TodayWorkout(workout: WorkoutPlanFull?, window: TimeWindow?, dow: In
                         Text(tr("{0}×{1}", it.item.sets, it.item.reps), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                ZenButton(if (done) tr("TREINO FEITO ✓") else tr("Treinar agora"), onTrain, accent = if (done) Midori else Aka, fill = true)
             }
         }
     }

@@ -51,7 +51,18 @@ import com.zenkaigym.ui.screens.FoodsScreen
 import com.zenkaigym.ui.screens.HomeScreen
 import com.zenkaigym.ui.screens.ProfileScreen
 import com.zenkaigym.ui.screens.SettingsScreen
+import com.zenkaigym.ui.screens.TrainSessionScreen
 import com.zenkaigym.ui.screens.WorkoutScreen
+import com.zenkaigym.util.dayOfWeekFromEpochDay
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import com.zenkaigym.domain.Motion
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ao
@@ -79,6 +90,27 @@ private fun tabs() = listOf(
     Tab(Routes.PROFILE, "己", tr("Perfil"), Daidai),
     Tab(Routes.SETTINGS, "設", tr("Ajustes"), Ao)
 )
+
+/** Ordem das abas na barra, para saber de que lado a próxima tela entra. */
+private val TabOrder = listOf(Routes.WORKOUT, Routes.DIET, Routes.HOME, Routes.PROFILE, Routes.SETTINGS)
+
+/** 1 = entra pela direita, -1 = pela esquerda. "Meus alimentos" se comporta como uma subtela à direita da Dieta. */
+private fun navDirection(from: String?, to: String?): Int = when {
+    to == Routes.FOODS -> 1
+    from == Routes.FOODS && to == Routes.DIET -> -1
+    else -> Motion.tabDirection(
+        TabOrder,
+        from?.let { if (it == Routes.FOODS) Routes.DIET else it },
+        to?.let { if (it == Routes.FOODS) Routes.DIET else it }
+    )
+}
+
+// Troca de tela: desliza um pouco para o lado da aba escolhida + fade (barato e dá noção de direção).
+private fun tabEnter(direction: Int): EnterTransition =
+    fadeIn(tween(200, delayMillis = 40)) + slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { it / 8 * direction }
+
+private fun tabExit(direction: Int): ExitTransition =
+    fadeOut(tween(120)) + slideOutHorizontally(tween(260, easing = FastOutSlowInEasing)) { -it / 8 * direction }
 
 @Composable
 fun AppNav(viewModel: ZenViewModel) {
@@ -109,28 +141,46 @@ fun AppNav(viewModel: ZenViewModel) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {
-        Box(Modifier.weight(1f).statusBarsPadding()) {
-            // Troca de aba só com fade curto: barato de desenhar mesmo em aparelhos modestos.
-            NavHost(
-                navController,
-                startDestination = Routes.HOME,
-                enterTransition = { fadeIn(tween(140)) },
-                exitTransition = { fadeOut(tween(90)) },
-                popEnterTransition = { fadeIn(tween(140)) },
-                popExitTransition = { fadeOut(tween(90)) }
-            ) {
-                composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go) }
-                composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
-                composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
-                composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
-                composable(Routes.PROFILE) { ProfileScreen(viewModel) }
-                composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
+    // Modo treino: tela cheia por cima de tudo enquanto houver treino hoje na ficha ativa.
+    val trainingActive by viewModel.trainingActive.collectAsStateWithLifecycle()
+    val workout by viewModel.activeWorkout.collectAsStateWithLifecycle()
+    val clock by viewModel.clock.collectAsStateWithLifecycle()
+    val trainingDay = workout?.days?.firstOrNull { it.day.dayOfWeek == dayOfWeekFromEpochDay(clock.epochDay) }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {
+            Box(Modifier.weight(1f).statusBarsPadding()) {
+                NavHost(
+                    navController,
+                    startDestination = Routes.HOME,
+                    enterTransition = { tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) },
+                    exitTransition = { tabExit(navDirection(initialState.destination.route, targetState.destination.route)) },
+                    popEnterTransition = { tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) },
+                    popExitTransition = { tabExit(navDirection(initialState.destination.route, targetState.destination.route)) }
+                ) {
+                    composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go) }
+                    composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
+                    composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
+                    composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
+                    composable(Routes.PROFILE) { ProfileScreen(viewModel) }
+                    composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
+                }
             }
-            FeedbackHost(busy, message, Modifier.align(Alignment.TopCenter))
+            // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
+            BottomBar(if (current == Routes.FOODS) Routes.DIET else current, onSelect = ::go)
         }
-        // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
-        BottomBar(if (current == Routes.FOODS) Routes.DIET else current, onSelect = ::go)
+        AnimatedVisibility(
+            visible = trainingActive && trainingDay != null,
+            enter = slideInVertically(tween(320)) { it } + fadeIn(tween(200)),
+            exit = slideOutVertically(tween(260)) { it } + fadeOut(tween(200))
+        ) {
+            // Guarda o último dia mostrado para a animação de saída não ficar sem conteúdo.
+            var shown by remember { mutableStateOf(trainingDay) }
+            if (trainingDay != null) shown = trainingDay
+            shown?.let { TrainSessionScreen(it, viewModel, onClose = viewModel::stopTraining) }
+        }
+        // As confirmações ficam por cima de tudo, inclusive do modo treino.
+        FeedbackHost(busy, message, Modifier.align(Alignment.TopCenter).statusBarsPadding())
     }
 }
 

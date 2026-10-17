@@ -92,7 +92,8 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
             grouped.forEach { (cat, items) ->
                 item(key = "title-${cat.name}") { SectionTitle(cat.label, accent = cat.accent(), modifier = Modifier.padding(top = 4.dp)) }
                 items(items, key = { it.id }) { food ->
-                    ZenCard(Modifier.clickable { editing = food }, entranceIndex = -1) {
+                    // Alimento removido/adicionado: os vizinhos deslizam para ocupar o espaço.
+                    ZenCard(Modifier.animateItem().clickable { editing = food }, entranceIndex = -1) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             KanjiBadge(cat.kanji, color = cat.accent(), size = 40.dp)
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {

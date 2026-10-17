@@ -16,10 +16,12 @@ import com.zenkaigym.data.entity.MealCheck
 import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.PlanStatus
+import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
+import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
 import com.zenkaigym.data.entity.WorkoutPlanFull
 import kotlinx.coroutines.flow.Flow
@@ -125,6 +127,44 @@ interface WorkoutDao {
 
     @Query("UPDATE workout_item SET sets = :sets WHERE id = :id")
     suspend fun updateSets(id: Long, sets: Int)
+
+    // ---- Registro de treino ----
+
+    @Query("SELECT * FROM set_log WHERE epochDay = :epochDay")
+    fun observeSets(epochDay: Long): Flow<List<SetLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSet(log: SetLog)
+
+    @Query("DELETE FROM set_log WHERE epochDay = :epochDay AND exerciseId = :exerciseId AND setIndex = :setIndex")
+    suspend fun deleteSet(epochDay: Long, exerciseId: Long, setIndex: Int)
+
+    /** Séries da última vez em que o exercício foi feito antes de [beforeDay]; vazio se nunca. */
+    @Query(
+        "SELECT * FROM set_log WHERE exerciseId = :exerciseId AND epochDay = " +
+            "(SELECT MAX(epochDay) FROM set_log WHERE exerciseId = :exerciseId AND epochDay < :beforeDay) " +
+            "ORDER BY setIndex"
+    )
+    suspend fun lastSets(exerciseId: Long, beforeDay: Long): List<SetLog>
+
+    @Query("SELECT COALESCE(MAX(weightKg), 0) FROM set_log WHERE exerciseId = :exerciseId AND epochDay < :beforeDay")
+    suspend fun bestWeight(exerciseId: Long, beforeDay: Long): Double
+
+    @Query("SELECT * FROM workout_log WHERE epochDay = :epochDay")
+    fun observeWorkoutLog(epochDay: Long): Flow<WorkoutLog?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertWorkoutLog(log: WorkoutLog)
+
+    @Query("DELETE FROM workout_log WHERE epochDay = :epochDay")
+    suspend fun deleteWorkoutLog(epochDay: Long)
+
+    /** Volume (carga × repetições) e séries por dia, a partir de [from]. */
+    @Query("SELECT epochDay, SUM(weightKg * reps) AS volume, COUNT(*) AS sets FROM set_log WHERE epochDay >= :from GROUP BY epochDay")
+    fun observeVolumePerDay(from: Long): Flow<List<DayVolume>>
+
+    @Query("SELECT epochDay FROM workout_log WHERE epochDay >= :from AND finished = 1")
+    fun observeFinishedDays(from: Long): Flow<List<Long>>
 }
 
 @Dao
@@ -194,4 +234,13 @@ interface DietDao {
 
     @Query("DELETE FROM meal_check WHERE epochDay < :epochDay")
     suspend fun pruneChecksBefore(epochDay: Long)
+
+    /** Refeições feitas por dia, a partir de [from] (para o gráfico de aderência). */
+    @Query("SELECT epochDay, COUNT(*) AS count FROM meal_check WHERE epochDay >= :from GROUP BY epochDay")
+    fun observeChecksPerDay(from: Long): Flow<List<DayCount>>
 }
+
+/** Agregados por dia usados nos gráficos de progresso. */
+data class DayCount(val epochDay: Long, val count: Int)
+
+data class DayVolume(val epochDay: Long, val volume: Double, val sets: Int)

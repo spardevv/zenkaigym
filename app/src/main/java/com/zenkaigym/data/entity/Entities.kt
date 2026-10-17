@@ -171,6 +171,27 @@ data class Meal(
     val cheatKcal: Int? = null
 )
 
+/** Treino de um dia marcado como concluído (independe da ficha, que pode ser trocada). */
+@Entity(tableName = "workout_log")
+data class WorkoutLog(
+    @PrimaryKey val epochDay: Long,
+    val finished: Boolean = true
+)
+
+/** Uma série realizada. Guarda o exercício (não o item da ficha) para o histórico sobreviver a trocas de ficha. */
+@Entity(
+    tableName = "set_log",
+    indices = [Index(value = ["epochDay", "exerciseId", "setIndex"], unique = true)]
+)
+data class SetLog(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val epochDay: Long,
+    val exerciseId: Long,
+    val setIndex: Int,
+    val reps: Int,
+    val weightKg: Double
+)
+
 /** Agenda de refeições do usuário: uma linha por refeição do dia, com seu horário (HH:mm). */
 @Entity(tableName = "meal_slot")
 data class MealSlot(

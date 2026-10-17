@@ -123,10 +123,13 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
                 item(key = "days") { DayPicker(shown, day) { day = it } }
                 item(key = "day-summary") { DaySummary(shown, day, slots) }
                 items(shown.mealsOf(day).sortedBy { it.meal.position }, key = { it.meal.id }) { meal ->
-                    MealCard(
-                        meal, MealSchedule.timeOf(meal.meal.type, slots).format(),
-                        onEdit = { editingId = it }, onAdd = { addingTo = meal.meal.id }
-                    )
+                    // Ao trocar de dia ou mudar o número de refeições, os cartões deslizam para o lugar.
+                    Column(Modifier.animateItem()) {
+                        MealCard(
+                            meal, MealSchedule.timeOf(meal.meal.type, slots).format(),
+                            onEdit = { editingId = it }, onAdd = { addingTo = meal.meal.id }
+                        )
+                    }
                 }
             }
         }

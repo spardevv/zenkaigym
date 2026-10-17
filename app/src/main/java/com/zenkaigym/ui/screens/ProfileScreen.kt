@@ -49,20 +49,53 @@ import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.formatEpochDay
 import com.zenkaigym.util.toDecimalOrNull
+import androidx.compose.animation.AnimatedVisibility
+import com.zenkaigym.ui.components.Conceal
+import com.zenkaigym.ui.components.Reveal
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.zenkaigym.ui.components.KanjiBadge
+import com.zenkaigym.ui.components.StatTile
+import com.zenkaigym.ui.components.ZenBarChart
+import com.zenkaigym.ui.theme.Ki
+import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sumi
 
 @Composable
 fun ProfileScreen(viewModel: ZenViewModel) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val weights by viewModel.weights.collectAsStateWithLifecycle()
 
-    // O formulário é inicializado uma vez, quando o perfil salvo existe.
-    val hasProfile = profile != null
-    var height by remember(hasProfile) { mutableStateOf(profile?.heightCm?.toString() ?: "") }
-    var weight by remember(hasProfile) { mutableStateOf(profile?.weightKg?.let { "%.1f".format(it) } ?: "") }
-    var age by remember(hasProfile) { mutableStateOf(profile?.age?.toString() ?: "") }
-    var sex by remember(hasProfile) { mutableStateOf(profile?.sex ?: Sex.MALE) }
-    var goal by remember(hasProfile) { mutableStateOf(profile?.goal ?: Goal.MAINTAIN) }
-    var error by remember { mutableStateOf<String?>(null) }
+    // O formulário recomeça do perfil salvo sempre que ele muda (ao salvar ou ao registrar um peso novo).
+    var height by remember(profile) { mutableStateOf(profile?.heightCm?.toString() ?: "") }
+    var weight by remember(profile) { mutableStateOf(profile?.weightKg?.let { "%.1f".format(it) } ?: "") }
+    var age by remember(profile) { mutableStateOf(profile?.age?.toString() ?: "") }
+    var sex by remember(profile) { mutableStateOf(profile?.sex ?: Sex.MALE) }
+    var goal by remember(profile) { mutableStateOf(profile?.goal ?: Goal.MAINTAIN) }
+    var error by remember(profile) { mutableStateOf<String?>(null) }
+
+    // Sem perfil ainda, salvar é sempre possível; com perfil, só quando algo mudou.
+    val changed = profile?.let { saved ->
+        height.trim() != saved.heightCm.toString() ||
+            weight.toDecimalOrNull()?.let { abs(it - saved.weightKg) >= 0.05 } != false ||
+            age.trim() != saved.age.toString() ||
+            sex != saved.sex ||
+            goal != saved.goal
+    } ?: true
+
+    fun reset() {
+        profile?.let {
+            height = it.heightCm.toString()
+            weight = "%.1f".format(it.weightKg)
+            age = it.age.toString()
+            sex = it.sex
+            goal = it.goal
+        }
+        error = null
+    }
 
     ZenPage {
         Column(
@@ -89,28 +122,122 @@ fun ProfileScreen(viewModel: ZenViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }, accent = Daidai) }
                 }
-                error?.let {
-                    Spacer(Modifier.height(10.dp))
-                    Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
+                AnimatedVisibility(error != null, enter = Reveal, exit = Conceal) {
+                    Text(error.orEmpty(), Modifier.padding(top = 10.dp), color = Aka, style = MaterialTheme.typography.labelLarge)
                 }
-                Spacer(Modifier.height(14.dp))
-                ZenButton(tr("Salvar"), {
-                    when (val result = ProfileValidator.validate(height, weight, age)) {
-                        is ProfileValidation.Invalid -> error = result.message
-                        is ProfileValidation.Valid -> {
-                            error = null
-                            viewModel.saveProfile(
-                                UserProfile(heightCm = result.heightCm, weightKg = result.weightKg, age = result.age, sex = sex, goal = goal)
-                            )
-                        }
+                // Salvar (e desfazer) só aparecem quando há algo diferente do perfil salvo.
+                AnimatedVisibility(changed, enter = Reveal, exit = Conceal) {
+                    Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ZenButton(tr("Salvar"), {
+                            when (val result = ProfileValidator.validate(height, weight, age)) {
+                                is ProfileValidation.Invalid -> error = result.message
+                                is ProfileValidation.Valid -> {
+                                    error = null
+                                    viewModel.saveProfile(
+                                        UserProfile(heightCm = result.heightCm, weightKg = result.weightKg, age = result.age, sex = sex, goal = goal)
+                                    )
+                                }
+                            }
+                        }, Modifier.weight(1f), accent = Daidai, fill = true)
+                        if (profile != null) ZenButton(tr("Desfazer"), ::reset, accent = Zen.p.card)
                     }
-                }, accent = Daidai, fill = true)
+                }
             }
 
-            profile?.let { WeightCard(it, weights, viewModel::addWeight) }
+            profile?.let {
+                WeightCard(it, weights, viewModel::addWeight)
+                ProgressCards(viewModel)
+            }
         }
     }
 }
+
+/** Evolução do treino (volume e sessões por semana) e aderência da dieta (refeições feitas por dia). */
+@Composable
+private fun ProgressCards(viewModel: ZenViewModel) {
+    val training by viewModel.trainingProgress.collectAsStateWithLifecycle()
+    val diet by viewModel.dietProgress.collectAsStateWithLifecycle()
+    val clock by viewModel.clock.collectAsStateWithLifecycle()
+
+    ZenCard(accent = Ki, entranceIndex = 2) {
+        SectionTitle(tr("Evolução do treino"), accent = Ki)
+        Spacer(Modifier.height(10.dp))
+        val t = training
+        if (t == null || !t.hasData) {
+            EmptyProgress("体", Ki, tr("Registre suas séries no modo treino para ver o volume de cada semana aqui."))
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatTile(tr("Treinos · 30 dias"), t.sessionsLast30, Modifier.weight(1f))
+                StatTile(tr("Volume · semana"), t.weeklyVolume.last().roundToInt(), Modifier.weight(1f), format = ::volumeText)
+            }
+            t.volumeChange?.let { change ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (change >= 0) tr("▲ {0}% sobre a semana passada", change) else tr("▼ {0}% sobre a semana passada", -change),
+                    color = Sumi,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.background(if (change >= 0) Midori else Daidai).padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            ZenBarChart(
+                values = t.weeklyVolume.map { it.toFloat() },
+                color = Ki,
+                describe = { i ->
+                    val back = t.weeklyVolume.size - 1 - i
+                    val week = if (back == 0) tr("Esta semana") else tr("Há {0} sem.", back)
+                    tr("{0} · {1} treinos · {2}", week, t.weeklySessions[i], volumeText(t.weeklyVolume[i].roundToInt()))
+                },
+                startLabel = tr("{0} semanas atrás", t.weeklyVolume.size - 1),
+                endLabel = tr("Agora")
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(tr("Volume = carga × repetições. Toque numa barra para ver a semana."), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+
+    ZenCard(accent = Midori, entranceIndex = 3) {
+        SectionTitle(tr("Constância na dieta"), accent = Midori)
+        Spacer(Modifier.height(10.dp))
+        val d = diet
+        if (d == null || !d.hasData) {
+            EmptyProgress("食", Midori, tr("Marque as refeições como feitas no Dojo para acompanhar sua constância."))
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatTile(tr("Média · 14 dias"), d.averagePercent, Modifier.weight(1f), format = { "$it%" })
+                StatTile(
+                    tr("Sequência"), d.streak, Modifier.weight(1f),
+                    format = { tr("{0} dias", it) },
+                    accent = if (d.streak >= 3) Midori else null
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            ZenBarChart(
+                values = d.daily,
+                color = Midori,
+                maxValue = 1f,
+                describe = { i ->
+                    val day = clock.epochDay - (d.daily.size - 1 - i)
+                    tr("{0} · {1}% das refeições", formatEpochDay(day), (d.daily[i] * 100).roundToInt())
+                },
+                startLabel = formatEpochDay(clock.epochDay - (d.daily.size - 1)),
+                endLabel = tr("Hoje")
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyProgress(kanji: String, accent: Color, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        KanjiBadge(kanji, color = accent, size = 40.dp)
+        Text(text, Modifier.padding(start = 12.dp), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** Volume legível: até 999 em kg, depois em toneladas. */
+private fun volumeText(kg: Int): String = if (kg >= 1000) "%.1f t".format(kg / 1000f) else "$kg kg"
 
 @Composable
 private fun Label(text: String) {
