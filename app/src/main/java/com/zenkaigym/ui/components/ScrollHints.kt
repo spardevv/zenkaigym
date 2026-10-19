@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -46,8 +47,9 @@ private fun androidx.compose.foundation.layout.BoxScope.Hint(visible: Boolean, s
             Modifier
                 .padding(6.dp)
                 .graphicsLayer { translationY = bounce * direction * density }
+                .clip(Zen.look.smallShape)
                 .background(p.card)
-                .border(2.dp, p.border)
+                .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
                 .padding(horizontal = 14.dp, vertical = 1.dp)
         ) {
             Text(symbol, style = MaterialTheme.typography.labelLarge)

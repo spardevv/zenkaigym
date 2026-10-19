@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.draw.clip
 import com.zenkaigym.domain.tr
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -131,8 +132,9 @@ fun TimeChip(time: String, onClick: () -> Unit, modifier: Modifier = Modifier, a
     Box(
         modifier
             .pressScale(interaction, 0.94f)
+            .clip(Zen.look.smallShape)
             .background(accent)
-            .border(3.dp, p.border)
+            .border(Zen.look.border, p.border, Zen.look.smallShape)
             .clickable(interaction, null, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
@@ -196,8 +198,9 @@ fun PickRow(title: String, subtitle: String?, trailing: String?, accent: Color, 
         Modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp)
+            .clip(Zen.look.smallShape)
             .background(p.bg)
-            .border(2.dp, p.border)
+            .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
             .clickable(onClick = onClick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically

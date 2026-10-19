@@ -15,3 +15,8 @@
 local.properties
 
 *.apk
+
+# Assinatura de release: nunca versionar
+keystore.properties
+*.jks
+/keystore/

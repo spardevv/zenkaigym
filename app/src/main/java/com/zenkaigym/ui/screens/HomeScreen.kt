@@ -25,6 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.data.entity.DietPlanFull
+import com.zenkaigym.data.entity.MealExtra
+import com.zenkaigym.data.entity.MealFull
+import com.zenkaigym.data.entity.WorkoutDayFull
+import com.zenkaigym.domain.DayAdjust
+import com.zenkaigym.domain.DayAdjustment
+import com.zenkaigym.domain.WorkoutSwaps
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.WorkoutPlanFull
@@ -61,7 +70,12 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val done by viewModel.mealsDone.collectAsStateWithLifecycle()
     val clock by viewModel.clock.collectAsStateWithLifecycle()
     val workoutDone by viewModel.workoutDone.collectAsStateWithLifecycle()
+    val swaps by viewModel.swapsToday.collectAsStateWithLifecycle()
+    val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val extras by viewModel.extrasToday.collectAsStateWithLifecycle()
+    val foods by viewModel.foods.collectAsStateWithLifecycle()
     val dow = todayDayOfWeek()
+    var addingExtra by remember { mutableStateOf<MealFull?>(null) }
 
     ZenPage {
         Column(
@@ -79,10 +93,28 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 }
             } else {
                 val window = remember(availability) { availability.windowsByDay()[dow] }
-                TodayWorkout(workout, window, dow, onNavigate, workoutDone, onTrain = viewModel::startTraining)
-                NextMeal(diet, slots, done, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate, viewModel::setMealDone)
+                TodayWorkout(workout, window, dow, onNavigate, workoutDone, onTrain = viewModel::startTraining) { day ->
+                    // O treino de hoje já aparece com as trocas feitas só para hoje.
+                    WorkoutSwaps.apply(day, swaps, exercises)
+                }
+                NextMeal(
+                    diet, slots, done, extras, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate, viewModel::setMealDone,
+                    onAddExtra = { addingExtra = it },
+                    onRemoveExtra = viewModel::removeExtra
+                )
             }
         }
+    }
+
+    addingExtra?.let { meal ->
+        AddExtraDialog(
+            mealName = tr(meal.meal.name),
+            type = meal.meal.type,
+            foods = foods,
+            onFood = { food, grams -> viewModel.addFoodExtra(meal.meal.type, food, grams); addingExtra = null },
+            onFree = { name, kcal, protein -> viewModel.addFreeExtra(meal.meal.type, name, kcal, protein); addingExtra = null },
+            onDismiss = { addingExtra = null }
+        )
     }
 }
 
@@ -93,12 +125,13 @@ private fun TodayWorkout(
     dow: Int,
     onNavigate: (String) -> Unit,
     done: Boolean,
-    onTrain: () -> Unit
+    onTrain: () -> Unit,
+    withSwaps: (WorkoutDayFull) -> WorkoutDayFull
 ) {
     ZenCard(accent = Aka, entranceIndex = 0) {
         SectionTitle(tr("Treino de hoje"), accent = Aka)
         Spacer(Modifier.height(10.dp))
-        val today = workout?.days?.firstOrNull { it.day.dayOfWeek == dow }
+        val today = workout?.days?.firstOrNull { it.day.dayOfWeek == dow }?.let(withSwaps)
         when {
             workout == null -> {
                 Text(tr("Você ainda não tem uma ficha ativa."))
@@ -136,10 +169,13 @@ private fun NextMeal(
     diet: DietPlanFull?,
     slots: List<MealSlot>,
     done: Set<MealType>,
+    extras: List<MealExtra>,
     nowMinutes: Int,
     today: Int,
     onNavigate: (String) -> Unit,
-    onToggle: (MealType, Boolean) -> Unit
+    onToggle: (MealType, Boolean) -> Unit,
+    onAddExtra: (MealFull) -> Unit,
+    onRemoveExtra: (Long) -> Unit
 ) {
     ZenCard(accent = Aka, entranceIndex = 1) {
         if (diet == null) {
@@ -180,6 +216,15 @@ private fun NextMeal(
             },
             accent = Aka
         )
+        // Pratos fora do cardápio reajustam as refeições que faltam (só hoje; o cardápio não muda).
+        val adjustment = remember(meals, done, extras) { DayAdjust.compute(meals, done, extras) }
+        if (adjustment != DayAdjustment.NONE) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                tr("Próximas refeições ajustadas ao que você comeu: {0} kcal (só hoje).", signed(adjustment.deltaKcal)),
+                color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+            )
+        }
         Spacer(Modifier.height(10.dp))
         HorizontalPager(pager, Modifier.fillMaxWidth(), pageSpacing = 16.dp, verticalAlignment = Alignment.Top) { index ->
             val meal = meals[index]
@@ -202,15 +247,40 @@ private fun NextMeal(
                 if (cheatKcal != null) {
                     Text(tr("Refeição livre · cerca de {0} kcal", cheatKcal), color = Zen.p.muted)
                 }
+                val mealExtras = extras.filter { it.type == meal.meal.type }
+                // Com um prato extra e sem ✓, o extra tomou o lugar da refeição: o planejado fica esmaecido.
+                val replaced = mealExtras.isNotEmpty() && !isDone
                 meal.items.forEach {
-                    Row(Modifier.padding(vertical = 2.dp)) {
-                        Text(tr(it.food.name), Modifier.weight(1f))
-                        Text(Portions.text(it.food, it.item.grams), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                    val adjusted = adjustment.grams[it.item.id]
+                    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(tr(it.food.name), Modifier.weight(1f), color = if (replaced) Zen.p.muted else Zen.p.ink)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(Portions.text(it.food, adjusted ?: it.item.grams), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                            if (adjusted != null) {
+                                Text(tr("ajustado · era {0}", Portions.text(it.food, it.item.grams)), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+                if (mealExtras.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(tr("COMIDO FORA DO CARDÁPIO"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+                    mealExtras.forEach { extra ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onRemoveExtra(extra.id) }.padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("+ " + tr(extra.name) + (extra.grams?.let { " · $it g" } ?: ""), Modifier.weight(1f))
+                            Text(tr("{0} kcal", extra.kcal), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                            Text("  ✕", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 if (isDone) ZenButton(tr("Desfazer"), { onToggle(meal.meal.type, false) }, accent = Zen.p.card, fill = true, small = true)
                 else ZenButton(tr("Feito  ✓"), { onToggle(meal.meal.type, true) }, accent = Midori, fill = true)
+                Spacer(Modifier.height(6.dp))
+                ZenButton(tr("+ Comi outra coisa"), { onAddExtra(meal) }, accent = Ao, fill = true, small = true)
             }
         }
         if (meals.size > 1) {
@@ -238,3 +308,6 @@ private fun NextMeal(
         }
     }
 }
+
+/** Número com sinal: +120 / −180. */
+private fun signed(value: Int): String = if (value > 0) "+$value" else if (value < 0) "−${-value}" else "0"

@@ -81,17 +81,17 @@ fun AvailabilitySection(
         Text(tr("Marque os dias em que pode treinar e o horário de cada um. Salva sozinho."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            WEEK_DAYS_SHORT.forEachIndexed { index, label ->
-                val day = index + 1
+            Zen.week.days.forEach { day ->
                 ZenChip(
-                    label, windows.containsKey(day),
+                    WEEK_DAYS_SHORT[day - 1], windows.containsKey(day),
                     { if (windows.containsKey(day)) windows.remove(day) else windows[day] = lastWindow },
                     Modifier.weight(1f), accent = Ki, compact = true
                 )
             }
         }
 
-        val days = windows.keys.sorted()
+        val week = Zen.week
+        val days = windows.keys.sortedBy { week.position(it) }
         if (days.isEmpty()) {
             Spacer(Modifier.height(10.dp))
             Text(tr("Nenhum dia marcado ainda."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)

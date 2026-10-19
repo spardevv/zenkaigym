@@ -2,6 +2,8 @@ package com.zenkaigym.data
 
 import android.content.Context
 import com.zenkaigym.domain.AppLanguage
+import com.zenkaigym.domain.AppStyle
+import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.domain.IntroStore
 import com.zenkaigym.domain.ThemeMode
 
@@ -27,6 +29,16 @@ class AppFlags(context: Context) {
     var themeMode: ThemeMode
         get() = ThemeMode.fromName(prefs.getString("theme_mode", null))
         set(value) = prefs.edit().putString("theme_mode", value.name).apply()
+
+    /** Estilo visual escolhido em Ajustes; padrão: Shōnen. */
+    var style: AppStyle
+        get() = AppStyle.fromName(prefs.getString("app_style", null))
+        set(value) = prefs.edit().putString("app_style", value.name).apply()
+
+    /** Primeiro dia da semana; padrão: segunda. */
+    var weekStart: WeekStart
+        get() = WeekStart.fromName(prefs.getString("week_start", null))
+        set(value) = prefs.edit().putString("week_start", value.name).apply()
 
     /** Idioma escolhido em Ajustes; padrão: seguir o sistema. */
     var language: AppLanguage

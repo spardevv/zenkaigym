@@ -59,3 +59,21 @@ object FoodValidator {
         return FoodValidation.Valid(name.trim(), k, p, c, f)
     }
 }
+
+sealed interface ExtraValidation {
+    data class Valid(val name: String, val kcal: Int, val protein: Int) : ExtraValidation
+    data class Invalid(val message: String) : ExtraValidation
+}
+
+/** Prato livre comido fora do cardápio: nome, calorias estimadas e proteína (opcional). */
+object ExtraValidator {
+    fun validate(name: String, kcal: String, protein: String): ExtraValidation {
+        if (name.isBlank()) return ExtraValidation.Invalid(tr("Informe o nome do prato."))
+        val k = kcal.trim().toIntOrNull()
+        if (k == null || k !in 1..5000) return ExtraValidation.Invalid(tr("Calorias inválidas (1–5000 kcal)."))
+        val p = if (protein.isBlank()) 0 else protein.trim().toIntOrNull()
+        if (p == null || p !in 0..300) return ExtraValidation.Invalid(tr("Proteína inválida (0–300 g)."))
+        if (p * 4 > k) return ExtraValidation.Invalid(tr("A proteína não pode ter mais calorias que o prato inteiro."))
+        return ExtraValidation.Valid(name.trim(), k, p)
+    }
+}

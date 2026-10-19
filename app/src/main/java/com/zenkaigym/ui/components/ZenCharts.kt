@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -88,8 +89,9 @@ fun ZenBarChart(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
+                    .clip(Zen.look.smallShape)
                     .background(p.bg)
-                    .border(2.dp, p.border)
+                    .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
@@ -152,8 +154,9 @@ fun StatTile(label: String, value: Int, modifier: Modifier = Modifier, format: (
     val shown by animateIntAsState(value, tween(600, easing = FastOutSlowInEasing), label = "stat")
     Column(
         modifier
+            .clip(Zen.look.smallShape)
             .background(accent ?: p.bg)
-            .border(2.dp, p.border)
+            .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Text(label.uppercase(), color = if (accent != null) Sumi else p.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1)

@@ -39,7 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +54,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zenkaigym.ui.theme.Aka
+import com.zenkaigym.ui.theme.Ao
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Sumi
 import com.zenkaigym.ui.theme.Zen
@@ -58,7 +63,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 private val BorderWidth = 3.dp
-private val ShadowOffset = 5.dp
 
 /** Cartão estilo mangá: borda grossa, sombra sólida deslocada e faixa de destaque opcional. */
 @Composable
@@ -69,20 +73,24 @@ fun ZenCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val p = Zen.p
+    val look = Zen.look
     Column(
         modifier
             .zenEntrance(entranceIndex)
-            .padding(end = ShadowOffset, bottom = ShadowOffset)
-            .drawBehind {
-                val o = ShadowOffset.toPx()
-                drawRect(p.shadow, topLeft = Offset(o, o), size = size)
-            }
+            .padding(end = look.shadow, bottom = look.shadow)
+            .zenShadow(look.shadow, p.shadow, look.corner)
+            .clip(look.shape)
             .background(p.card)
-            .border(BorderWidth, p.border)
+            .border(look.border, p.border, look.shape)
     ) {
         if (accent != null) {
-            Box(Modifier.fillMaxWidth().height(10.dp).background(accent))
-            Box(Modifier.fillMaxWidth().height(BorderWidth).background(p.border))
+            if (look.kawaii) {
+                // Kawaii: faixa de cor mais fina e sem linha dura embaixo.
+                Box(Modifier.fillMaxWidth().height(8.dp).background(accent))
+            } else {
+                Box(Modifier.fillMaxWidth().height(10.dp).background(accent))
+                Box(Modifier.fillMaxWidth().height(BorderWidth).background(p.border))
+            }
         }
         Column(Modifier.fillMaxWidth().padding(14.dp), content = content)
     }
@@ -99,6 +107,7 @@ fun ZenButton(
     small: Boolean = false
 ) {
     val p = Zen.p
+    val look = Zen.look
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     // Afunda até a sombra ao pressionar. O valor é lido só no layout (offset com lambda),
@@ -113,10 +122,7 @@ fun ZenButton(
     Box(
         modifier
             .padding(end = 4.dp, bottom = 4.dp)
-            .drawBehind {
-                val o = 4.dp.toPx()
-                drawRect(p.shadow, topLeft = Offset(o, o), size = size)
-            }
+            .zenShadow(4.dp, p.shadow, look.corner)
     ) {
         Box(
             Modifier
@@ -125,8 +131,9 @@ fun ZenButton(
                     IntOffset(o, o)
                 }
                 .then(if (fill) Modifier.fillMaxWidth() else Modifier)
+                .clip(look.shape)
                 .background(background)
-                .border(BorderWidth, p.border)
+                .border(look.border, p.border, look.shape)
                 .clickable(interaction, null, enabled = enabled, onClick = onClick)
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),
             contentAlignment = Alignment.Center
@@ -169,11 +176,13 @@ fun ZenChip(
     val interaction = remember { MutableInteractionSource() }
     val background by animateColorAsState(if (selected) accent else p.card, tween(200), label = "chip-bg")
     val content by animateColorAsState(if (selected) Sumi else p.ink, tween(200), label = "chip-fg")
+    val look = Zen.look
     Box(
         modifier
             .pressScale(interaction)
+            .clip(look.shape)
             .background(background)
-            .border(BorderWidth, p.border)
+            .border(look.border, p.border, look.shape)
             .clickable(interaction, null, onClick = onClick)
             .padding(horizontal = if (compact) 0.dp else 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
@@ -204,8 +213,9 @@ fun ZenField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(Zen.look.smallShape)
                 .background(p.bg)
-                .border(BorderWidth, p.border)
+                .border(Zen.look.border, p.border, Zen.look.smallShape)
                 .padding(12.dp),
             decorationBox = { inner ->
                 Box {
@@ -227,10 +237,17 @@ fun KanjiBadge(kanji: String, modifier: Modifier = Modifier, color: Color = Aka,
             .size(size)
             .clip(CircleShape)
             .background(color)
-            .border(BorderWidth, p.border, CircleShape),
+            .border(Zen.look.border, p.border, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(kanji, color = Sumi, fontWeight = FontWeight.Black, fontSize = (size.value * 0.5f).sp)
+        // Kawaii: um brilho no canto do selo.
+        if (Zen.look.kawaii) {
+            Text(
+                "✦", color = p.card, fontSize = (size.value * 0.24f).sp,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = size * 0.1f, end = size * 0.14f)
+            )
+        }
     }
 }
 
@@ -240,7 +257,7 @@ fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subti
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title.uppercase(), style = MaterialTheme.typography.displayMedium)
-            Box(Modifier.width(72.dp).height(6.dp).background(accent))
+            Box(Modifier.width(72.dp).height(6.dp).clip(Zen.look.smallShape).background(accent))
             if (subtitle != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(subtitle, color = p.muted, style = MaterialTheme.typography.bodyMedium)
@@ -253,7 +270,8 @@ fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subti
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, accent: Color = Aka) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(8.dp).height(22.dp).background(accent))
+        if (Zen.look.kawaii) Box(Modifier.size(14.dp).clip(CircleShape).background(accent))
+        else Box(Modifier.width(8.dp).height(22.dp).background(accent))
         Spacer(Modifier.width(8.dp))
         Text(text.uppercase(), style = MaterialTheme.typography.headlineSmall)
     }
@@ -282,10 +300,73 @@ fun SpeedLines(modifier: Modifier = Modifier) {
     }
 }
 
+/** Kawaii: brilhos, corações e bolinhas no topo da página, no lugar das linhas de velocidade. */
+@Composable
+fun Sparkles(modifier: Modifier = Modifier) {
+    val pink = Aka.copy(alpha = 0.4f)
+    val lilac = Sakura.copy(alpha = 0.4f)
+    val blue = Ao.copy(alpha = 0.45f)
+    Canvas(modifier.fillMaxSize()) {
+        // Posições fixas (frações da área) para o desenho não "pular" entre telas.
+        val marks = listOf(
+            Triple(0.86f, 0.10f, 0), Triple(0.70f, 0.26f, 1), Triple(0.93f, 0.40f, 2), Triple(0.58f, 0.08f, 2),
+            Triple(0.78f, 0.55f, 0), Triple(0.47f, 0.32f, 1), Triple(0.96f, 0.70f, 1), Triple(0.64f, 0.78f, 2),
+            Triple(0.36f, 0.12f, 0), Triple(0.88f, 0.88f, 2)
+        )
+        marks.forEachIndexed { i, (fx, fy, kind) ->
+            val c = Offset(size.width * fx, size.height * fy)
+            val r = (if (i % 3 == 0) 9f else 6f) * density
+            when (kind) {
+                0 -> drawHeart(c, r, pink)
+                1 -> drawSparkle(c, r, lilac)
+                else -> drawCircle(blue, r * 0.6f, c)
+            }
+        }
+    }
+}
+
+/** Coração simples (dois círculos e um triângulo) centrado em [c]. */
+fun DrawScope.drawHeart(c: Offset, r: Float, color: Color) {
+    drawCircle(color, r * 0.55f, Offset(c.x - r * 0.45f, c.y - r * 0.2f))
+    drawCircle(color, r * 0.55f, Offset(c.x + r * 0.45f, c.y - r * 0.2f))
+    val path = Path().apply {
+        moveTo(c.x - r * 0.98f, c.y - r * 0.02f)
+        lineTo(c.x + r * 0.98f, c.y - r * 0.02f)
+        lineTo(c.x, c.y + r * 0.95f)
+        close()
+    }
+    drawPath(path, color)
+}
+
+/** Estrelinha de quatro pontas (brilho) centrada em [c]. */
+fun DrawScope.drawSparkle(c: Offset, r: Float, color: Color) {
+    val k = r * 0.28f
+    val path = Path().apply {
+        moveTo(c.x, c.y - r)
+        lineTo(c.x + k, c.y - k)
+        lineTo(c.x + r, c.y)
+        lineTo(c.x + k, c.y + k)
+        lineTo(c.x, c.y + r)
+        lineTo(c.x - k, c.y + k)
+        lineTo(c.x - r, c.y)
+        lineTo(c.x - k, c.y - k)
+        close()
+    }
+    drawPath(path, color)
+}
+
+/** Sombra deslocada do estilo: retângulo sólido no Shōnen; no Kawaii, arredondada com a curva do cartão. */
+fun Modifier.zenShadow(offset: Dp, color: Color, corner: Dp): Modifier = drawBehind {
+    val o = offset.toPx()
+    if (corner == 0.dp) drawRect(color, topLeft = Offset(o, o), size = size)
+    else drawRoundRect(color, topLeft = Offset(o, o), size = size, cornerRadius = CornerRadius(corner.toPx()))
+}
+
 @Composable
 fun ZenPage(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().background(Zen.p.bg)) {
-        SpeedLines(Modifier.height(260.dp).fillMaxWidth())
+        if (Zen.look.kawaii) Sparkles(Modifier.height(260.dp).fillMaxWidth())
+        else SpeedLines(Modifier.height(260.dp).fillMaxWidth())
         content()
     }
 }
@@ -295,8 +376,9 @@ fun StatPill(label: String, value: String, modifier: Modifier = Modifier, color:
     val p = Zen.p
     Column(
         modifier
+            .clip(Zen.look.smallShape)
             .background(color)
-            .border(BorderWidth, p.border)
+            .border(Zen.look.border, p.border, Zen.look.smallShape)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

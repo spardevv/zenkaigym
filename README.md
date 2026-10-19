@@ -10,7 +10,9 @@ App Android de treino e dieta com visual de mangá. Você informa seus dados, e 
 - **Trocas:** toque em qualquer alimento ou exercício para ajustar a quantidade, trocar por uma alternativa sugerida (com a porção equivalente calculada), cadastrar uma opção própria ou remover.
 - **Alimentos:** sua lista de alimentos (valores por 100 g), com lista inicial pronta, edição, "refazer sugestão" e "remover tudo".
 - **Reponderação automática:** ao mudar perfil, peso, dias de treino, meta ou número de refeições, o app monta novas sugestões de treino e dieta para você revisar.
-- **Tema:** claro, escuro ou seguindo o sistema (em Ajustes), além de uma configuração inicial na primeira abertura.
+- **Modo treino:** um exercício por vez, deslizando na horizontal, com atalhos para cada exercício. Dá para trocar um exercício por outro do mesmo grupo muscular só no treino do dia (a ficha não muda).
+- **Comi outra coisa:** no Dojo, anote um alimento da lista ou um prato livre (nome + kcal estimadas) numa refeição; as refeições que faltam no dia se reajustam para fechar a meta, sem mudar o cardápio.
+- **Tema e estilo:** claro, escuro ou seguindo o sistema, e o estilo **Shōnen** (mangá de ação) ou **Kawaii** (tons pastel de rosa, lilás, roxo e azul-bebê, cantos redondos), em Ajustes e na configuração inicial.
 
 ## Tecnologias
 

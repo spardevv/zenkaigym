@@ -265,4 +265,34 @@ class ZenRepositoryTest {
         repo.saveFood(saved.copy(name = "Tapioca seca"))
         assertEquals(listOf("Tapioca seca"), repo.foods.first().map { it.name })
     }
+
+    // ---- Ajustes só do dia ----
+
+    @Test
+    fun swap_valeSoNoDia_eVoltarAoOriginalDesfaz() = runBlocking {
+        saveBasics()
+        repo.generateWorkoutProposal()
+        val item = repo.proposedWorkout.first()!!.days.first().items.first()
+        val other = repo.exercises.first().first { it.group == item.exercise.group && it.id != item.exercise.id }
+
+        repo.swapExerciseForDay(100, item.item.id, other.id)
+        assertEquals(listOf(other.id), repo.swaps(100).first().map { it.exerciseId })
+        assertTrue(repo.swaps(101).first().isEmpty())
+        // A ficha continua com o exercício original.
+        assertEquals(item.exercise.id, repo.proposedWorkout.first()!!.days.first().items.first { it.item.id == item.item.id }.exercise.id)
+
+        repo.swapExerciseForDay(100, item.item.id, item.exercise.id)
+        assertTrue(repo.swaps(100).first().isEmpty())
+    }
+
+    @Test
+    fun extras_ficamNoDia_eSaoRemovidos() = runBlocking {
+        val id = repo.addExtra(
+            com.zenkaigym.data.entity.MealExtra(epochDay = 100, type = com.zenkaigym.data.entity.MealType.LUNCH, name = "Pizza", kcal = 800, protein = 30)
+        )
+        assertEquals(listOf("Pizza"), repo.extras(100).first().map { it.name })
+        assertTrue(repo.extras(101).first().isEmpty())
+        repo.removeExtra(id)
+        assertTrue(repo.extras(100).first().isEmpty())
+    }
 }

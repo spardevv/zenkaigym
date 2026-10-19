@@ -313,8 +313,8 @@ private fun DayPicker(plan: DietPlanFull, day: Int, onSelect: (Int) -> Unit) {
     val cheatDay = plan.plan.cheatDay
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            WEEK_DAYS_SHORT.forEachIndexed { index, label ->
-                val dow = index + 1
+            Zen.week.days.forEach { dow ->
+                val label = WEEK_DAYS_SHORT[dow - 1]
                 ZenChip(if (dow == cheatDay) "$label★" else label, day == dow, { onSelect(dow) }, Modifier.weight(1f), accent = if (dow == cheatDay) Aka else Midori, compact = true)
             }
         }
@@ -391,8 +391,8 @@ private fun WeekSetupDialog(
         if (useCheat) {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                WEEK_DAYS_SHORT.forEachIndexed { index, label ->
-                    ZenChip(label, cheatDay == index + 1, { cheatDay = index + 1 }, Modifier.weight(1f), accent = Aka, compact = true)
+                Zen.week.days.forEach { dow ->
+                    ZenChip(WEEK_DAYS_SHORT[dow - 1], cheatDay == dow, { cheatDay = dow }, Modifier.weight(1f), accent = Aka, compact = true)
                 }
             }
             Spacer(Modifier.height(10.dp))

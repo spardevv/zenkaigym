@@ -46,7 +46,9 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
                 onDispose { }
             }
-            ZenkaigymTheme(darkTheme = dark) {
+            val style by viewModel.style.collectAsStateWithLifecycle()
+            val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
+            ZenkaigymTheme(darkTheme = dark, style = style, weekStart = weekStart) {
                 val ready by viewModel.ready.collectAsStateWithLifecycle()
                 val showIntro by viewModel.showIntro.collectAsStateWithLifecycle()
                 val showSetup by viewModel.showSetup.collectAsStateWithLifecycle()

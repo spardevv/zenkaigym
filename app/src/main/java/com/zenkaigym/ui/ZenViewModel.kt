@@ -7,6 +7,7 @@ import com.zenkaigym.data.AppFlags
 import com.zenkaigym.data.entity.Availability
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Food
+import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.SetLog
@@ -18,6 +19,7 @@ import com.zenkaigym.domain.Progression
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.repo.ZenRepository
 import com.zenkaigym.domain.AppLanguage
+import com.zenkaigym.domain.AppStyle
 import com.zenkaigym.domain.CheatDay
 import com.zenkaigym.domain.DietPlanner
 import com.zenkaigym.domain.I18n
@@ -25,6 +27,7 @@ import com.zenkaigym.domain.IntroGate
 import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.ThemeMode
+import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.util.Clock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +47,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** O que se sabe de um exercício antes de hoje. */
 data class ExerciseHistory(val last: List<DoneSet>, val bestKg: Double)
@@ -74,6 +78,23 @@ class ZenViewModel(
     fun setThemeMode(mode: ThemeMode) {
         flags.themeMode = mode
         _themeMode.value = mode
+    }
+
+    private val _style = MutableStateFlow(flags.style)
+    val style: StateFlow<AppStyle> = _style
+
+    fun setStyle(style: AppStyle) {
+        flags.style = style
+        _style.value = style
+    }
+
+    private val _weekStart = MutableStateFlow(flags.weekStart.also { repo.weekStart = it })
+    val weekStart: StateFlow<WeekStart> = _weekStart
+
+    fun setWeekStart(start: WeekStart) {
+        flags.weekStart = start
+        repo.weekStart = start
+        _weekStart.value = start
     }
 
     private val _language = MutableStateFlow(flags.language)
@@ -147,6 +168,16 @@ class ZenViewModel(
         .flatMapLatest { repo.setsLogged(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Exercícios trocados só para hoje (a ficha continua igual). */
+    val swapsToday = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.swaps(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Pratos comidos fora do cardápio hoje. */
+    val extrasToday: StateFlow<List<MealExtra>> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.extras(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** Treino de hoje marcado como concluído. */
     val workoutDone: StateFlow<Boolean> = clock.map { it.epochDay }.distinctUntilChanged()
         .flatMapLatest { repo.workoutLog(it) }
@@ -202,13 +233,15 @@ class ZenViewModel(
 
     private val today = clock.map { it.epochDay }.distinctUntilChanged()
 
-    val trainingProgress: StateFlow<TrainingProgress?> = today.flatMapLatest { day ->
-        val from = day - Stats.WEEKS * 7L
+    val trainingProgress: StateFlow<TrainingProgress?> = combine(today, _weekStart) { day, start -> day to start }.flatMapLatest { (day, start) ->
+        // Vai até 30 dias atrás também, para o total de treinos do mês.
+        val from = minOf(Stats.firstDay(day, start), day - 29)
         combine(repo.volumePerDay(from), repo.finishedWorkoutDays(from)) { volume, finished ->
             Stats.training(
                 volumePerDay = volume.associate { it.epochDay to it.volume },
                 sessionDays = volume.filter { it.sets > 0 }.map { it.epochDay }.toSet() + finished,
-                today = day
+                today = day,
+                weekStart = start
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -374,6 +407,17 @@ class ZenViewModel(
         repo.replaceExercise(itemId, repo.addExercise(name, group))
     }
 
+    /** Troca o exercício só no treino de hoje; escolher o da ficha desfaz a troca. */
+    fun swapExerciseToday(itemId: Long, exercise: Exercise) = viewModelScope.launch {
+        repo.swapExerciseForDay(clock.value.epochDay, itemId, exercise.id)
+        toast(tr("Trocado só por hoje: {0}.", tr(exercise.name)))
+    }
+
+    fun createExerciseAndSwapToday(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
+        repo.swapExerciseForDay(clock.value.epochDay, itemId, repo.addExercise(name, group))
+        toast(tr("Trocado só por hoje: {0}.", name))
+    }
+
     fun createExerciseAndAdd(name: String, group: MuscleGroup, dayId: Long) = viewModelScope.launch {
         repo.addWorkoutItem(dayId, repo.addExercise(name, group))
     }
@@ -416,6 +460,27 @@ class ZenViewModel(
         val id = repo.addFood(food)
         repo.addMealItem(mealId, id, DietPlanner.defaultGrams(food))
     }
+
+    // ---- Pratos extras do dia ----
+
+    /** Registra um alimento da lista comido na refeição [type] hoje. */
+    fun addFoodExtra(type: MealType, food: Food, grams: Int) = viewModelScope.launch {
+        repo.addExtra(
+            MealExtra(
+                epochDay = clock.value.epochDay, type = type, foodId = food.id, grams = grams, name = food.name,
+                kcal = (food.kcalPer100 * grams / 100).roundToInt(), protein = (food.proteinPer100 * grams / 100).roundToInt()
+            )
+        )
+        toast(tr("Anotado! As próximas refeições de hoje foram ajustadas."))
+    }
+
+    /** Registra um prato livre (nome e valores estimados) comido na refeição [type] hoje. */
+    fun addFreeExtra(type: MealType, name: String, kcal: Int, protein: Int) = viewModelScope.launch {
+        repo.addExtra(MealExtra(epochDay = clock.value.epochDay, type = type, name = name.trim(), kcal = kcal, protein = protein))
+        toast(tr("Anotado! As próximas refeições de hoje foram ajustadas."))
+    }
+
+    fun removeExtra(id: Long) = viewModelScope.launch { repo.removeExtra(id) }
 
     // ---- Agenda de refeições ----
 

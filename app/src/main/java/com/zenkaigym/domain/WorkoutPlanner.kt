@@ -27,8 +27,8 @@ object WorkoutPlanner {
     private val upper = Session("Superiores", listOf(CHEST to 2, BACK to 2, SHOULDERS to 1, BICEPS to 1, TRICEPS to 1))
     private val lower = Session("Inferiores", listOf(LEGS to 5, CORE to 1))
 
-    fun plan(availableDays: List<Int>, goal: Goal, catalog: List<Exercise>): PlannedWorkout {
-        val days = availableDays.filter { it in 1..7 }.distinct().sorted()
+    fun plan(availableDays: List<Int>, goal: Goal, catalog: List<Exercise>, weekStart: WeekStart = WeekStart.MONDAY): PlannedWorkout {
+        val days = availableDays.filter { it in 1..7 }.distinct().sortedBy { weekStart.position(it) }
         if (days.isEmpty()) return PlannedWorkout("", emptyList())
 
         val sessions = minOf(days.size, MAX_SESSIONS)

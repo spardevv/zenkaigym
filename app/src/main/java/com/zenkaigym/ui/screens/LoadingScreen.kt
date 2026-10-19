@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.draw.clip
 import com.zenkaigym.domain.tr
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -48,7 +49,7 @@ fun LoadingScreen() {
             Spacer(Modifier.height(28.dp))
             Text("ZENKAIGYM", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(20.dp))
-            Box(Modifier.width(180.dp).height(14.dp).border(3.dp, p.border)) {
+            Box(Modifier.width(180.dp).height(14.dp).clip(Zen.look.smallShape).border(Zen.look.border, p.border, Zen.look.smallShape)) {
                 Box(
                     Modifier
                         .fillMaxWidth(0.35f)

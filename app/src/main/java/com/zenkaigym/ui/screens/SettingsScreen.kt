@@ -18,6 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.domain.AppLanguage
+import com.zenkaigym.domain.AppStyle
+import com.zenkaigym.domain.WeekStart
+import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sakura
+import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.domain.ThemeMode
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.SectionTitle
@@ -46,6 +51,9 @@ import com.zenkaigym.ui.theme.Zen
 fun SettingsScreen(viewModel: ZenViewModel) {
     val theme by viewModel.themeMode.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
+    val style by viewModel.style.collectAsStateWithLifecycle()
+    val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     var confirming by remember { mutableStateOf(false) }
 
     ZenPage {
@@ -53,7 +61,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
             Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, idioma e informações"))
+            ZenHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, estilo, treino, semana, idioma e informações"))
 
             ZenCard(accent = Ao, entranceIndex = 0) {
                 SectionTitle(tr("Aparência"), accent = Ao)
@@ -70,7 +78,55 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 )
             }
 
-            ZenCard(accent = Ao, entranceIndex = 1) {
+            ZenCard(accent = Sakura, entranceIndex = 1) {
+                SectionTitle(tr("Estilo"), accent = Sakura)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppStyle.entries.forEach {
+                        ZenChip(it.label, style == it, { viewModel.setStyle(it) }, Modifier.weight(1f), accent = Sakura)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (style == AppStyle.SHONEN) tr("Mangá de ação: bordas grossas, cores vivas e linhas de velocidade.")
+                    else tr("Fofo: tons pastel de rosa, lilás, roxo e azul-bebê, cantos redondos e brilhos."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            ZenCard(accent = Ki, entranceIndex = 2) {
+                SectionTitle(tr("Modo treino"), accent = Ki)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenChip(tr("Tela sempre acesa"), keepOn, { if (!keepOn) viewModel.toggleKeepScreenOn() }, Modifier.weight(1f), accent = Ki)
+                    ZenChip(tr("Normal"), !keepOn, { if (keepOn) viewModel.toggleKeepScreenOn() }, Modifier.weight(1f), accent = Ki)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (keepOn) tr("A tela do treino fica sempre ativa enquanto o modo treino estiver aberto, sem apagar no descanso.")
+                    else tr("A tela do treino apaga sozinha como as outras, conforme o tempo de tela do celular."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            ZenCard(accent = Midori, entranceIndex = 2) {
+                SectionTitle(tr("Semana"), accent = Midori)
+                Spacer(Modifier.height(10.dp))
+                Text(tr("A SEMANA COMEÇA NA"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WeekStart.entries.forEach {
+                        ZenChip(it.label, weekStart == it, { viewModel.setWeekStart(it) }, Modifier.weight(1f), accent = Midori)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    tr("Define a ordem dos dias no treino, na dieta e na agenda, e onde cada semana começa nos gráficos de progresso."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            ZenCard(accent = Ao, entranceIndex = 2) {
                 SectionTitle(tr("Idioma"), accent = Ao)
                 Spacer(Modifier.height(10.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -88,7 +144,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 )
             }
 
-            ZenCard(accent = Ao, entranceIndex = 2) {
+            ZenCard(accent = Ao, entranceIndex = 3) {
                 SectionTitle(tr("Seus dados"), accent = Ao)
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -99,7 +155,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
 
             ZenButton(tr("Rever apresentação"), viewModel::replayIntro, accent = Zen.p.card, small = true)
 
-            ZenCard(accent = Aka, entranceIndex = 3) {
+            ZenCard(accent = Aka, entranceIndex = 4) {
                 SectionTitle(tr("Zona de perigo"), accent = Aka)
                 Spacer(Modifier.height(6.dp))
                 Text(tr("Apaga perfil, pesos, fichas, dietas, alimentos cadastrados e todo o histórico de treinos e refeições."), color = Zen.p.muted)
@@ -146,7 +202,7 @@ private fun WipeDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             )
         }
         Spacer(Modifier.height(12.dp))
-        Text(tr("Serão apagados: perfil e pesos, fichas de treino, séries registradas, dietas, alimentos e refeições marcadas. Tema e idioma continuam como estão."))
+        Text(tr("Serão apagados: perfil e pesos, fichas de treino, séries registradas, dietas, alimentos e refeições marcadas. Tema, estilo, semana e idioma continuam como estão."))
         Spacer(Modifier.height(14.dp))
         ZenField(tr("Digite {0} para confirmar", word), typed, { typed = it }, placeholder = word)
     }

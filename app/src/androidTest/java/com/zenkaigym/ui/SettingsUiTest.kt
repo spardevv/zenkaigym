@@ -6,6 +6,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zenkaigym.domain.AppLanguage
+import com.zenkaigym.domain.AppStyle
+import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.domain.I18n
 import com.zenkaigym.domain.Lang
 import com.zenkaigym.domain.ThemeMode
@@ -31,7 +33,7 @@ class SettingsUiTest {
     @After fun tearDown() = app.close()
 
     @Test fun mostraOsAjustesNoIdiomaPadrao() {
-        rule.onNodeWithText("Aparência, idioma e informações").assertIsDisplayed()
+        rule.onNodeWithText("Aparência, estilo, treino, semana, idioma e informações").assertIsDisplayed()
         rule.onNodeWithText("Segue o modo claro/escuro do seu celular.").assertIsDisplayed()
     }
 
@@ -41,6 +43,23 @@ class SettingsUiTest {
         rule.onNodeWithText("Fixo em modo escuro.").assertIsDisplayed()
         assertEquals(ThemeMode.DARK, app.viewModel.themeMode.value)
         assertEquals(ThemeMode.DARK, app.flags.themeMode)
+    }
+
+    @Test fun escolherEstiloKawaiiAtualizaEstadoEPreferencia() {
+        rule.onNodeWithText("Kawaii").performClick()
+        rule.waitForIdle()
+        assertEquals(AppStyle.KAWAII, app.viewModel.style.value)
+        assertEquals(AppStyle.KAWAII, app.flags.style)
+        rule.onNodeWithText("Shōnen").performClick()
+        rule.waitForIdle()
+        assertEquals(AppStyle.SHONEN, app.flags.style)
+    }
+
+    @Test fun escolherSemanaComecandoNoDomingo() {
+        rule.onNodeWithText("Domingo").performClick()
+        rule.waitForIdle()
+        assertEquals(WeekStart.SUNDAY, app.viewModel.weekStart.value)
+        assertEquals(WeekStart.SUNDAY, app.flags.weekStart)
     }
 
     @Test fun trocarParaInglesTraduzAsTelasNaHora() {

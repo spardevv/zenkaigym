@@ -221,3 +221,27 @@ data class MealItem(
     val foodId: Long,
     val grams: Int
 )
+
+/** Exercício trocado só num dia: o item da ficha continua igual, mas naquele dia usa [exerciseId]. */
+@Entity(tableName = "workout_swap", primaryKeys = ["epochDay", "itemId"])
+data class WorkoutSwap(
+    val epochDay: Long,
+    val itemId: Long,
+    val exerciseId: Long
+)
+
+/**
+ * Algo comido fora do cardápio numa refeição de um dia: um alimento da lista ([foodId] + [grams])
+ * ou um prato livre ([name] com valores estimados). [kcal] e [protein] ficam gravados na hora.
+ */
+@Entity(tableName = "meal_extra", indices = [Index("epochDay")])
+data class MealExtra(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val epochDay: Long,
+    val type: MealType,
+    val foodId: Long? = null,
+    val grams: Int? = null,
+    val name: String,
+    val kcal: Int,
+    val protein: Int
+)

@@ -31,6 +31,8 @@ import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.domain.ProfileValidation
 import com.zenkaigym.domain.ProfileValidator
 import com.zenkaigym.domain.ThemeMode
+import com.zenkaigym.domain.AppStyle
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.FeedbackHost
 import com.zenkaigym.ui.components.SectionTitle
@@ -48,6 +50,7 @@ import com.zenkaigym.ui.theme.Zen
 @Composable
 fun SetupScreen(viewModel: ZenViewModel) {
     val theme by viewModel.themeMode.collectAsStateWithLifecycle()
+    val style by viewModel.style.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
@@ -74,6 +77,12 @@ fun SetupScreen(viewModel: ZenViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemeMode.entries.forEach {
                         ZenChip(it.label, theme == it, { viewModel.setThemeMode(it) }, Modifier.weight(1f), accent = Ao)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppStyle.entries.forEach {
+                        ZenChip(it.label, style == it, { viewModel.setStyle(it) }, Modifier.weight(1f), accent = Sakura)
                     }
                 }
                 Spacer(Modifier.height(6.dp))

@@ -11,6 +11,7 @@ import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Meal
 import com.zenkaigym.data.entity.MealCheck
+import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
@@ -22,6 +23,7 @@ import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutItem
 import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
+import com.zenkaigym.data.entity.WorkoutSwap
 import com.zenkaigym.domain.CheatDay
 import com.zenkaigym.domain.CheatMeal
 import com.zenkaigym.domain.MealSchedule
@@ -30,6 +32,7 @@ import com.zenkaigym.domain.WeeklySuggestion
 import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.SuggestionEngine
+import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.util.todayEpochDay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,6 +41,9 @@ class ZenRepository(
     private val db: AppDatabase,
     private val engine: SuggestionEngine
 ) {
+    /** Primeiro dia da semana (Ajustes); define a ordem dos dias ao montar a ficha. */
+    var weekStart: WeekStart = WeekStart.MONDAY
+
     private val profileDao = db.profileDao()
     private val foodDao = db.foodDao()
     private val workoutDao = db.workoutDao()
@@ -62,6 +68,9 @@ class ZenRepository(
         if (seedFoods && foodDao.getFoods().isEmpty()) foodDao.insertAll(FoodExamples.all())
         // Mantém cerca de um ano de refeições marcadas: alimentam o gráfico de aderência da dieta.
         dietDao.pruneChecksBefore(todayEpochDay() - HISTORY_DAYS)
+        // Trocas e extras só valem no próprio dia: os antigos não servem para nada.
+        workoutDao.pruneSwapsBefore(todayEpochDay())
+        dietDao.pruneExtrasBefore(todayEpochDay())
     }
 
     // ---- Progresso (gráficos do perfil) ----
@@ -196,7 +205,7 @@ class ZenRepository(
         val profile = profileDao.getProfile() ?: return tr("Preencha seu perfil primeiro.")
         val days = profileDao.getAvailability().filter { it.available }.map { it.dayOfWeek }
         if (days.isEmpty()) return tr("Marque ao menos um dia disponível no perfil.")
-        val planned = engine.workoutPlan(days, profile.goal, workoutDao.exercises())
+        val planned = engine.workoutPlan(days, profile.goal, workoutDao.exercises(), weekStart)
         db.withTransaction {
             workoutDao.deleteByStatus(PlanStatus.PROPOSED)
             val planId = workoutDao.insertPlan(
@@ -380,4 +389,22 @@ class ZenRepository(
     suspend fun setMealDone(type: MealType, epochDay: Long, done: Boolean) {
         if (done) dietDao.insertCheck(MealCheck(type, epochDay)) else dietDao.deleteCheck(type, epochDay)
     }
+
+    // ---- Ajustes só do dia ----
+
+    fun swaps(epochDay: Long) = workoutDao.observeSwaps(epochDay)
+
+    /** Troca o exercício do item só em [epochDay]; voltar ao exercício da ficha desfaz a troca. */
+    suspend fun swapExerciseForDay(epochDay: Long, itemId: Long, exerciseId: Long) {
+        db.withTransaction {
+            if (workoutDao.itemExercise(itemId) == exerciseId) workoutDao.deleteSwap(epochDay, itemId)
+            else workoutDao.upsertSwap(WorkoutSwap(epochDay, itemId, exerciseId))
+        }
+    }
+
+    fun extras(epochDay: Long) = dietDao.observeExtras(epochDay)
+
+    suspend fun addExtra(extra: MealExtra) = dietDao.insertExtra(extra)
+
+    suspend fun removeExtra(id: Long) = dietDao.deleteExtra(id)
 }

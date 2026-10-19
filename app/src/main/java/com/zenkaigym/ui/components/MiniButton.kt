@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,8 +31,9 @@ fun MiniButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
         modifier
             .pressScale(interaction, 0.82f)
             .size(34.dp)
+            .clip(Zen.look.smallShape)
             .background(if (color == Color.Transparent) p.card else color)
-            .border(3.dp, p.border)
+            .border(Zen.look.border, p.border, Zen.look.smallShape)
             .clickable(interaction, null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

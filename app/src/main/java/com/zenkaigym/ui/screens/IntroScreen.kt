@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.draw.clip
 import com.zenkaigym.domain.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -161,8 +162,9 @@ private fun Dots(count: Int, current: Int) {
                 Modifier
                     .width(if (i == current) 28.dp else 14.dp)
                     .height(14.dp)
+                    .clip(Zen.look.smallShape)
                     .background(if (i == current) accents[i % accents.size] else Color.Transparent)
-                    .border(3.dp, p.border)
+                    .border(Zen.look.border, p.border, Zen.look.smallShape)
             )
         }
     }

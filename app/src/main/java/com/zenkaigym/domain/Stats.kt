@@ -23,20 +23,25 @@ data class DietProgress(
     val hasData: Boolean get() = daily.any { it > 0f }
 }
 
-/** Regras puras dos gráficos de progresso (sem banco, para testar). Semanas são blocos de 7 dias terminando hoje. */
+/** Regras puras dos gráficos de progresso (sem banco, para testar). Semanas começam no dia escolhido em Ajustes. */
 object Stats {
     const val WEEKS = 8
     const val DIET_DAYS = 14
 
-    /** Soma os valores por semana; índice 0 = mais antiga, último = semana atual. */
-    fun weekly(values: Map<Long, Double>, today: Long, weeks: Int = WEEKS): List<Double> {
+    /** Soma os valores por semana de calendário; índice 0 = mais antiga, último = semana atual (até hoje). */
+    fun weekly(values: Map<Long, Double>, today: Long, weeks: Int = WEEKS, weekStart: WeekStart = WeekStart.MONDAY): List<Double> {
         val out = DoubleArray(weeks)
+        val current = weekStart.weekStartOf(today)
         values.forEach { (day, value) ->
-            val back = today - day
-            if (back >= 0 && back < weeks * 7L) out[weeks - 1 - (back / 7).toInt()] += value
+            if (day > today) return@forEach
+            val back = (current - weekStart.weekStartOf(day)) / 7
+            if (back in 0 until weeks) out[weeks - 1 - back.toInt()] += value
         }
         return out.toList()
     }
+
+    /** Primeiro dia que entra nos gráficos semanais (início da semana mais antiga). */
+    fun firstDay(today: Long, weekStart: WeekStart, weeks: Int = WEEKS): Long = weekStart.weekStartOf(today) - (weeks - 1) * 7L
 
     fun changePercent(previous: Double, current: Double): Int? =
         if (previous <= 0.0) null else ((current - previous) / previous * 100).roundToInt()
@@ -56,9 +61,9 @@ object Stats {
      * Treino: um dia conta como sessão se teve séries registradas ou foi marcado como concluído.
      * [volumePerDay] = soma de carga × repetições por dia.
      */
-    fun training(volumePerDay: Map<Long, Double>, sessionDays: Set<Long>, today: Long): TrainingProgress {
-        val volume = weekly(volumePerDay, today)
-        val sessions = weekly(sessionDays.associateWith { 1.0 }, today).map { it.toInt() }
+    fun training(volumePerDay: Map<Long, Double>, sessionDays: Set<Long>, today: Long, weekStart: WeekStart = WeekStart.MONDAY): TrainingProgress {
+        val volume = weekly(volumePerDay, today, weekStart = weekStart)
+        val sessions = weekly(sessionDays.associateWith { 1.0 }, today, weekStart = weekStart).map { it.toInt() }
         return TrainingProgress(
             weeklyVolume = volume,
             weeklySessions = sessions,

@@ -67,6 +67,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
     val availability by viewModel.availability.collectAsStateWithLifecycle()
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
     val shown = proposed ?: active
+    val week = Zen.week
     val isProposal = proposed != null
     val windows = remember(availability) { availability.windowsByDay() }
 
@@ -94,7 +95,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
             item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
             item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
             if (shown != null) {
-                items(shown.days.sortedBy { it.day.dayOfWeek }, key = { it.day.id }) { day ->
+                items(shown.days.sortedBy { week.position(it.day.dayOfWeek) }, key = { it.day.id }) { day ->
                     // Dias que entram, saem ou mudam de lugar (nova sugestão) deslizam em vez de pular.
                     Column(Modifier.animateItem()) {
                         DayCard(day, windows[day.day.dayOfWeek], onEdit = { editingId = it }, onAdd = { addingTo = day.day.id })
@@ -268,7 +269,7 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
 }
 
 @Composable
-private fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+internal fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     ZenDialog(tr("Novo exercício · {0}", group.label), onDismiss, accent = Ki) {

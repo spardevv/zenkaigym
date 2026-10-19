@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -61,9 +62,10 @@ fun FeedbackHost(busy: String?, message: String?, modifier: Modifier = Modifier)
     ) {
         Column(
             Modifier
-                .drawBehind { drawRect(p.shadow, topLeft = Offset(4.dp.toPx(), 4.dp.toPx()), size = size) }
+                .zenShadow(4.dp, p.shadow, Zen.look.corner / 2)
+                .clip(Zen.look.smallShape)
                 .background(p.card)
-                .border(3.dp, p.border)
+                .border(Zen.look.border, p.border, Zen.look.smallShape)
         ) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (busy != null) Spinner() else CheckPop()
@@ -87,8 +89,9 @@ private fun Spinner() {
         Modifier
             .size(22.dp)
             .graphicsLayer { rotationZ = angle }
+            .clip(Zen.look.smallShape)
             .background(Ki)
-            .border(3.dp, Zen.p.border)
+            .border(Zen.look.border, Zen.p.border, Zen.look.smallShape)
     )
 }
 
@@ -101,8 +104,9 @@ private fun CheckPop() {
         Modifier
             .height(26.dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .clip(Zen.look.smallShape)
             .background(Midori)
-            .border(3.dp, Zen.p.border)
+            .border(Zen.look.border, Zen.p.border, Zen.look.smallShape)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center
     ) {

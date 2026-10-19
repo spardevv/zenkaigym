@@ -16,6 +16,7 @@ import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.Meal
 import com.zenkaigym.data.entity.MealCheck
+import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.SetLog
@@ -25,15 +26,16 @@ import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
 import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
+import com.zenkaigym.data.entity.WorkoutSwap
 
 @Database(
     entities = [
         UserProfile::class, WeightEntry::class, Availability::class, Food::class,
         Exercise::class, WorkoutPlan::class, WorkoutDay::class, WorkoutItem::class,
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
-        WorkoutLog::class, SetLog::class
+        WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -91,9 +93,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v6: trocas de exercício só do dia e pratos extras comidos numa refeição. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS workout_swap (epochDay INTEGER NOT NULL, itemId INTEGER NOT NULL, exerciseId INTEGER NOT NULL, PRIMARY KEY(epochDay, itemId))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS meal_extra (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, epochDay INTEGER NOT NULL, type TEXT NOT NULL, foodId INTEGER, grams INTEGER, name TEXT NOT NULL, kcal INTEGER NOT NULL, protein INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_extra_epochDay ON meal_extra (epochDay)")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
     }
 }

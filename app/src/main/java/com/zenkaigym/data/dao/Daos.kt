@@ -13,6 +13,7 @@ import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.Meal
 import com.zenkaigym.data.entity.MealCheck
+import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.PlanStatus
@@ -24,6 +25,7 @@ import com.zenkaigym.data.entity.WorkoutItem
 import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.data.entity.WorkoutPlan
 import com.zenkaigym.data.entity.WorkoutPlanFull
+import com.zenkaigym.data.entity.WorkoutSwap
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -165,6 +167,23 @@ interface WorkoutDao {
 
     @Query("SELECT epochDay FROM workout_log WHERE epochDay >= :from AND finished = 1")
     fun observeFinishedDays(from: Long): Flow<List<Long>>
+
+    // ---- Trocas de exercício só do dia ----
+
+    @Query("SELECT * FROM workout_swap WHERE epochDay = :epochDay")
+    fun observeSwaps(epochDay: Long): Flow<List<WorkoutSwap>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSwap(swap: WorkoutSwap)
+
+    @Query("DELETE FROM workout_swap WHERE epochDay = :epochDay AND itemId = :itemId")
+    suspend fun deleteSwap(epochDay: Long, itemId: Long)
+
+    @Query("SELECT exerciseId FROM workout_item WHERE id = :id")
+    suspend fun itemExercise(id: Long): Long?
+
+    @Query("DELETE FROM workout_swap WHERE epochDay < :epochDay")
+    suspend fun pruneSwapsBefore(epochDay: Long)
 }
 
 @Dao
@@ -234,6 +253,20 @@ interface DietDao {
 
     @Query("DELETE FROM meal_check WHERE epochDay < :epochDay")
     suspend fun pruneChecksBefore(epochDay: Long)
+
+    // ---- Pratos extras (fora do cardápio) ----
+
+    @Query("SELECT * FROM meal_extra WHERE epochDay = :epochDay ORDER BY id")
+    fun observeExtras(epochDay: Long): Flow<List<MealExtra>>
+
+    @Insert
+    suspend fun insertExtra(extra: MealExtra): Long
+
+    @Query("DELETE FROM meal_extra WHERE id = :id")
+    suspend fun deleteExtra(id: Long)
+
+    @Query("DELETE FROM meal_extra WHERE epochDay < :epochDay")
+    suspend fun pruneExtrasBefore(epochDay: Long)
 
     /** Refeições feitas por dia, a partir de [from] (para o gráfico de aderência). */
     @Query("SELECT epochDay, COUNT(*) AS count FROM meal_check WHERE epochDay >= :from GROUP BY epochDay")
