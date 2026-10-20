@@ -100,6 +100,7 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
     var addingTo by remember { mutableStateOf<Long?>(null) }
     var day by remember { mutableStateOf(todayDayOfWeek()) }
     var setup by remember { mutableStateOf(false) }
+    var shopping by remember { mutableStateOf(false) }
 
     ZenPage {
         val listState = rememberLazyListState()
@@ -117,7 +118,7 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
             profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
             item(key = "schedule") { ScheduleCard(slots, viewModel) }
             item(key = "plan") {
-                PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel, onSetup = { setup = true })
+                PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel, onSetup = { setup = true }, onShopping = { shopping = true })
             }
             if (shown != null) {
                 item(key = "days") { DayPicker(shown, day) { day = it } }
@@ -134,6 +135,13 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+    }
+
+    if (shopping) {
+        // Compra-se para o cardápio em uso; a proposta só entra se ainda não há um ativo.
+        val plan = active ?: shown
+        if (plan == null) shopping = false
+        else ShoppingListDialog(plan) { shopping = false }
     }
 
     if (setup) {
@@ -260,7 +268,8 @@ private fun PlanCard(
     hasActive: Boolean,
     slots: List<MealSlot>,
     viewModel: ZenViewModel,
-    onSetup: () -> Unit
+    onSetup: () -> Unit,
+    onShopping: () -> Unit
 ) {
     if (shown == null) {
         ZenCard(accent = Midori, entranceIndex = 2) {
@@ -297,6 +306,8 @@ private fun PlanCard(
                 ZenButton(tr("Manter a ativa"), viewModel::discardDiet, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
             }
         }
+        Spacer(Modifier.height(8.dp))
+        ZenButton(tr("🛒 Lista de compras"), onShopping, accent = Ao, fill = true, small = true)
     }
 }
 

@@ -8,6 +8,7 @@ App Android de treino e dieta com visual de mangá. Você informa seus dados, e 
 - **Treino:** dias e horários de treino (salvos automaticamente) e uma ficha sugerida (ABC, superior/inferior, push/pull/legs etc.) conforme os dias disponíveis e o objetivo.
 - **Dieta:** meta diária calculada (Mifflin-St Jeor), quantidade e horário de cada refeição (3 a 6 por dia) e um plano em que cada refeição recebe alimentos adequados ao período (ovos, queijo, pão e whey de manhã; frango, carne, arroz e legumes no almoço e no jantar; iogurte e fruta na ceia).
 - **Trocas:** toque em qualquer alimento ou exercício para ajustar a quantidade, trocar por uma alternativa sugerida (com a porção equivalente calculada), cadastrar uma opção própria ou remover.
+- **Lista de compras:** a partir do cardápio ativo, soma cada alimento para a semana, a quinzena ou o mês (a partir de hoje), agrupado por categoria e arredondado para cima (unidades como ovos ou pães em quantidade inteira). Dá para compartilhar (WhatsApp, notas, e-mail…) ou copiar o texto.
 - **Alimentos:** sua lista de alimentos (valores por 100 g), com lista inicial pronta, edição, "refazer sugestão" e "remover tudo".
 - **Reponderação automática:** ao mudar perfil, peso, dias de treino, meta ou número de refeições, o app monta novas sugestões de treino e dieta para você revisar.
 - **Modo treino:** um exercício por vez, deslizando na horizontal, com atalhos para cada exercício. Dá para trocar um exercício por outro do mesmo grupo muscular só no treino do dia (a ficha não muda).

@@ -465,6 +465,19 @@ object Translations {
         "Semana", "Week", "週",
         "A SEMANA COMEÇA NA", "THE WEEK STARTS ON", "週の始まり",
         "Define a ordem dos dias no treino, na dieta e na agenda, e onde cada semana começa nos gráficos de progresso.", "Sets the order of days in workouts, diet and schedule, and where each week starts in the progress charts.", "トレーニング・食事・スケジュールの曜日の並びと、進捗グラフで週が始まる日を決めます。",
+        "🛒 Lista de compras", "🛒 Shopping list", "🛒 買い物リスト",
+        "Lista de compras", "Shopping list", "買い物リスト",
+        "🛒 Lista de compras · {0} dias", "🛒 Shopping list · {0} days", "🛒 買い物リスト · {0}日分",
+        "Gerado pelo Zenkaigym com base no seu cardápio.", "Made by Zenkaigym from your meal plan.", "Zenkaigymがあなたの献立から作成しました。",
+        "De {0} a {1}", "From {0} to {1}", "{0}〜{1}",
+        "{0} · somando o cardápio de cada dia.", "{0} · adding up each day's meal plan.", "{0} · 毎日の献立を合計しています。",
+        "PERÍODO", "PERIOD", "期間",
+        "Quinzena", "2 weeks", "2週間",
+        "Mês", "Month", "1か月",
+        "Compartilhar", "Share", "共有",
+        "Copiar", "Copy", "コピー",
+        "Copiado ✓", "Copied ✓", "コピーしました ✓",
+        "O cardápio ainda não tem alimentos.", "The meal plan has no foods yet.", "献立にまだ食品がありません。",
     )
 
     val en: Map<String, String> = build(1)
