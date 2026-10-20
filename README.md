@@ -48,6 +48,30 @@ Pré-requisitos: Android Studio recente e JDK 17+.
 
 No Windows, use `gradlew.bat`. Também dá para abrir o projeto no Android Studio e executar no emulador ou em um aparelho.
 
+## APK pelo GitHub Actions
+
+O workflow [`.github/workflows/apk.yml`](.github/workflows/apk.yml) roda os testes unitários e gera o APK de release assinado:
+
+- **Tag `v*`** (ex.: `git tag v1.1 && git push origin v1.1`): cria uma Release com o APK. É só abrir a página de Releases no celular, baixar e instalar.
+- **Manual** (aba Actions → APK → Run workflow): o APK fica como artifact da execução (baixado em `.zip`).
+
+Configuração única, em Settings → Secrets and variables → Actions:
+
+| Secret | Valor |
+| --- | --- |
+| `KEYSTORE_BASE64` | o arquivo `.jks` em base64 |
+| `KEYSTORE_PASSWORD` | `storePassword` do `keystore.properties` |
+| `KEY_ALIAS` | `keyAlias` do `keystore.properties` |
+| `KEY_PASSWORD` | `keyPassword` do `keystore.properties` |
+
+Para copiar o keystore em base64 no Windows (PowerShell):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("keystore\zenkaigym-release.jks")) | Set-Clipboard
+```
+
+Use sempre o mesmo keystore: o Android só instala uma atualização por cima se ela tiver a mesma assinatura.
+
 ## Licença
 
 [MIT](LICENSE) © 2026 Gabriel Ramos
