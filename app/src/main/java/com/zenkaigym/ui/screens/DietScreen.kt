@@ -307,7 +307,7 @@ private fun PlanCard(
             }
         }
         Spacer(Modifier.height(8.dp))
-        ZenButton(tr("🛒 Lista de compras"), onShopping, accent = Ao, fill = true, small = true)
+        ZenButton(tr("Lista de compras"), onShopping, accent = Ao, fill = true, small = true)
     }
 }
 

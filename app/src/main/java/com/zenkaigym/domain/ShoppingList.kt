@@ -70,7 +70,7 @@ object ShoppingPlanner {
 
     /** Texto pronto para compartilhar (WhatsApp, notas, e-mail...). [period] é o intervalo de datas já formatado. */
     fun text(list: ShoppingList, period: String): String = buildString {
-        append(tr("🛒 Lista de compras · {0} dias", list.days))
+        append(tr("Lista de compras · {0} dias", list.days))
         append('\n').append(period).append('\n')
         list.groups.forEach { (cat, items) ->
             append('\n').append(cat.label.uppercase()).append('\n')
