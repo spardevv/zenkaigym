@@ -35,7 +35,7 @@ import com.zenkaigym.data.entity.WorkoutSwap
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
         WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -102,9 +102,42 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v7: grupos musculares detalhados (Pernas e Costas se dividem), tipo e equipamento do exercício,
+         * preferências de treino no perfil e refeição "não realizada" (com as kcal comidas de fato).
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE exercise ADD COLUMN kind TEXT NOT NULL DEFAULT 'ISOLATION'")
+                db.execSQL("ALTER TABLE exercise ADD COLUMN equipment TEXT NOT NULL DEFAULT 'GYM'")
+                // Exercícios do catálogo ganham o grupo novo; os que faltam entram na lista.
+                ExerciseCatalog.entries.forEach {
+                    val args = arrayOf<Any>(it.group.name, it.kind.name, it.equipment.name, it.name)
+                    db.execSQL("UPDATE exercise SET `group` = ?, kind = ?, equipment = ? WHERE name = ?", args)
+                    db.execSQL(
+                        "INSERT INTO exercise (`group`, kind, equipment, name) SELECT ?, ?, ?, ? " +
+                            "WHERE NOT EXISTS (SELECT 1 FROM exercise WHERE name = ?)",
+                        args + it.name
+                    )
+                }
+                // Exercícios próprios do usuário nos grupos que deixaram de existir.
+                db.execSQL("UPDATE exercise SET `group` = 'QUADS' WHERE `group` = 'LEGS'")
+                db.execSQL("UPDATE exercise SET `group` = 'LATS' WHERE `group` = 'BACK'")
+                db.execSQL("UPDATE exercise SET kind = 'HOLD' WHERE `group` = 'CORE' AND name LIKE 'Prancha%'")
+
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN level TEXT NOT NULL DEFAULT 'INTERMEDIATE'")
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN cardio TEXT NOT NULL DEFAULT 'NONE'")
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN focus TEXT NOT NULL DEFAULT 'BALANCED'")
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN equipment TEXT NOT NULL DEFAULT 'GYM'")
+
+                db.execSQL("ALTER TABLE meal_check ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE meal_check ADD COLUMN kcal INTEGER")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
     }
 }

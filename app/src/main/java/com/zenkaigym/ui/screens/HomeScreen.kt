@@ -30,7 +30,13 @@ import com.zenkaigym.data.entity.MealFull
 import com.zenkaigym.data.entity.WorkoutDayFull
 import com.zenkaigym.domain.DayAdjust
 import com.zenkaigym.domain.DayAdjustment
+import com.zenkaigym.domain.WeekDietBalance
+import com.zenkaigym.domain.WorkoutPlanner
 import com.zenkaigym.domain.WorkoutSwaps
+import com.zenkaigym.domain.WorkoutWeek
+import com.zenkaigym.data.entity.ExerciseKind
+import com.zenkaigym.data.entity.Goal
+import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -70,6 +76,14 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val done by viewModel.mealsDone.collectAsStateWithLifecycle()
     val clock by viewModel.clock.collectAsStateWithLifecycle()
     val workoutDone by viewModel.workoutDone.collectAsStateWithLifecycle()
+    val workoutSkipped by viewModel.workoutSkipped.collectAsStateWithLifecycle()
+    val assignment by viewModel.todayWorkout.collectAsStateWithLifecycle()
+    val skipped by viewModel.mealsSkipped.collectAsStateWithLifecycle()
+    val recorded by viewModel.mealsRecorded.collectAsStateWithLifecycle()
+    val weekChecks by viewModel.weekChecks.collectAsStateWithLifecycle()
+    val weekExtras by viewModel.weekExtras.collectAsStateWithLifecycle()
+    val weekLogs by viewModel.weekWorkoutLogs.collectAsStateWithLifecycle()
+    val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     val swaps by viewModel.swapsToday.collectAsStateWithLifecycle()
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
     val extras by viewModel.extrasToday.collectAsStateWithLifecycle()
@@ -92,13 +106,31 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                     ZenButton(tr("Criar perfil"), { onNavigate(Routes.PROFILE) }, fill = true)
                 }
             } else {
-                val window = remember(availability) { availability.windowsByDay()[dow] }
-                TodayWorkout(workout, window, dow, onNavigate, workoutDone, onTrain = viewModel::startTraining) { day ->
+                val windows = remember(availability) { availability.windowsByDay() }
+                val window = windows[dow]
+                // Saldo da semana: o que passou ou faltou nos dias anteriores e o gasto de treinos pulados.
+                val goal = profile?.goal ?: Goal.MAINTAIN
+                val weight = profile?.weightKg ?: 70.0
+                val minutesOf = { d: Int -> windows[d]?.durationMinutes ?: WorkoutPlanner.DEFAULT_MINUTES }
+                val balance = remember(diet, clock.epochDay, weekStart, goal, weekChecks, weekExtras, weekLogs, windows, weight) {
+                    WeekDietBalance.compute(
+                        diet, clock.epochDay, weekStart, goal, weekChecks, weekExtras,
+                        WeekDietBalance.skippedBurn(weekLogs, clock.epochDay, weight, minutesOf)
+                    )
+                }
+                // Treino de hoje pulado: quem quer ganhar massa mantém a meta; os outros comem um pouco menos.
+                val todayBurn = if (workoutSkipped && goal != Goal.GAIN) WeekDietBalance.workoutBurnKcal(weight, minutesOf(dow)) else 0
+                TodayWorkout(
+                    workout, assignment, window, onNavigate, workoutDone, workoutSkipped,
+                    onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped
+                ) { day ->
                     // O treino de hoje já aparece com as trocas feitas só para hoje.
                     WorkoutSwaps.apply(day, swaps, exercises)
                 }
                 NextMeal(
-                    diet, slots, done, extras, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate, viewModel::setMealDone,
+                    diet, slots, done, skipped, recorded, extras, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate,
+                    goal = goal, dayDelta = balance.todayKcal - todayBurn.toDouble(), weekSurplus = balance.surplusKcal,
+                    onDone = viewModel::setMealDone, onSkip = viewModel::setMealSkipped,
                     onAddExtra = { addingExtra = it },
                     onRemoveExtra = viewModel::removeExtra
                 )
@@ -121,17 +153,19 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
 @Composable
 private fun TodayWorkout(
     workout: WorkoutPlanFull?,
+    assignment: WorkoutWeek.Assignment,
     window: TimeWindow?,
-    dow: Int,
     onNavigate: (String) -> Unit,
     done: Boolean,
+    skipped: Boolean,
     onTrain: () -> Unit,
+    onSkip: (Boolean) -> Unit,
     withSwaps: (WorkoutDayFull) -> WorkoutDayFull
 ) {
     ZenCard(accent = Aka, entranceIndex = 0) {
         SectionTitle(tr("Treino de hoje"), accent = Aka)
         Spacer(Modifier.height(10.dp))
-        val today = workout?.days?.firstOrNull { it.day.dayOfWeek == dow }?.let(withSwaps)
+        val today = assignment.session?.let(withSwaps)
         when {
             workout == null -> {
                 Text(tr("Você ainda não tem uma ficha ativa."))
@@ -147,6 +181,12 @@ private fun TodayWorkout(
             }
             else -> {
                 Text(tr(today.day.name).uppercase(), style = MaterialTheme.typography.titleMedium)
+                if (assignment.moved) {
+                    Text(
+                        tr("Remarcado de {0}", WEEK_DAYS_SHORT[today.day.dayOfWeek - 1]),
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                    )
+                }
                 if (window != null) {
                     Text("${window.format()} · ${window.durationLabel()}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
                 }
@@ -154,11 +194,33 @@ private fun TodayWorkout(
                 today.items.sortedBy { it.item.position }.forEach {
                     Row(Modifier.padding(vertical = 2.dp)) {
                         Text(tr(it.exercise.name), Modifier.weight(1f))
-                        Text(tr("{0}×{1}", it.item.sets, it.item.reps), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            if (it.exercise.kind == ExerciseKind.CARDIO) it.item.reps else tr("{0}×{1}", it.item.sets, it.item.reps),
+                            color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                        )
                     }
                 }
+                if (assignment.dropped.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        tr("Não cabe nesta semana: {0}.", assignment.dropped.joinToString(", ") { tr(it.day.name) }),
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
-                ZenButton(if (done) tr("TREINO FEITO ✓") else tr("Treinar agora"), onTrain, accent = if (done) Midori else Aka, fill = true)
+                when {
+                    done -> ZenButton(tr("TREINO FEITO ✓"), onTrain, accent = Midori, fill = true)
+                    skipped -> {
+                        Text(tr("NÃO REALIZADO ✕"), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(6.dp))
+                        ZenButton(tr("Desfazer"), { onSkip(false) }, accent = Zen.p.card, fill = true, small = true)
+                    }
+                    else -> {
+                        ZenButton(tr("Treinar agora"), onTrain, accent = Aka, fill = true)
+                        Spacer(Modifier.height(6.dp))
+                        ZenButton(tr("Não realizado"), { onSkip(true) }, accent = Zen.p.card, fill = true, small = true)
+                    }
+                }
             }
         }
     }
@@ -169,11 +231,17 @@ private fun NextMeal(
     diet: DietPlanFull?,
     slots: List<MealSlot>,
     done: Set<MealType>,
+    skipped: Set<MealType>,
+    recorded: Map<MealType, Int>,
     extras: List<MealExtra>,
     nowMinutes: Int,
     today: Int,
     onNavigate: (String) -> Unit,
-    onToggle: (MealType, Boolean) -> Unit,
+    goal: Goal,
+    dayDelta: Double,
+    weekSurplus: Int,
+    onDone: (MealType, Boolean, Int?) -> Unit,
+    onSkip: (MealType, Boolean) -> Unit,
     onAddExtra: (MealFull) -> Unit,
     onRemoveExtra: (Long) -> Unit
 ) {
@@ -187,10 +255,11 @@ private fun NextMeal(
             return@ZenCard
         }
         val meals = diet.meals.filter { it.meal.dayOfWeek == today || it.meal.dayOfWeek == 0 }.sortedBy { MealSchedule.timeOf(it.meal.type, slots).totalMinutes }
-        val nextType = MealSchedule.next(meals.map { it.meal.type }, slots, done, nowMinutes)
+        // Para saber qual é a próxima, refeição não realizada conta como passada.
+        val nextType = MealSchedule.next(meals.map { it.meal.type }, slots, done + skipped, nowMinutes)
         // Sempre abre (e volta, após marcar) na próxima refeição; deslizar mostra as outras do dia.
         val target = meals.indexOfFirst { it.meal.type == nextType }.takeIf { it >= 0 }
-            ?: meals.indexOfFirst { it.meal.type !in done }.takeIf { it >= 0 }
+            ?: meals.indexOfFirst { it.meal.type !in done && it.meal.type !in skipped }.takeIf { it >= 0 }
             ?: 0
         val pager = rememberPagerState(initialPage = target) { meals.size }
         LaunchedEffect(nextType, meals.size) {
@@ -210,28 +279,40 @@ private fun NextMeal(
         SectionTitle(
             when {
                 shownMeal.meal.type in done -> tr("Refeição realizada")
+                shownMeal.meal.type in skipped -> tr("Refeição não realizada")
                 shownMeal.meal.type == nextType -> tr("Próxima refeição")
                 nextIndex >= 0 && shownIndex > nextIndex -> tr("Futuras refeições")
                 else -> tr("Refeição pendente")
             },
             accent = Aka
         )
-        // Pratos fora do cardápio reajustam as refeições que faltam (só hoje; o cardápio não muda).
-        val adjustment = remember(meals, done, extras) { DayAdjust.compute(meals, done, extras) }
+        // Pratos fora do cardápio, refeições puladas e o saldo da semana reajustam as refeições que faltam (o cardápio não muda).
+        val adjustment = remember(meals, done, extras, skipped, recorded, goal, dayDelta) {
+            DayAdjust.compute(meals, done, extras, skipped, recorded, goal, dayDelta)
+        }
         if (adjustment != DayAdjustment.NONE) {
             Spacer(Modifier.height(6.dp))
             Text(
-                tr("Próximas refeições ajustadas ao que você comeu: {0} kcal (só hoje).", signed(adjustment.deltaKcal)),
+                tr("Próximas refeições ajustadas ao que você comeu: {0} kcal (hoje).", signed(adjustment.deltaKcal)),
                 color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        if (weekSurplus != 0) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                tr("Saldo da semana até ontem: {0} kcal.", signed(weekSurplus)),
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
             )
         }
         Spacer(Modifier.height(10.dp))
         HorizontalPager(pager, Modifier.fillMaxWidth(), pageSpacing = 16.dp, verticalAlignment = Alignment.Top) { index ->
             val meal = meals[index]
             val isDone = meal.meal.type in done
+            val isSkipped = meal.meal.type in skipped
             val tag = when {
                 meal.meal.type == nextType -> tr("PRÓXIMA")
                 isDone -> tr("FEITA ✓")
+                isSkipped -> tr("NÃO REALIZADA ✕")
                 else -> null
             }
             Column(Modifier.fillMaxWidth()) {
@@ -249,7 +330,7 @@ private fun NextMeal(
                 }
                 val mealExtras = extras.filter { it.type == meal.meal.type }
                 // Com um prato extra e sem ✓, o extra tomou o lugar da refeição: o planejado fica esmaecido.
-                val replaced = mealExtras.isNotEmpty() && !isDone
+                val replaced = (mealExtras.isNotEmpty() && !isDone) || isSkipped
                 meal.items.forEach {
                     val adjusted = adjustment.grams[it.item.id]
                     Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -277,8 +358,17 @@ private fun NextMeal(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                if (isDone) ZenButton(tr("Desfazer"), { onToggle(meal.meal.type, false) }, accent = Zen.p.card, fill = true, small = true)
-                else ZenButton(tr("Feito  ✓"), { onToggle(meal.meal.type, true) }, accent = Midori, fill = true)
+                if (isDone) ZenButton(tr("Desfazer"), { onDone(meal.meal.type, false, null) }, accent = Zen.p.card, fill = true, small = true)
+                else if (isSkipped) ZenButton(tr("Desfazer"), { onSkip(meal.meal.type, false) }, accent = Zen.p.card, fill = true, small = true)
+                else {
+                    // Grava as calorias que a refeição tem agora (com o ajuste do dia) para o saldo da semana.
+                    ZenButton(
+                        tr("Feito  ✓"), { onDone(meal.meal.type, true, DayAdjust.adjustedKcal(meal, adjustment).roundToInt()) },
+                        accent = Midori, fill = true
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    ZenButton(tr("Não realizei"), { onSkip(meal.meal.type, true) }, accent = Zen.p.card, fill = true, small = true)
+                }
                 Spacer(Modifier.height(6.dp))
                 ZenButton(tr("+ Comi outra coisa"), { onAddExtra(meal) }, accent = Ao, fill = true, small = true)
             }
@@ -298,8 +388,9 @@ private fun NextMeal(
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             meals.forEachIndexed { index, meal ->
                 val isDone = meal.meal.type in done
+                val isSkipped = meal.meal.type in skipped
                 ZenChip(
-                    (if (isDone && meals.size <= 4) "✓ " else "") + MealSchedule.timeOf(meal.meal.type, slots).format(),
+                    (if (isDone && meals.size <= 4) "✓ " else if (isSkipped && meals.size <= 4) "✕ " else "") + MealSchedule.timeOf(meal.meal.type, slots).format(),
                     isDone,
                     { scope.launch { pager.animateScrollToPage(index) } },
                     Modifier.weight(1f), accent = Aka, compact = true

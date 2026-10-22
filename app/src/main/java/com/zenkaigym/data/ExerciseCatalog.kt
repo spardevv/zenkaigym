@@ -8,29 +8,174 @@ import com.zenkaigym.data.entity.FoodCategory.FRUIT
 import com.zenkaigym.data.entity.FoodCategory.PROTEIN
 import com.zenkaigym.data.entity.FoodCategory.SALAD
 import com.zenkaigym.data.entity.FoodCategory.VEGETABLE
+import com.zenkaigym.data.entity.Equipment
+import com.zenkaigym.data.entity.Equipment.BODYWEIGHT
+import com.zenkaigym.data.entity.Equipment.DUMBBELLS
+import com.zenkaigym.data.entity.Equipment.GYM
+import com.zenkaigym.data.entity.ExerciseKind
+import com.zenkaigym.data.entity.ExerciseKind.COMPOUND
+import com.zenkaigym.data.entity.ExerciseKind.HOLD
+import com.zenkaigym.data.entity.ExerciseKind.ISOLATION
+import com.zenkaigym.data.entity.Level
+import com.zenkaigym.data.entity.Level.ADVANCED
+import com.zenkaigym.data.entity.Level.BEGINNER
+import com.zenkaigym.data.entity.Level.INTERMEDIATE
 import com.zenkaigym.data.entity.MuscleGroup
-import com.zenkaigym.data.entity.MuscleGroup.BACK
+import com.zenkaigym.data.entity.MuscleGroup.ADDUCTORS
 import com.zenkaigym.data.entity.MuscleGroup.BICEPS
+import com.zenkaigym.data.entity.MuscleGroup.CALVES
+import com.zenkaigym.data.entity.MuscleGroup.CARDIO
 import com.zenkaigym.data.entity.MuscleGroup.CHEST
 import com.zenkaigym.data.entity.MuscleGroup.CORE
-import com.zenkaigym.data.entity.MuscleGroup.LEGS
+import com.zenkaigym.data.entity.MuscleGroup.GLUTES
+import com.zenkaigym.data.entity.MuscleGroup.HAMSTRINGS
+import com.zenkaigym.data.entity.MuscleGroup.LATS
+import com.zenkaigym.data.entity.MuscleGroup.QUADS
 import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS
 import com.zenkaigym.data.entity.MuscleGroup.TRICEPS
+import com.zenkaigym.data.entity.MuscleGroup.UPPER_BACK
 
-/** Catálogo inicial de exercícios, inserido na primeira execução. */
+/**
+ * Exercício do catálogo: grupo principal, tipo, equipamento mínimo, nível a partir do qual é sugerido
+ * e grupos trabalhados de forma secundária (cada série vale [ExerciseCatalog.SECONDARY] série para eles).
+ */
+data class CatalogEntry(
+    val name: String,
+    val group: MuscleGroup,
+    val kind: ExerciseKind,
+    val equipment: Equipment,
+    val level: Level = BEGINNER,
+    val secondary: List<MuscleGroup> = emptyList()
+)
+
+/** Catálogo de exercícios, inserido na primeira execução (e completado pela migração para quem já usa o app). */
 object ExerciseCatalog {
-    private val byGroup: Map<MuscleGroup, List<String>> = mapOf(
-        CHEST to listOf("Supino reto com barra", "Supino inclinado com halteres", "Crucifixo na máquina", "Flexão de braço", "Crossover na polia"),
-        BACK to listOf("Puxada frontal", "Remada curvada", "Remada baixa", "Barra fixa", "Remada unilateral com halter"),
-        LEGS to listOf("Agachamento livre", "Leg press 45°", "Cadeira extensora", "Mesa flexora", "Stiff com barra", "Afundo com halteres", "Panturrilha em pé"),
-        SHOULDERS to listOf("Desenvolvimento com halteres", "Elevação lateral", "Elevação frontal", "Crucifixo inverso"),
-        BICEPS to listOf("Rosca direta", "Rosca alternada", "Rosca martelo"),
-        TRICEPS to listOf("Tríceps testa", "Tríceps na polia", "Mergulho no banco"),
-        CORE to listOf("Prancha", "Abdominal supra", "Elevação de pernas")
+    /** Quanto uma série vale para um grupo trabalhado de forma secundária. */
+    const val SECONDARY = 0.5
+
+    private val RUN = ExerciseKind.CARDIO
+
+    private fun e(
+        name: String, group: MuscleGroup, kind: ExerciseKind, equipment: Equipment,
+        level: Level = BEGINNER, vararg secondary: MuscleGroup
+    ) = CatalogEntry(name, group, kind, equipment, level, secondary.toList())
+
+    val entries: List<CatalogEntry> = listOf(
+        // Peito
+        e("Supino reto com barra", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS),
+        e("Supino na máquina", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS),
+        e("Supino reto com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS),
+        e("Supino inclinado com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS),
+        e("Flexão de braço", CHEST, COMPOUND, BODYWEIGHT, BEGINNER, TRICEPS, SHOULDERS),
+        e("Crucifixo na máquina", CHEST, ISOLATION, GYM),
+        e("Crossover na polia", CHEST, ISOLATION, GYM),
+        e("Crucifixo com halteres", CHEST, ISOLATION, DUMBBELLS),
+        // Grande dorsal
+        e("Puxada frontal", LATS, COMPOUND, GYM, BEGINNER, BICEPS, UPPER_BACK),
+        e("Puxada supinada", LATS, COMPOUND, GYM, BEGINNER, BICEPS),
+        e("Barra fixa", LATS, COMPOUND, BODYWEIGHT, INTERMEDIATE, BICEPS, UPPER_BACK),
+        e("Remada unilateral com halter", LATS, COMPOUND, DUMBBELLS, BEGINNER, BICEPS, UPPER_BACK),
+        e("Pulldown braço reto", LATS, ISOLATION, GYM),
+        e("Pullover com halter", LATS, ISOLATION, DUMBBELLS),
+        // Pequena dorsal (trapézio, romboides e deltoide posterior)
+        e("Remada baixa", UPPER_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS),
+        e("Remada curvada", UPPER_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS),
+        e("Remada curvada com halteres", UPPER_BACK, COMPOUND, DUMBBELLS, BEGINNER, LATS, BICEPS),
+        e("Remada invertida", UPPER_BACK, COMPOUND, BODYWEIGHT, BEGINNER, LATS, BICEPS),
+        e("Face pull", UPPER_BACK, ISOLATION, GYM, BEGINNER, SHOULDERS),
+        e("Crucifixo inverso", UPPER_BACK, ISOLATION, DUMBBELLS, BEGINNER, SHOULDERS),
+        e("Encolhimento com halteres", UPPER_BACK, ISOLATION, DUMBBELLS),
+        e("Elevação Y deitado", UPPER_BACK, ISOLATION, BODYWEIGHT),
+        // Ombros
+        e("Desenvolvimento na máquina", SHOULDERS, COMPOUND, GYM, BEGINNER, TRICEPS),
+        e("Desenvolvimento com halteres", SHOULDERS, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS),
+        e("Flexão pike", SHOULDERS, COMPOUND, BODYWEIGHT, INTERMEDIATE, TRICEPS),
+        e("Elevação lateral", SHOULDERS, ISOLATION, DUMBBELLS),
+        e("Elevação lateral na polia", SHOULDERS, ISOLATION, GYM),
+        e("Elevação frontal", SHOULDERS, ISOLATION, DUMBBELLS),
+        // Bíceps
+        e("Rosca direta", BICEPS, ISOLATION, GYM),
+        e("Rosca na polia", BICEPS, ISOLATION, GYM),
+        e("Rosca alternada", BICEPS, ISOLATION, DUMBBELLS),
+        e("Rosca martelo", BICEPS, ISOLATION, DUMBBELLS),
+        // Tríceps
+        e("Tríceps na polia", TRICEPS, ISOLATION, GYM),
+        e("Tríceps testa", TRICEPS, ISOLATION, GYM),
+        e("Tríceps francês com halter", TRICEPS, ISOLATION, DUMBBELLS),
+        e("Mergulho no banco", TRICEPS, ISOLATION, BODYWEIGHT),
+        e("Flexão diamante", TRICEPS, COMPOUND, BODYWEIGHT, INTERMEDIATE, CHEST),
+        // Quadríceps
+        e("Agachamento livre", QUADS, COMPOUND, GYM, INTERMEDIATE, GLUTES, ADDUCTORS),
+        e("Leg press 45°", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
+        e("Agachamento hack", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
+        e("Agachamento goblet", QUADS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES, ADDUCTORS),
+        e("Afundo com halteres", QUADS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES),
+        e("Agachamento búlgaro", QUADS, COMPOUND, DUMBBELLS, INTERMEDIATE, GLUTES),
+        e("Agachamento sem peso", QUADS, COMPOUND, BODYWEIGHT, BEGINNER, GLUTES),
+        e("Cadeira extensora", QUADS, ISOLATION, GYM),
+        // Posterior de coxa
+        e("Stiff com barra", HAMSTRINGS, COMPOUND, GYM, BEGINNER, GLUTES),
+        e("Levantamento terra", HAMSTRINGS, COMPOUND, GYM, ADVANCED, GLUTES, UPPER_BACK),
+        e("Stiff com halteres", HAMSTRINGS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES),
+        e("Stiff unilateral sem peso", HAMSTRINGS, COMPOUND, BODYWEIGHT, BEGINNER, GLUTES),
+        e("Mesa flexora", HAMSTRINGS, ISOLATION, GYM),
+        e("Cadeira flexora", HAMSTRINGS, ISOLATION, GYM),
+        e("Flexão nórdica", HAMSTRINGS, ISOLATION, BODYWEIGHT, ADVANCED),
+        // Glúteos (inclui abdutores)
+        e("Elevação pélvica", GLUTES, COMPOUND, GYM, BEGINNER, HAMSTRINGS),
+        e("Elevação pélvica com halter", GLUTES, COMPOUND, DUMBBELLS, BEGINNER, HAMSTRINGS),
+        e("Ponte de glúteo", GLUTES, COMPOUND, BODYWEIGHT, BEGINNER, HAMSTRINGS),
+        e("Glúteo na polia", GLUTES, ISOLATION, GYM),
+        e("Cadeira abdutora", GLUTES, ISOLATION, GYM),
+        e("Abdução deitado de lado", GLUTES, ISOLATION, BODYWEIGHT),
+        // Adutores
+        e("Cadeira adutora", ADDUCTORS, ISOLATION, GYM),
+        e("Adução na polia", ADDUCTORS, ISOLATION, GYM),
+        e("Agachamento sumô com halter", ADDUCTORS, COMPOUND, DUMBBELLS, BEGINNER, QUADS, GLUTES),
+        e("Adução deitado de lado", ADDUCTORS, ISOLATION, BODYWEIGHT),
+        e("Prancha de Copenhague", ADDUCTORS, HOLD, BODYWEIGHT, INTERMEDIATE, CORE),
+        // Panturrilha
+        e("Panturrilha em pé", CALVES, ISOLATION, GYM),
+        e("Panturrilha sentado", CALVES, ISOLATION, GYM),
+        e("Panturrilha no leg press", CALVES, ISOLATION, GYM),
+        e("Panturrilha unilateral com halter", CALVES, ISOLATION, DUMBBELLS),
+        e("Panturrilha no degrau", CALVES, ISOLATION, BODYWEIGHT),
+        // Core
+        e("Prancha", CORE, HOLD, BODYWEIGHT),
+        e("Prancha lateral", CORE, HOLD, BODYWEIGHT),
+        e("Abdominal supra", CORE, ISOLATION, BODYWEIGHT),
+        e("Elevação de pernas", CORE, ISOLATION, BODYWEIGHT),
+        e("Abdominal infra", CORE, ISOLATION, BODYWEIGHT),
+        e("Abdominal bicicleta", CORE, ISOLATION, BODYWEIGHT),
+        e("Dead bug", CORE, ISOLATION, BODYWEIGHT),
+        e("Superman", CORE, ISOLATION, BODYWEIGHT),
+        e("Abdominal na polia", CORE, ISOLATION, GYM),
+        e("Pallof press", CORE, ISOLATION, GYM),
+        // Cardio
+        e("Bicicleta ergométrica", CARDIO, RUN, GYM),
+        e("Esteira", CARDIO, RUN, GYM),
+        e("Elíptico", CARDIO, RUN, GYM),
+        e("Caminhada inclinada na esteira", CARDIO, RUN, GYM),
+        e("Simulador de escada", CARDIO, RUN, GYM, INTERMEDIATE),
+        e("HIIT na bicicleta", CARDIO, RUN, GYM, INTERMEDIATE),
+        e("Caminhada rápida", CARDIO, RUN, BODYWEIGHT),
+        e("Polichinelo", CARDIO, RUN, BODYWEIGHT),
+        e("Pular corda", CARDIO, RUN, DUMBBELLS),
+        e("Burpee", CARDIO, RUN, BODYWEIGHT, INTERMEDIATE)
     )
 
+    private val byName = entries.associateBy { it.name }
+
+    fun info(name: String): CatalogEntry? = byName[name]
+
+    /** Grupos secundários de um exercício (exercícios próprios do usuário não têm). */
+    fun secondary(exercise: Exercise): List<MuscleGroup> = byName[exercise.name]?.secondary.orEmpty()
+
+    /** Nível a partir do qual o exercício é sugerido (próprios do usuário: qualquer nível). */
+    fun level(exercise: Exercise): Level = byName[exercise.name]?.level ?: BEGINNER
+
     fun all(): List<Exercise> =
-        byGroup.flatMap { (group, names) -> names.map { Exercise(name = it, group = group) } }
+        entries.map { Exercise(name = it.name, group = it.group, kind = it.kind, equipment = it.equipment) }
 }
 
 /** Alimentos iniciais (valores aproximados por 100 g), inseridos na primeira execução. */

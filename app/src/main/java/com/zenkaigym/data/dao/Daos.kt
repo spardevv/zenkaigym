@@ -168,6 +168,10 @@ interface WorkoutDao {
     @Query("SELECT epochDay FROM workout_log WHERE epochDay >= :from AND finished = 1")
     fun observeFinishedDays(from: Long): Flow<List<Long>>
 
+    /** Treinos marcados (feitos ou não realizados) a partir de [from]: reorganizam a semana. */
+    @Query("SELECT * FROM workout_log WHERE epochDay >= :from")
+    fun observeWorkoutLogs(from: Long): Flow<List<WorkoutLog>>
+
     // ---- Trocas de exercício só do dia ----
 
     @Query("SELECT * FROM workout_swap WHERE epochDay = :epochDay")
@@ -245,8 +249,13 @@ interface DietDao {
     @Query("SELECT * FROM meal_check WHERE epochDay = :epochDay")
     fun observeChecks(epochDay: Long): Flow<List<MealCheck>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertCheck(check: MealCheck)
+    /** Feita e não realizada são exclusivas: marcar uma substitui a outra. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCheck(check: MealCheck)
+
+    /** Refeições marcadas (feitas ou não realizadas) a partir de [from], para o saldo da semana. */
+    @Query("SELECT * FROM meal_check WHERE epochDay >= :from")
+    fun observeChecksFrom(from: Long): Flow<List<MealCheck>>
 
     @Query("DELETE FROM meal_check WHERE type = :type AND epochDay = :epochDay")
     suspend fun deleteCheck(type: com.zenkaigym.data.entity.MealType, epochDay: Long)
@@ -259,6 +268,9 @@ interface DietDao {
     @Query("SELECT * FROM meal_extra WHERE epochDay = :epochDay ORDER BY id")
     fun observeExtras(epochDay: Long): Flow<List<MealExtra>>
 
+    @Query("SELECT * FROM meal_extra WHERE epochDay >= :from ORDER BY id")
+    fun observeExtrasFrom(from: Long): Flow<List<MealExtra>>
+
     @Insert
     suspend fun insertExtra(extra: MealExtra): Long
 
@@ -269,7 +281,7 @@ interface DietDao {
     suspend fun pruneExtrasBefore(epochDay: Long)
 
     /** Refeições feitas por dia, a partir de [from] (para o gráfico de aderência). */
-    @Query("SELECT epochDay, COUNT(*) AS count FROM meal_check WHERE epochDay >= :from GROUP BY epochDay")
+    @Query("SELECT epochDay, COUNT(*) AS count FROM meal_check WHERE epochDay >= :from AND skipped = 0 GROUP BY epochDay")
     fun observeChecksPerDay(from: Long): Flow<List<DayCount>>
 }
 

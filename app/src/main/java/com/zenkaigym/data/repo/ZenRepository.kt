@@ -32,7 +32,10 @@ import com.zenkaigym.domain.WeeklySuggestion
 import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.SuggestionEngine
+import com.zenkaigym.domain.TimeWindow
 import com.zenkaigym.domain.WeekStart
+import com.zenkaigym.domain.WorkoutPlanner
+import com.zenkaigym.domain.WorkoutRequest
 import com.zenkaigym.util.todayEpochDay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -68,9 +71,9 @@ class ZenRepository(
         if (seedFoods && foodDao.getFoods().isEmpty()) foodDao.insertAll(FoodExamples.all())
         // Mantém cerca de um ano de refeições marcadas: alimentam o gráfico de aderência da dieta.
         dietDao.pruneChecksBefore(todayEpochDay() - HISTORY_DAYS)
-        // Trocas e extras só valem no próprio dia: os antigos não servem para nada.
+        // Trocas valem só no próprio dia; os extras ficam até o fim da semana para o saldo semanal da dieta.
         workoutDao.pruneSwapsBefore(todayEpochDay())
-        dietDao.pruneExtrasBefore(todayEpochDay())
+        dietDao.pruneExtrasBefore(weekStart.weekStartOf(todayEpochDay()))
     }
 
     // ---- Progresso (gráficos do perfil) ----
@@ -159,8 +162,10 @@ class ZenRepository(
 
     /** Salva a agenda de treino; só remonta treino e dieta se os dias disponíveis mudaram. Devolve true se remontou. */
     suspend fun updateAvailability(list: List<Availability>): Boolean {
-        val before = availableDays()
-        val after = list.filter { it.available }.map { it.dayOfWeek }.toSet()
+        // Mudou o dia ou o horário (a duração define quanto treino cabe): remonta.
+        fun key(l: List<Availability>) = l.filter { it.available }.map { Triple(it.dayOfWeek, it.startTime, it.endTime) }.toSet()
+        val before = key(profileDao.getAvailability())
+        val after = key(list)
         if (before == after) {
             saveAvailability(list)
             return false
@@ -203,9 +208,17 @@ class ZenRepository(
     /** Retorna uma mensagem de erro, ou null se a sugestão foi gerada. */
     suspend fun generateWorkoutProposal(): String? {
         val profile = profileDao.getProfile() ?: return tr("Preencha seu perfil primeiro.")
-        val days = profileDao.getAvailability().filter { it.available }.map { it.dayOfWeek }
-        if (days.isEmpty()) return tr("Marque ao menos um dia disponível no perfil.")
-        val planned = engine.workoutPlan(days, profile.goal, workoutDao.exercises(), weekStart)
+        val availability = profileDao.getAvailability().filter { it.available }
+        if (availability.isEmpty()) return tr("Marque ao menos um dia disponível no perfil.")
+        // Cada dia entra com os minutos da sua janela de horário (sem janela, a duração padrão).
+        val minutes = availability.associate {
+            it.dayOfWeek to (TimeWindow.fromStored(it.startTime, it.endTime)?.durationMinutes ?: WorkoutPlanner.DEFAULT_MINUTES)
+        }
+        val request = WorkoutRequest(
+            days = minutes, goal = profile.goal, level = profile.level, cardio = profile.cardio,
+            focus = profile.focus, equipment = profile.equipment, weekStart = weekStart
+        )
+        val planned = engine.workoutPlan(request, workoutDao.exercises())
         db.withTransaction {
             workoutDao.deleteByStatus(PlanStatus.PROPOSED)
             val planId = workoutDao.insertPlan(
@@ -386,9 +399,26 @@ class ZenRepository(
         if (done) workoutDao.upsertWorkoutLog(WorkoutLog(epochDay)) else workoutDao.deleteWorkoutLog(epochDay)
     }
 
-    suspend fun setMealDone(type: MealType, epochDay: Long, done: Boolean) {
-        if (done) dietDao.insertCheck(MealCheck(type, epochDay)) else dietDao.deleteCheck(type, epochDay)
+    /** Treino do dia marcado como não realizado (ou a marca desfeita). */
+    suspend fun setWorkoutSkipped(epochDay: Long, skipped: Boolean) {
+        if (skipped) workoutDao.upsertWorkoutLog(WorkoutLog(epochDay, finished = false)) else workoutDao.deleteWorkoutLog(epochDay)
     }
+
+    /** Treinos marcados (feitos ou não realizados) a partir de [from]. */
+    fun workoutLogsFrom(from: Long) = workoutDao.observeWorkoutLogs(from)
+
+    /** [kcal] são as calorias que a refeição teve de fato (já com o ajuste do dia). */
+    suspend fun setMealDone(type: MealType, epochDay: Long, done: Boolean, kcal: Int? = null) {
+        if (done) dietDao.upsertCheck(MealCheck(type, epochDay, skipped = false, kcal = kcal)) else dietDao.deleteCheck(type, epochDay)
+    }
+
+    suspend fun setMealSkipped(type: MealType, epochDay: Long, skipped: Boolean) {
+        if (skipped) dietDao.upsertCheck(MealCheck(type, epochDay, skipped = true)) else dietDao.deleteCheck(type, epochDay)
+    }
+
+    /** Refeições marcadas e pratos extras de [from] em diante: base do saldo da semana. */
+    fun checksFrom(from: Long) = dietDao.observeChecksFrom(from)
+    fun extrasFrom(from: Long) = dietDao.observeExtrasFrom(from)
 
     // ---- Ajustes só do dia ----
 

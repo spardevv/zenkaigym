@@ -75,6 +75,9 @@ fun ProfileScreen(viewModel: ZenViewModel) {
     var age by remember(profile) { mutableStateOf(profile?.age?.toString() ?: "") }
     var sex by remember(profile) { mutableStateOf(profile?.sex ?: Sex.MALE) }
     var goal by remember(profile) { mutableStateOf(profile?.goal ?: Goal.MAINTAIN) }
+    var prefs by remember(profile) {
+        mutableStateOf(profile?.let { TrainingChoices(it.level, it.cardio, it.focus, it.equipment) } ?: TrainingChoices())
+    }
     var error by remember(profile) { mutableStateOf<String?>(null) }
 
     // Sem perfil ainda, salvar é sempre possível; com perfil, só quando algo mudou.
@@ -83,7 +86,8 @@ fun ProfileScreen(viewModel: ZenViewModel) {
             weight.toDecimalOrNull()?.let { abs(it - saved.weightKg) >= 0.05 } != false ||
             age.trim() != saved.age.toString() ||
             sex != saved.sex ||
-            goal != saved.goal
+            goal != saved.goal ||
+            prefs != TrainingChoices(saved.level, saved.cardio, saved.focus, saved.equipment)
     } ?: true
 
     fun reset() {
@@ -93,6 +97,7 @@ fun ProfileScreen(viewModel: ZenViewModel) {
             age = it.age.toString()
             sex = it.sex
             goal = it.goal
+            prefs = TrainingChoices(it.level, it.cardio, it.focus, it.equipment)
         }
         error = null
     }
@@ -122,6 +127,10 @@ fun ProfileScreen(viewModel: ZenViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }, accent = Daidai) }
                 }
+                Spacer(Modifier.height(16.dp))
+                SectionTitle(tr("Treino"), accent = Daidai)
+                Spacer(Modifier.height(10.dp))
+                TrainingPrefs(prefs, { prefs = it }, accent = Daidai)
                 AnimatedVisibility(error != null, enter = Reveal, exit = Conceal) {
                     Text(error.orEmpty(), Modifier.padding(top = 10.dp), color = Aka, style = MaterialTheme.typography.labelLarge)
                 }
@@ -134,7 +143,10 @@ fun ProfileScreen(viewModel: ZenViewModel) {
                                 is ProfileValidation.Valid -> {
                                     error = null
                                     viewModel.saveProfile(
-                                        UserProfile(heightCm = result.heightCm, weightKg = result.weightKg, age = result.age, sex = sex, goal = goal)
+                                        UserProfile(
+                                            heightCm = result.heightCm, weightKg = result.weightKg, age = result.age, sex = sex, goal = goal,
+                                            level = prefs.level, cardio = prefs.cardio, focus = prefs.focus, equipment = prefs.equipment
+                                        )
                                     )
                                 }
                             }

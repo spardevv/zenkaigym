@@ -86,6 +86,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.zenkaigym.data.entity.ExerciseKind
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutDayFull
@@ -137,21 +138,22 @@ private fun SetLog.asDraft() = SetDraftState(if (weightKg > 0) kgText(weightKg) 
 /** Kanji e cor de cada grupo muscular: dão identidade a cada painel do treino. */
 private fun MuscleGroup.kanji(): String = when (this) {
     MuscleGroup.CHEST -> "胸"
-    MuscleGroup.BACK -> "背"
-    MuscleGroup.LEGS -> "脚"
+    MuscleGroup.LATS, MuscleGroup.UPPER_BACK -> "背"
+    MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> "脚"
     MuscleGroup.SHOULDERS -> "肩"
     MuscleGroup.BICEPS -> "腕"
     MuscleGroup.TRICEPS -> "腕"
     MuscleGroup.CORE -> "腹"
+    MuscleGroup.CARDIO -> "走"
 }
 
 private fun MuscleGroup.color(): Color = when (this) {
     MuscleGroup.CHEST -> Aka
-    MuscleGroup.BACK -> Ao
-    MuscleGroup.LEGS -> Ki
+    MuscleGroup.LATS, MuscleGroup.UPPER_BACK -> Ao
+    MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> Ki
     MuscleGroup.SHOULDERS -> Daidai
     MuscleGroup.BICEPS, MuscleGroup.TRICEPS -> Sakura
-    MuscleGroup.CORE -> Midori
+    MuscleGroup.CORE, MuscleGroup.CARDIO -> Midori
 }
 
 /** Registro do treino de hoje: carga e repetições de cada série, já preenchidas com a última vez. */
@@ -238,7 +240,13 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
         viewModel.logSet(exerciseId, setIndex, reps, kg)
         // A última série pendente fecha o treino: nada de descanso depois dela.
         val isLast = pending.size == 1 && pending.first() == (exerciseId to setIndex)
-        if (!isLast) viewModel.startRest(Progression.restSeconds(reps))
+        // Cardio não tem descanso entre séries; a prancha pede um intervalo curto.
+        val kind = items.firstOrNull { it.exercise.id == exerciseId }?.exercise?.kind
+        when {
+            isLast || kind == ExerciseKind.CARDIO -> Unit
+            kind == ExerciseKind.HOLD -> viewModel.startRest(45)
+            else -> viewModel.startRest(Progression.restSeconds(reps))
+        }
         return true
     }
 
@@ -679,6 +687,9 @@ private fun ExercisePanel(
     val sets = entry.item.sets
     val doneCount = (1..sets).count(isLogged)
     val complete = doneCount == sets
+    // Prancha e cardio se medem em tempo: sem carga, e o valor é segundos ou minutos.
+    val kind = entry.exercise.kind
+    val timed = kind == ExerciseKind.HOLD || kind == ExerciseKind.CARDIO
 
     ZenCard(modifier, accent = accent, entranceIndex = entranceIndex) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -686,7 +697,10 @@ private fun ExercisePanel(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(tr(entry.exercise.name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(tr("{0} séries × {1}", sets, entry.item.reps), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    if (kind == ExerciseKind.CARDIO) entry.item.reps else tr("{0} séries × {1}", sets, entry.item.reps),
+                    color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                )
             }
             Box(contentAlignment = Alignment.Center) {
                 if (complete) HankoStamp()
@@ -710,8 +724,11 @@ private fun ExercisePanel(
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ColumnLabel(tr("Série"), Modifier.width(SideCell))
-            ColumnLabel(tr("kg"), Modifier.weight(1f))
-            ColumnLabel(tr("reps"), Modifier.weight(1f))
+            if (!timed) ColumnLabel(tr("kg"), Modifier.weight(1f))
+            ColumnLabel(
+                when (kind) { ExerciseKind.HOLD -> tr("seg"); ExerciseKind.CARDIO -> tr("min"); else -> tr("reps") },
+                Modifier.weight(1f)
+            )
             Spacer(Modifier.width(SideCell))
         }
         Spacer(Modifier.height(4.dp))
@@ -723,6 +740,7 @@ private fun ExercisePanel(
                 accent = accent,
                 draft = draft,
                 logged = logged,
+                showWeight = !timed,
                 onWeight = { onDraft(i, draft.copy(weight = it)) },
                 onReps = { onDraft(i, draft.copy(reps = it)) },
                 onToggle = { onToggle(i, draft, logged) }
@@ -793,6 +811,7 @@ private fun SetRow(
     accent: Color,
     draft: SetDraftState,
     logged: Boolean,
+    showWeight: Boolean,
     onWeight: (String) -> Unit,
     onReps: (String) -> Unit,
     onToggle: () -> Unit
@@ -827,7 +846,7 @@ private fun SetRow(
         ) {
             Text("$index", color = if (logged) Sumi else p.ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
         }
-        SetInput(draft.weight, onWeight, KeyboardType.Decimal, placeholder = "0", enabled = !logged, modifier = Modifier.weight(1f))
+        if (showWeight) SetInput(draft.weight, onWeight, KeyboardType.Decimal, placeholder = "0", enabled = !logged, modifier = Modifier.weight(1f))
         SetInput(draft.reps, onReps, KeyboardType.Number, placeholder = "–", enabled = !logged, modifier = Modifier.weight(1f))
         val interaction = remember { MutableInteractionSource() }
         Box(

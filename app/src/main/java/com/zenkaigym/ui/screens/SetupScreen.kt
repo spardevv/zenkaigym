@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zenkaigym.data.entity.CardioPref
 import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.Sex
 import com.zenkaigym.data.entity.UserProfile
@@ -42,6 +43,7 @@ import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenField
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Zen
@@ -57,6 +59,9 @@ fun SetupScreen(viewModel: ZenViewModel) {
     var age by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf(Sex.MALE) }
     var goal by remember { mutableStateOf(Goal.MAINTAIN) }
+    var prefs by remember { mutableStateOf(TrainingChoices(cardio = CardioPref.WARMUP)) }
+    // Cardio sugerido pelo objetivo, até o usuário mexer nele.
+    var cardioTouched by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     ZenPage {
@@ -105,8 +110,16 @@ fun SetupScreen(viewModel: ZenViewModel) {
                 Spacer(Modifier.height(12.dp))
                 Label(tr("Objetivo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }) }
+                    Goal.entries.forEach {
+                        ZenChip(it.label, goal == it, {
+                            goal = it
+                            if (!cardioTouched) prefs = prefs.copy(cardio = if (it == Goal.LOSE) CardioPref.FINISHER else CardioPref.WARMUP)
+                        })
+                    }
                 }
+                Spacer(Modifier.height(16.dp))
+                Label(tr("Como você treina"))
+                TrainingPrefs(prefs, { cardioTouched = cardioTouched || it.cardio != prefs.cardio; prefs = it }, accent = Ki)
                 Spacer(Modifier.height(6.dp))
                 Text(tr("Tudo fica salvo só neste aparelho."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                 error?.let {
@@ -120,7 +133,10 @@ fun SetupScreen(viewModel: ZenViewModel) {
                     is ProfileValidation.Invalid -> error = r.message
                     is ProfileValidation.Valid -> {
                         error = null
-                        viewModel.finishSetup(UserProfile(heightCm = r.heightCm, weightKg = r.weightKg, age = r.age, sex = sex, goal = goal))
+                        viewModel.finishSetup(UserProfile(
+                                heightCm = r.heightCm, weightKg = r.weightKg, age = r.age, sex = sex, goal = goal,
+                                level = prefs.level, cardio = prefs.cardio, focus = prefs.focus, equipment = prefs.equipment
+                            ))
                     }
                 }
             }, fill = true, enabled = busy == null)

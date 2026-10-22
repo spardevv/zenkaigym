@@ -143,9 +143,8 @@ fun AppNav(viewModel: ZenViewModel) {
 
     // Modo treino: tela cheia por cima de tudo enquanto houver treino hoje na ficha ativa.
     val trainingActive by viewModel.trainingActive.collectAsStateWithLifecycle()
-    val workout by viewModel.activeWorkout.collectAsStateWithLifecycle()
-    val clock by viewModel.clock.collectAsStateWithLifecycle()
-    val trainingDay = workout?.days?.firstOrNull { it.day.dayOfWeek == dayOfWeekFromEpochDay(clock.epochDay) }
+    val assignment by viewModel.todayWorkout.collectAsStateWithLifecycle()
+    val trainingDay = assignment.session
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {

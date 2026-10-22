@@ -1,6 +1,7 @@
 package com.zenkaigym.domain
 
 import com.zenkaigym.data.entity.FoodCategory
+import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealFull
 import com.zenkaigym.data.entity.MealType
@@ -21,11 +22,13 @@ data class DayAdjustment(
 }
 
 /**
- * Reajuste só do dia, a partir do que foi realmente comido. O cardápio não muda: o app só mostra
+ * Reajuste do dia, a partir do que foi realmente comido. O cardápio não muda: o app só mostra
  * porções diferentes nas refeições que ainda faltam, para o dia fechar perto do planejado.
  *
- * - Comido = refeições marcadas como feitas + pratos extras.
+ * - Comido = refeições marcadas como feitas (com as kcal gravadas, se houver) + pratos extras.
  * - Uma refeição com extra e sem ✓ conta só o extra (o extra tomou o lugar dela).
+ * - Refeição "não realizada" sai da conta: o que faltou é recuperado nas próximas, exceto para quem quer emagrecer.
+ * - [dayDelta] soma ao alvo do dia o saldo da semana e o gasto de um treino pulado (negativo = comer menos).
  * - Ajustam-se as refeições não feitas, sem extras e que não são refeição livre.
  * - O carboidrato absorve a diferença primeiro; o que sobrar vai para proteína e fruta. Legume e salada ficam iguais.
  */
@@ -36,20 +39,37 @@ object DayAdjust {
     fun mealKcal(meal: MealFull): Double =
         meal.meal.cheatKcal?.toDouble() ?: meal.items.sumOf { it.food.kcalPer100 * it.item.grams / 100 }
 
-    fun compute(meals: List<MealFull>, done: Set<MealType>, extras: List<MealExtra>): DayAdjustment {
-        if (extras.isEmpty()) return DayAdjustment.NONE
+    /** Calorias da refeição já com as porções ajustadas. */
+    fun adjustedKcal(meal: MealFull, adjustment: DayAdjustment): Double =
+        meal.meal.cheatKcal?.toDouble()
+            ?: meal.items.sumOf { it.food.kcalPer100 * (adjustment.grams[it.item.id] ?: it.item.grams) / 100 }
+
+    fun compute(
+        meals: List<MealFull>,
+        done: Set<MealType>,
+        extras: List<MealExtra>,
+        skipped: Set<MealType> = emptySet(),
+        recorded: Map<MealType, Int> = emptyMap(),
+        goal: Goal = Goal.MAINTAIN,
+        dayDelta: Double = 0.0
+    ): DayAdjustment {
         val withExtras = extras.map { it.type }.toSet()
-        val dayTotal = meals.sumOf(::mealKcal)
-        val eaten = meals.filter { it.meal.type in done }.sumOf(::mealKcal) + extras.sumOf { it.kcal }
-        val upcoming = meals.filter {
-            it.meal.type !in done && it.meal.type !in withExtras && it.meal.cheatKcal == null && it.items.isNotEmpty()
-        }
+        val missed = skipped - withExtras
+        val dayTotal = meals.sumOf(::mealKcal) + dayDelta
+        val eaten = meals.filter { it.meal.type in done }.sumOf { recorded[it.meal.type]?.toDouble() ?: mealKcal(it) } +
+            extras.sumOf { it.kcal }
+        fun open(m: MealFull) = m.meal.type !in done && m.meal.type !in withExtras && m.meal.type !in missed
+        val upcoming = meals.filter { open(it) && it.meal.cheatKcal == null && it.items.isNotEmpty() }
         // Refeições livres ainda por vir continuam com as calorias previstas.
-        val fixed = meals.filter { it.meal.type !in done && it.meal.type !in withExtras && it.meal.cheatKcal != null }.sumOf(::mealKcal)
+        val fixed = meals.filter { open(it) && it.meal.cheatKcal != null }.sumOf(::mealKcal)
         val planned = upcoming.sumOf(::mealKcal)
         if (planned <= 0) return DayAdjustment.NONE
 
-        val budget = dayTotal - eaten - fixed
+        // Quanto falta (ou sobra) para o dia fechar na meta, já contando o que ainda está planejado.
+        var gap = dayTotal - eaten - fixed - planned
+        // Quem quer emagrecer não recupera o que deixou de comer.
+        if (goal == Goal.LOSE && gap > 0) gap = 0.0
+        val budget = planned + gap
         val factor = (budget / planned).coerceIn(MIN_FACTOR, MAX_FACTOR)
         val wanted = planned * (factor - 1)
         if (kotlin.math.abs(wanted) < 15) return DayAdjustment.NONE

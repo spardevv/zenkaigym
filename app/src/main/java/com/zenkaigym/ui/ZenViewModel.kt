@@ -7,10 +7,12 @@ import com.zenkaigym.data.AppFlags
 import com.zenkaigym.data.entity.Availability
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Food
+import com.zenkaigym.data.entity.MealCheck
 import com.zenkaigym.data.entity.MealExtra
 import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.SetLog
+import com.zenkaigym.data.entity.WorkoutLog
 import com.zenkaigym.domain.DietProgress
 import com.zenkaigym.domain.DoneSet
 import com.zenkaigym.domain.Stats
@@ -28,6 +30,7 @@ import com.zenkaigym.domain.NutritionCalculator
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.domain.ThemeMode
 import com.zenkaigym.domain.WeekStart
+import com.zenkaigym.domain.WorkoutWeek
 import com.zenkaigym.util.Clock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -157,11 +160,25 @@ class ZenViewModel(
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Clock.now())
 
-    /** Refeições já marcadas como feitas hoje. */
-    val mealsDone: StateFlow<Set<MealType>> = clock.map { it.epochDay }.distinctUntilChanged()
+    /** Refeições marcadas hoje (feitas ou não realizadas). */
+    val checksToday: StateFlow<List<MealCheck>> = clock.map { it.epochDay }.distinctUntilChanged()
         .flatMapLatest { repo.mealChecks(it) }
-        .map { list -> list.map { it.type }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Refeições já marcadas como feitas hoje. */
+    val mealsDone: StateFlow<Set<MealType>> = checksToday
+        .map { list -> list.filter { !it.skipped }.map { it.type }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** Refeições marcadas como não realizadas hoje. */
+    val mealsSkipped: StateFlow<Set<MealType>> = checksToday
+        .map { list -> list.filter { it.skipped }.map { it.type }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** Calorias gravadas nas refeições feitas hoje (já com o ajuste do dia). */
+    val mealsRecorded: StateFlow<Map<MealType, Int>> = checksToday
+        .map { list -> list.filter { !it.skipped && it.kcal != null }.associate { it.type to it.kcal!! } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** Séries já registradas hoje. */
     val setsToday: StateFlow<List<SetLog>> = clock.map { it.epochDay }.distinctUntilChanged()
@@ -177,6 +194,12 @@ class ZenViewModel(
     val extrasToday: StateFlow<List<MealExtra>> = clock.map { it.epochDay }.distinctUntilChanged()
         .flatMapLatest { repo.extras(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Treino de hoje marcado como não realizado. */
+    val workoutSkipped: StateFlow<Boolean> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.workoutLog(it) }
+        .map { it?.finished == false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Treino de hoje marcado como concluído. */
     val workoutDone: StateFlow<Boolean> = clock.map { it.epochDay }.distinctUntilChanged()
@@ -245,6 +268,26 @@ class ZenViewModel(
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ---- Semana corrente (reorganiza o treino e o saldo da dieta) ----
+
+    private val weekFrom = combine(today, _weekStart) { day, start -> start.weekStartOf(day) }.distinctUntilChanged()
+
+    /** Treinos marcados (feitos ou não realizados) desde o início da semana. */
+    val weekWorkoutLogs: StateFlow<List<WorkoutLog>> = weekFrom.flatMapLatest { repo.workoutLogsFrom(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Qual sessão da ficha cai hoje, já reorganizada pelos treinos não realizados da semana. */
+    val todayWorkout: StateFlow<WorkoutWeek.Assignment> =
+        combine(activeWorkout, clock, _weekStart, weekWorkoutLogs) { plan, now, start, logs ->
+            WorkoutWeek.assign(plan?.days.orEmpty(), now.epochDay, start, logs)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutWeek.Assignment.REST)
+
+    val weekChecks: StateFlow<List<MealCheck>> = weekFrom.flatMapLatest { repo.checksFrom(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val weekExtras: StateFlow<List<MealExtra>> = weekFrom.flatMapLatest { repo.extrasFrom(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val dietProgress: StateFlow<DietProgress?> = today.flatMapLatest { day ->
         combine(repo.mealsDonePerDay(day - Stats.DIET_DAYS), repo.mealSlots) { done, slots ->
@@ -403,6 +446,12 @@ class ZenViewModel(
         }
     }
 
+    /** Marca o treino de hoje como não realizado: a sessão passa para o próximo dia de treino. */
+    fun setWorkoutSkipped(skipped: Boolean) = viewModelScope.launch {
+        repo.setWorkoutSkipped(clock.value.epochDay, skipped)
+        if (skipped) toast(tr("Anotado! A semana de treino foi reorganizada."))
+    }
+
     fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
         repo.replaceExercise(itemId, repo.addExercise(name, group))
     }
@@ -492,8 +541,14 @@ class ZenViewModel(
         repo.setMealTime(type, time)
         toast(tr("Horário de {0} salvo: {1}.", type.label.lowercase(), time))
     }
-    fun setMealDone(type: MealType, done: Boolean) = viewModelScope.launch {
-        repo.setMealDone(type, clock.value.epochDay, done)
+    /** Marca a refeição como feita; [kcal] são as calorias que ela teve de fato (com o ajuste do dia). */
+    fun setMealDone(type: MealType, done: Boolean, kcal: Int? = null) = viewModelScope.launch {
+        repo.setMealDone(type, clock.value.epochDay, done, kcal)
+    }
+
+    fun setMealSkipped(type: MealType, skipped: Boolean) = viewModelScope.launch {
+        repo.setMealSkipped(type, clock.value.epochDay, skipped)
+        if (skipped) toast(tr("Anotado! O resto do dia e da semana foi reajustado."))
     }
 
     private companion object {

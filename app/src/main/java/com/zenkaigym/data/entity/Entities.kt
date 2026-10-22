@@ -44,8 +44,40 @@ enum class MealType(val pt: String, val defaultTime: String) {
 }
 
 enum class MuscleGroup(val pt: String) {
-    CHEST("Peito"), BACK("Costas"), LEGS("Pernas"), SHOULDERS("Ombros"),
-    BICEPS("Bíceps"), TRICEPS("Tríceps"), CORE("Abdômen");
+    CHEST("Peito"), LATS("Grande dorsal"), UPPER_BACK("Pequena dorsal"), SHOULDERS("Ombros"),
+    BICEPS("Bíceps"), TRICEPS("Tríceps"), QUADS("Quadríceps"), HAMSTRINGS("Posterior de coxa"),
+    GLUTES("Glúteos"), ADDUCTORS("Adutores"), CALVES("Panturrilha"), CORE("Core"), CARDIO("Cardio");
+
+    val label: String get() = tr(pt)
+}
+
+/** Como o exercício é feito: define tempo por série, repetições e o que se registra no modo treino. */
+enum class ExerciseKind { COMPOUND, ISOLATION, HOLD, CARDIO }
+
+/** Equipamento mínimo do exercício, ou o que o usuário tem; cada nível inclui os de baixo. */
+enum class Equipment(val pt: String) {
+    GYM("Academia completa"), DUMBBELLS("Halteres em casa"), BODYWEIGHT("Peso corporal");
+
+    val label: String get() = tr(pt)
+
+    /** O que o usuário tem ([this]) permite um exercício que pede [needed]. */
+    fun allows(needed: Equipment): Boolean = needed.ordinal >= ordinal
+}
+
+enum class Level(val pt: String) {
+    BEGINNER("Iniciante"), INTERMEDIATE("Intermediário"), ADVANCED("Avançado");
+
+    val label: String get() = tr(pt)
+}
+
+enum class CardioPref(val pt: String) {
+    NONE("Sem cardio"), WARMUP("Só aquecimento"), FINISHER("No fim do treino");
+
+    val label: String get() = tr(pt)
+}
+
+enum class TrainingFocus(val pt: String) {
+    BALANCED("Equilibrado"), UPPER("Superiores"), LOWER("Inferiores"), GLUTES("Glúteos");
 
     val label: String get() = tr(pt)
 }
@@ -64,7 +96,12 @@ data class UserProfile(
     val targetKcal: Int? = null,
     val targetProtein: Int? = null,
     val targetCarbs: Int? = null,
-    val targetFat: Int? = null
+    val targetFat: Int? = null,
+    // Preferências de treino (orientam a ficha sugerida).
+    val level: Level = Level.INTERMEDIATE,
+    val cardio: CardioPref = CardioPref.NONE,
+    val focus: TrainingFocus = TrainingFocus.BALANCED,
+    val equipment: Equipment = Equipment.GYM
 )
 
 @Entity(tableName = "weight_entry")
@@ -101,7 +138,9 @@ data class Food(
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val group: MuscleGroup
+    val group: MuscleGroup,
+    val kind: ExerciseKind = ExerciseKind.ISOLATION,
+    val equipment: Equipment = Equipment.GYM
 )
 
 @Entity(tableName = "workout_plan")
@@ -171,7 +210,7 @@ data class Meal(
     val cheatKcal: Int? = null
 )
 
-/** Treino de um dia marcado como concluído (independe da ficha, que pode ser trocada). */
+/** Treino de um dia marcado como concluído ([finished]) ou como não realizado (independe da ficha, que pode ser trocada). */
 @Entity(tableName = "workout_log")
 data class WorkoutLog(
     @PrimaryKey val epochDay: Long,
@@ -200,11 +239,16 @@ data class MealSlot(
     val time: String
 )
 
-/** Refeição marcada como feita em um dia (independe do plano, que pode ser trocado). */
+/**
+ * Refeição marcada num dia (independe do plano, que pode ser trocado): feita ou, com [skipped], não realizada.
+ * [kcal] guarda o que foi comido de fato (já com o ajuste do dia) quando a refeição é marcada como feita.
+ */
 @Entity(tableName = "meal_check", primaryKeys = ["type", "epochDay"])
 data class MealCheck(
     val type: MealType,
-    val epochDay: Long
+    val epochDay: Long,
+    val skipped: Boolean = false,
+    val kcal: Int? = null
 )
 
 @Entity(
