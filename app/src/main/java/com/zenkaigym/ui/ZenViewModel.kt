@@ -112,12 +112,17 @@ class ZenViewModel(
     private val _showSetup = MutableStateFlow(!flags.setupDone)
     val showSetup: StateFlow<Boolean> = _showSetup
 
-    /** Conclui a configuração inicial: salva o perfil (que já repondera dieta e treino). */
-    fun finishSetup(profile: UserProfile) = viewModelScope.launch {
-        working(tr("Montando seu treino e sua dieta…")) { repo.updateProfile(profile) }
+    /** Passo do treino na configuração inicial: salva perfil e agenda e monta as sugestões de treino e dieta. */
+    fun saveSetupProfile(profile: UserProfile, availability: List<Availability>) = viewModelScope.launch {
+        working(tr("Montando seu treino e sua dieta…")) { repo.updateProfile(profile, availability) }
+    }
+
+    /** Último passo: ativa a dieta revisada e abre o Dojo com treino e dieta já definidos. */
+    fun acceptDietAndFinish(planId: Long) = viewModelScope.launch {
+        repo.acceptDiet(planId)
         flags.setupDone = true
         _showSetup.value = false
-        toast(tr("Tudo pronto! Revise as sugestões de treino e dieta."))
+        toast(tr("Tudo pronto! Seu treino e sua dieta já estão ativos."))
     }
 
     // ---- Carregamento inicial ----

@@ -138,22 +138,21 @@ private fun SetLog.asDraft() = SetDraftState(if (weightKg > 0) kgText(weightKg) 
 /** Kanji e cor de cada grupo muscular: dão identidade a cada painel do treino. */
 private fun MuscleGroup.kanji(): String = when (this) {
     MuscleGroup.CHEST -> "胸"
-    MuscleGroup.LATS, MuscleGroup.UPPER_BACK -> "背"
+    MuscleGroup.LATS, MuscleGroup.MID_BACK, MuscleGroup.TRAPS, MuscleGroup.LOWER_BACK -> "背"
     MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> "脚"
-    MuscleGroup.SHOULDERS -> "肩"
-    MuscleGroup.BICEPS -> "腕"
-    MuscleGroup.TRICEPS -> "腕"
-    MuscleGroup.CORE -> "腹"
+    MuscleGroup.SHOULDERS_FRONT, MuscleGroup.SHOULDERS_SIDE, MuscleGroup.SHOULDERS_REAR -> "肩"
+    MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.FOREARMS -> "腕"
+    MuscleGroup.ABS, MuscleGroup.OBLIQUES -> "腹"
     MuscleGroup.CARDIO -> "走"
 }
 
 private fun MuscleGroup.color(): Color = when (this) {
     MuscleGroup.CHEST -> Aka
-    MuscleGroup.LATS, MuscleGroup.UPPER_BACK -> Ao
+    MuscleGroup.LATS, MuscleGroup.MID_BACK, MuscleGroup.TRAPS, MuscleGroup.LOWER_BACK -> Ao
     MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> Ki
-    MuscleGroup.SHOULDERS -> Daidai
-    MuscleGroup.BICEPS, MuscleGroup.TRICEPS -> Sakura
-    MuscleGroup.CORE, MuscleGroup.CARDIO -> Midori
+    MuscleGroup.SHOULDERS_FRONT, MuscleGroup.SHOULDERS_SIDE, MuscleGroup.SHOULDERS_REAR -> Daidai
+    MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.FOREARMS -> Sakura
+    MuscleGroup.ABS, MuscleGroup.OBLIQUES, MuscleGroup.CARDIO -> Midori
 }
 
 /** Registro do treino de hoje: carga e repetições de cada série, já preenchidas com a última vez. */

@@ -224,7 +224,7 @@ private fun TargetCard(profile: UserProfile, suggested: NutritionTarget?, viewMo
 // ---- Agenda de refeições ----
 
 @Composable
-private fun ScheduleCard(slots: List<MealSlot>, viewModel: ZenViewModel) {
+internal fun ScheduleCard(slots: List<MealSlot>, viewModel: ZenViewModel) {
     var picker by remember { mutableStateOf<MealType?>(null) }
     ZenCard(accent = Midori, entranceIndex = 1) {
         SectionTitle(tr("Refeições por dia"), accent = Midori)
@@ -313,7 +313,7 @@ private fun PlanCard(
 
 /** Média diária da semana contra a meta. */
 @Composable
-private fun WeekTotals(plan: DietPlanFull) {
+internal fun WeekTotals(plan: DietPlanFull) {
     val perDay = (1..7).map { d -> plan.mealsOf(d).sumOf { it.kcal() } }
     val avg = perDay.average().roundToInt()
     Text(tr("Semana: média de {0} kcal/dia · meta {1}", avg, plan.plan.kcal), style = MaterialTheme.typography.titleMedium)
@@ -359,7 +359,7 @@ private fun DaySummary(plan: DietPlanFull, day: Int, slots: List<MealSlot>) {
 
 /** Escolhe como montar a semana (sugestão ou à mão) e, se quiser, o dia do lixo com suas refeições livres. */
 @Composable
-private fun WeekSetupDialog(
+internal fun WeekSetupDialog(
     slots: List<MealSlot>,
     goalKcal: Int?,
     initial: CheatDay?,

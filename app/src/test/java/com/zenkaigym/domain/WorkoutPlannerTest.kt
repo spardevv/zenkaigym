@@ -27,8 +27,11 @@ class WorkoutPlannerTest {
     private fun worstCase(goal: Goal, cardio: CardioPref = CardioPref.NONE) =
         request(mapOf(1 to 40, 3 to 40, 5 to 40), goal, cardio = cardio)
 
+    /** Tronco e lombar entram em quase toda sessão e recuperam rápido: ficam fora da regra de dias seguidos. */
+    private val tronco = setOf(MuscleGroup.ABS, MuscleGroup.OBLIQUES, MuscleGroup.LOWER_BACK, MuscleGroup.CARDIO)
+
     private fun groupsOn(plan: PlannedWorkout, day: Int): Set<MuscleGroup> =
-        plan.days.first { it.dayOfWeek == day }.items.map { groupOf.getValue(it.exerciseId) }.toSet() - MuscleGroup.CORE
+        plan.days.first { it.dayOfWeek == day }.items.map { groupOf.getValue(it.exerciseId) }.toSet() - tronco
 
     @Test
     fun worstCase_threeDaysOf40Minutes_fitsTheTimeInEveryGoal() {
@@ -51,7 +54,7 @@ class WorkoutPlannerTest {
             big.forEach {
                 assertTrue("$goal: $it com ${volume.getValue(it)} séries", volume.getValue(it) >= WorkoutPlanner.minSets(it, Level.INTERMEDIATE))
             }
-            assertTrue("$goal: core com ${volume.getValue(MuscleGroup.CORE)} séries", volume.getValue(MuscleGroup.CORE) >= 3.0)
+            assertTrue("$goal: core com ${volume.getValue(MuscleGroup.ABS)} séries", volume.getValue(MuscleGroup.ABS) >= 3.0)
         }
     }
 
@@ -132,7 +135,7 @@ class WorkoutPlannerTest {
     @Test
     fun plankIsTimedAndCoreUsesHighReps() {
         val items = WorkoutPlanner.plan(worstCase(Goal.GAIN), catalog).days.flatMap { it.items }
-        val core = items.filter { groupOf[it.exerciseId] == MuscleGroup.CORE }
+        val core = items.filter { groupOf[it.exerciseId] in setOf(MuscleGroup.ABS, MuscleGroup.OBLIQUES) }
         assertTrue(core.isNotEmpty())
         core.forEach {
             val kind = byId.getValue(it.exerciseId).kind
@@ -152,8 +155,9 @@ class WorkoutPlannerTest {
 
     @Test
     fun beginnerAvoidsAdvancedExercises_andDoesLessVolume() {
-        val beginner = WorkoutPlanner.plan(request(mapOf(1 to 60, 3 to 60, 5 to 60), level = Level.BEGINNER), catalog)
-        val advanced = WorkoutPlanner.plan(request(mapOf(1 to 60, 3 to 60, 5 to 60), level = Level.ADVANCED), catalog)
+        // Com tempo de sobra, o alvo semanal é que separa os níveis.
+        val beginner = WorkoutPlanner.plan(request(mapOf(1 to 150, 3 to 150, 5 to 150), level = Level.BEGINNER), catalog)
+        val advanced = WorkoutPlanner.plan(request(mapOf(1 to 150, 3 to 150, 5 to 150), level = Level.ADVANCED), catalog)
         beginner.days.flatMap { it.items }.forEach {
             assertEquals(com.zenkaigym.data.entity.Level.BEGINNER, ExerciseCatalog.level(byId.getValue(it.exerciseId)))
         }

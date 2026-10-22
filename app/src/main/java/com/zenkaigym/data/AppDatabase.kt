@@ -35,7 +35,7 @@ import com.zenkaigym.data.entity.WorkoutSwap
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
         WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -110,20 +110,10 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE exercise ADD COLUMN kind TEXT NOT NULL DEFAULT 'ISOLATION'")
                 db.execSQL("ALTER TABLE exercise ADD COLUMN equipment TEXT NOT NULL DEFAULT 'GYM'")
-                // Exercícios do catálogo ganham o grupo novo; os que faltam entram na lista.
-                ExerciseCatalog.entries.forEach {
-                    val args = arrayOf<Any>(it.group.name, it.kind.name, it.equipment.name, it.name)
-                    db.execSQL("UPDATE exercise SET `group` = ?, kind = ?, equipment = ? WHERE name = ?", args)
-                    db.execSQL(
-                        "INSERT INTO exercise (`group`, kind, equipment, name) SELECT ?, ?, ?, ? " +
-                            "WHERE NOT EXISTS (SELECT 1 FROM exercise WHERE name = ?)",
-                        args + it.name
-                    )
-                }
                 // Exercícios próprios do usuário nos grupos que deixaram de existir.
                 db.execSQL("UPDATE exercise SET `group` = 'QUADS' WHERE `group` = 'LEGS'")
                 db.execSQL("UPDATE exercise SET `group` = 'LATS' WHERE `group` = 'BACK'")
-                db.execSQL("UPDATE exercise SET kind = 'HOLD' WHERE `group` = 'CORE' AND name LIKE 'Prancha%'")
+                syncCatalog(db)
 
                 db.execSQL("ALTER TABLE user_profile ADD COLUMN level TEXT NOT NULL DEFAULT 'INTERMEDIATE'")
                 db.execSQL("ALTER TABLE user_profile ADD COLUMN cardio TEXT NOT NULL DEFAULT 'NONE'")
@@ -135,9 +125,33 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v8: músculos separados como na anatomia (ombro em três partes, meio das costas, trapézio, lombar, oblíquos…). */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Exercícios próprios do usuário em grupos que foram divididos ou renomeados.
+                db.execSQL("UPDATE exercise SET `group` = 'MID_BACK' WHERE `group` = 'UPPER_BACK'")
+                db.execSQL("UPDATE exercise SET `group` = 'SHOULDERS_SIDE' WHERE `group` = 'SHOULDERS'")
+                db.execSQL("UPDATE exercise SET `group` = 'ABS' WHERE `group` = 'CORE'")
+                syncCatalog(db)
+            }
+        }
+
+        /** Põe os exercícios do catálogo no grupo, tipo e equipamento atuais e insere os que ainda não existem. */
+        private fun syncCatalog(db: SupportSQLiteDatabase) {
+            ExerciseCatalog.entries.forEach {
+                val args = arrayOf<Any>(it.group.name, it.kind.name, it.equipment.name, it.name)
+                db.execSQL("UPDATE exercise SET `group` = ?, kind = ?, equipment = ? WHERE name = ?", args)
+                db.execSQL(
+                    "INSERT INTO exercise (`group`, kind, equipment, name) SELECT ?, ?, ?, ? " +
+                        "WHERE NOT EXISTS (SELECT 1 FROM exercise WHERE name = ?)",
+                    args + it.name
+                )
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
     }
 }

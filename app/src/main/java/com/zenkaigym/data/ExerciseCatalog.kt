@@ -21,19 +21,25 @@ import com.zenkaigym.data.entity.Level.ADVANCED
 import com.zenkaigym.data.entity.Level.BEGINNER
 import com.zenkaigym.data.entity.Level.INTERMEDIATE
 import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.MuscleGroup.ABS
 import com.zenkaigym.data.entity.MuscleGroup.ADDUCTORS
 import com.zenkaigym.data.entity.MuscleGroup.BICEPS
 import com.zenkaigym.data.entity.MuscleGroup.CALVES
 import com.zenkaigym.data.entity.MuscleGroup.CARDIO
 import com.zenkaigym.data.entity.MuscleGroup.CHEST
-import com.zenkaigym.data.entity.MuscleGroup.CORE
+import com.zenkaigym.data.entity.MuscleGroup.FOREARMS
 import com.zenkaigym.data.entity.MuscleGroup.GLUTES
 import com.zenkaigym.data.entity.MuscleGroup.HAMSTRINGS
 import com.zenkaigym.data.entity.MuscleGroup.LATS
+import com.zenkaigym.data.entity.MuscleGroup.LOWER_BACK
+import com.zenkaigym.data.entity.MuscleGroup.MID_BACK
+import com.zenkaigym.data.entity.MuscleGroup.OBLIQUES
 import com.zenkaigym.data.entity.MuscleGroup.QUADS
-import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_FRONT
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_REAR
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_SIDE
+import com.zenkaigym.data.entity.MuscleGroup.TRAPS
 import com.zenkaigym.data.entity.MuscleGroup.TRICEPS
-import com.zenkaigym.data.entity.MuscleGroup.UPPER_BACK
 
 /**
  * Exercício do catálogo: grupo principal, tipo, equipamento mínimo, nível a partir do qual é sugerido
@@ -61,49 +67,67 @@ object ExerciseCatalog {
     ) = CatalogEntry(name, group, kind, equipment, level, secondary.toList())
 
     val entries: List<CatalogEntry> = listOf(
-        // Peito
-        e("Supino reto com barra", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS),
-        e("Supino na máquina", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS),
-        e("Supino reto com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS),
-        e("Supino inclinado com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS),
-        e("Flexão de braço", CHEST, COMPOUND, BODYWEIGHT, BEGINNER, TRICEPS, SHOULDERS),
+        // Peitoral
+        e("Supino reto com barra", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS_FRONT),
+        e("Supino na máquina", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS_FRONT),
+        e("Supino reto com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS_FRONT),
+        e("Supino inclinado com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS_FRONT),
+        e("Flexão de braço", CHEST, COMPOUND, BODYWEIGHT, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Crucifixo na máquina", CHEST, ISOLATION, GYM),
         e("Crossover na polia", CHEST, ISOLATION, GYM),
         e("Crucifixo com halteres", CHEST, ISOLATION, DUMBBELLS),
-        // Grande dorsal
-        e("Puxada frontal", LATS, COMPOUND, GYM, BEGINNER, BICEPS, UPPER_BACK),
+        // Grande dorsal (puxadas verticais e pullovers)
+        e("Puxada frontal", LATS, COMPOUND, GYM, BEGINNER, BICEPS, MID_BACK),
         e("Puxada supinada", LATS, COMPOUND, GYM, BEGINNER, BICEPS),
-        e("Barra fixa", LATS, COMPOUND, BODYWEIGHT, INTERMEDIATE, BICEPS, UPPER_BACK),
-        e("Remada unilateral com halter", LATS, COMPOUND, DUMBBELLS, BEGINNER, BICEPS, UPPER_BACK),
+        e("Barra fixa", LATS, COMPOUND, BODYWEIGHT, INTERMEDIATE, BICEPS, MID_BACK),
+        e("Remada unilateral com halter", LATS, COMPOUND, DUMBBELLS, BEGINNER, BICEPS, MID_BACK),
         e("Pulldown braço reto", LATS, ISOLATION, GYM),
         e("Pullover com halter", LATS, ISOLATION, DUMBBELLS),
-        // Pequena dorsal (trapézio, romboides e deltoide posterior)
-        e("Remada baixa", UPPER_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS),
-        e("Remada curvada", UPPER_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS),
-        e("Remada curvada com halteres", UPPER_BACK, COMPOUND, DUMBBELLS, BEGINNER, LATS, BICEPS),
-        e("Remada invertida", UPPER_BACK, COMPOUND, BODYWEIGHT, BEGINNER, LATS, BICEPS),
-        e("Face pull", UPPER_BACK, ISOLATION, GYM, BEGINNER, SHOULDERS),
-        e("Crucifixo inverso", UPPER_BACK, ISOLATION, DUMBBELLS, BEGINNER, SHOULDERS),
-        e("Encolhimento com halteres", UPPER_BACK, ISOLATION, DUMBBELLS),
-        e("Elevação Y deitado", UPPER_BACK, ISOLATION, BODYWEIGHT),
-        // Ombros
-        e("Desenvolvimento na máquina", SHOULDERS, COMPOUND, GYM, BEGINNER, TRICEPS),
-        e("Desenvolvimento com halteres", SHOULDERS, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS),
-        e("Flexão pike", SHOULDERS, COMPOUND, BODYWEIGHT, INTERMEDIATE, TRICEPS),
-        e("Elevação lateral", SHOULDERS, ISOLATION, DUMBBELLS),
-        e("Elevação lateral na polia", SHOULDERS, ISOLATION, GYM),
-        e("Elevação frontal", SHOULDERS, ISOLATION, DUMBBELLS),
+        // Meio das costas: romboides e trapézio médio (remadas horizontais)
+        e("Remada baixa", MID_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS, SHOULDERS_REAR),
+        e("Remada na máquina", MID_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS),
+        e("Remada cavalinho", MID_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS),
+        e("Remada curvada", MID_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS, LOWER_BACK),
+        e("Remada curvada com halteres", MID_BACK, COMPOUND, DUMBBELLS, BEGINNER, LATS, BICEPS),
+        e("Remada invertida", MID_BACK, COMPOUND, BODYWEIGHT, BEGINNER, LATS, BICEPS),
+        // Trapézio superior e inferior
+        e("Encolhimento com barra", TRAPS, ISOLATION, GYM, BEGINNER, FOREARMS),
+        e("Encolhimento com halteres", TRAPS, ISOLATION, DUMBBELLS, BEGINNER, FOREARMS),
+        e("Remada alta", TRAPS, COMPOUND, GYM, INTERMEDIATE, SHOULDERS_SIDE, BICEPS),
+        e("Elevação Y deitado", TRAPS, ISOLATION, BODYWEIGHT),
+        // Lombar (eretores da espinha)
+        e("Extensão lombar", LOWER_BACK, ISOLATION, GYM, BEGINNER, GLUTES, HAMSTRINGS),
+        e("Good morning", LOWER_BACK, COMPOUND, GYM, INTERMEDIATE, HAMSTRINGS, GLUTES),
+        e("Superman", LOWER_BACK, ISOLATION, BODYWEIGHT, BEGINNER, GLUTES),
+        // Deltoide anterior (desenvolvimentos e elevação frontal)
+        e("Desenvolvimento na máquina", SHOULDERS_FRONT, COMPOUND, GYM, BEGINNER, SHOULDERS_SIDE, TRICEPS),
+        e("Desenvolvimento com halteres", SHOULDERS_FRONT, COMPOUND, DUMBBELLS, BEGINNER, SHOULDERS_SIDE, TRICEPS),
+        e("Flexão pike", SHOULDERS_FRONT, COMPOUND, BODYWEIGHT, INTERMEDIATE, SHOULDERS_SIDE, TRICEPS),
+        e("Elevação frontal", SHOULDERS_FRONT, ISOLATION, DUMBBELLS),
+        // Deltoide lateral
+        e("Elevação lateral", SHOULDERS_SIDE, ISOLATION, DUMBBELLS),
+        e("Elevação lateral na polia", SHOULDERS_SIDE, ISOLATION, GYM),
+        e("Elevação lateral na máquina", SHOULDERS_SIDE, ISOLATION, GYM),
+        // Deltoide posterior
+        e("Crucifixo inverso", SHOULDERS_REAR, ISOLATION, DUMBBELLS, BEGINNER, MID_BACK),
+        e("Crucifixo inverso na máquina", SHOULDERS_REAR, ISOLATION, GYM, BEGINNER, MID_BACK),
+        e("Face pull", SHOULDERS_REAR, ISOLATION, GYM, BEGINNER, MID_BACK, TRAPS),
         // Bíceps
-        e("Rosca direta", BICEPS, ISOLATION, GYM),
+        e("Rosca direta", BICEPS, ISOLATION, GYM, BEGINNER, FOREARMS),
         e("Rosca na polia", BICEPS, ISOLATION, GYM),
         e("Rosca alternada", BICEPS, ISOLATION, DUMBBELLS),
-        e("Rosca martelo", BICEPS, ISOLATION, DUMBBELLS),
+        e("Rosca martelo", BICEPS, ISOLATION, DUMBBELLS, BEGINNER, FOREARMS),
+        e("Rosca concentrada", BICEPS, ISOLATION, DUMBBELLS),
         // Tríceps
         e("Tríceps na polia", TRICEPS, ISOLATION, GYM),
         e("Tríceps testa", TRICEPS, ISOLATION, GYM),
         e("Tríceps francês com halter", TRICEPS, ISOLATION, DUMBBELLS),
         e("Mergulho no banco", TRICEPS, ISOLATION, BODYWEIGHT),
         e("Flexão diamante", TRICEPS, COMPOUND, BODYWEIGHT, INTERMEDIATE, CHEST),
+        // Antebraço
+        e("Rosca de punho", FOREARMS, ISOLATION, DUMBBELLS),
+        e("Rosca inversa", FOREARMS, ISOLATION, GYM),
+        e("Suspensão na barra", FOREARMS, HOLD, BODYWEIGHT, INTERMEDIATE),
         // Quadríceps
         e("Agachamento livre", QUADS, COMPOUND, GYM, INTERMEDIATE, GLUTES, ADDUCTORS),
         e("Leg press 45°", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
@@ -113,15 +137,15 @@ object ExerciseCatalog {
         e("Agachamento búlgaro", QUADS, COMPOUND, DUMBBELLS, INTERMEDIATE, GLUTES),
         e("Agachamento sem peso", QUADS, COMPOUND, BODYWEIGHT, BEGINNER, GLUTES),
         e("Cadeira extensora", QUADS, ISOLATION, GYM),
-        // Posterior de coxa
-        e("Stiff com barra", HAMSTRINGS, COMPOUND, GYM, BEGINNER, GLUTES),
-        e("Levantamento terra", HAMSTRINGS, COMPOUND, GYM, ADVANCED, GLUTES, UPPER_BACK),
+        // Posterior de coxa (isquiotibiais)
+        e("Stiff com barra", HAMSTRINGS, COMPOUND, GYM, BEGINNER, GLUTES, LOWER_BACK),
+        e("Levantamento terra", HAMSTRINGS, COMPOUND, GYM, ADVANCED, GLUTES, LOWER_BACK, TRAPS),
         e("Stiff com halteres", HAMSTRINGS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES),
         e("Stiff unilateral sem peso", HAMSTRINGS, COMPOUND, BODYWEIGHT, BEGINNER, GLUTES),
         e("Mesa flexora", HAMSTRINGS, ISOLATION, GYM),
         e("Cadeira flexora", HAMSTRINGS, ISOLATION, GYM),
         e("Flexão nórdica", HAMSTRINGS, ISOLATION, BODYWEIGHT, ADVANCED),
-        // Glúteos (inclui abdutores)
+        // Glúteos (máximo e médio)
         e("Elevação pélvica", GLUTES, COMPOUND, GYM, BEGINNER, HAMSTRINGS),
         e("Elevação pélvica com halter", GLUTES, COMPOUND, DUMBBELLS, BEGINNER, HAMSTRINGS),
         e("Ponte de glúteo", GLUTES, COMPOUND, BODYWEIGHT, BEGINNER, HAMSTRINGS),
@@ -133,24 +157,28 @@ object ExerciseCatalog {
         e("Adução na polia", ADDUCTORS, ISOLATION, GYM),
         e("Agachamento sumô com halter", ADDUCTORS, COMPOUND, DUMBBELLS, BEGINNER, QUADS, GLUTES),
         e("Adução deitado de lado", ADDUCTORS, ISOLATION, BODYWEIGHT),
-        e("Prancha de Copenhague", ADDUCTORS, HOLD, BODYWEIGHT, INTERMEDIATE, CORE),
-        // Panturrilha
+        e("Prancha de Copenhague", ADDUCTORS, HOLD, BODYWEIGHT, INTERMEDIATE, OBLIQUES),
+        // Panturrilha (gastrocnêmio e sóleo)
         e("Panturrilha em pé", CALVES, ISOLATION, GYM),
         e("Panturrilha sentado", CALVES, ISOLATION, GYM),
         e("Panturrilha no leg press", CALVES, ISOLATION, GYM),
         e("Panturrilha unilateral com halter", CALVES, ISOLATION, DUMBBELLS),
         e("Panturrilha no degrau", CALVES, ISOLATION, BODYWEIGHT),
-        // Core
-        e("Prancha", CORE, HOLD, BODYWEIGHT),
-        e("Prancha lateral", CORE, HOLD, BODYWEIGHT),
-        e("Abdominal supra", CORE, ISOLATION, BODYWEIGHT),
-        e("Elevação de pernas", CORE, ISOLATION, BODYWEIGHT),
-        e("Abdominal infra", CORE, ISOLATION, BODYWEIGHT),
-        e("Abdominal bicicleta", CORE, ISOLATION, BODYWEIGHT),
-        e("Dead bug", CORE, ISOLATION, BODYWEIGHT),
-        e("Superman", CORE, ISOLATION, BODYWEIGHT),
-        e("Abdominal na polia", CORE, ISOLATION, GYM),
-        e("Pallof press", CORE, ISOLATION, GYM),
+        // Abdômen (reto abdominal)
+        e("Prancha", ABS, HOLD, BODYWEIGHT, BEGINNER, OBLIQUES),
+        e("Abdominal supra", ABS, ISOLATION, BODYWEIGHT),
+        e("Abdominal infra", ABS, ISOLATION, BODYWEIGHT),
+        e("Elevação de pernas", ABS, ISOLATION, BODYWEIGHT),
+        e("Abdominal bicicleta", ABS, ISOLATION, BODYWEIGHT, BEGINNER, OBLIQUES),
+        e("Dead bug", ABS, ISOLATION, BODYWEIGHT),
+        e("Abdominal na polia", ABS, ISOLATION, GYM),
+        e("Roda abdominal", ABS, ISOLATION, DUMBBELLS, INTERMEDIATE),
+        // Oblíquos e estabilidade do tronco
+        e("Prancha lateral", OBLIQUES, HOLD, BODYWEIGHT, BEGINNER, ABS),
+        e("Abdominal oblíquo", OBLIQUES, ISOLATION, BODYWEIGHT),
+        e("Russian twist", OBLIQUES, ISOLATION, BODYWEIGHT),
+        e("Lenhador na polia", OBLIQUES, ISOLATION, GYM),
+        e("Pallof press", OBLIQUES, ISOLATION, GYM),
         // Cardio
         e("Bicicleta ergométrica", CARDIO, RUN, GYM),
         e("Esteira", CARDIO, RUN, GYM),

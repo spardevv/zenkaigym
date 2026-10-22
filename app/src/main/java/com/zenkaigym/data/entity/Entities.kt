@@ -43,10 +43,15 @@ enum class MealType(val pt: String, val defaultTime: String) {
     val label: String get() = tr(pt)
 }
 
+/** Músculos treinados, separados como na anatomia: cada um tem exercícios próprios. */
 enum class MuscleGroup(val pt: String) {
-    CHEST("Peito"), LATS("Grande dorsal"), UPPER_BACK("Pequena dorsal"), SHOULDERS("Ombros"),
-    BICEPS("Bíceps"), TRICEPS("Tríceps"), QUADS("Quadríceps"), HAMSTRINGS("Posterior de coxa"),
-    GLUTES("Glúteos"), ADDUCTORS("Adutores"), CALVES("Panturrilha"), CORE("Core"), CARDIO("Cardio");
+    CHEST("Peito"),
+    LATS("Grande dorsal"), MID_BACK("Meio das costas"), TRAPS("Trapézio"), LOWER_BACK("Lombar"),
+    SHOULDERS_FRONT("Ombro anterior"), SHOULDERS_SIDE("Ombro lateral"), SHOULDERS_REAR("Ombro posterior"),
+    BICEPS("Bíceps"), TRICEPS("Tríceps"), FOREARMS("Antebraço"),
+    QUADS("Quadríceps"), HAMSTRINGS("Posterior de coxa"), GLUTES("Glúteos"), ADDUCTORS("Adutores"), CALVES("Panturrilha"),
+    ABS("Abdômen"), OBLIQUES("Oblíquos"),
+    CARDIO("Cardio");
 
     val label: String get() = tr(pt)
 }

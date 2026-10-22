@@ -12,9 +12,9 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 
 class WorkoutSwapsTest {
-    private val lateral = Exercise(1, "Elevação lateral", MuscleGroup.SHOULDERS)
-    private val frontal = Exercise(2, "Elevação frontal", MuscleGroup.SHOULDERS)
-    private val press = Exercise(3, "Desenvolvimento com halteres", MuscleGroup.SHOULDERS)
+    private val lateral = Exercise(1, "Elevação lateral", MuscleGroup.SHOULDERS_SIDE)
+    private val frontal = Exercise(2, "Elevação frontal", MuscleGroup.SHOULDERS_SIDE)
+    private val press = Exercise(3, "Desenvolvimento com halteres", MuscleGroup.SHOULDERS_SIDE)
     private val bench = Exercise(4, "Supino reto com barra", MuscleGroup.CHEST)
     private val all = listOf(lateral, frontal, press, bench)
 

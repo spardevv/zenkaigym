@@ -8,19 +8,25 @@ import com.zenkaigym.data.entity.ExerciseKind
 import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.Level
 import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.MuscleGroup.ABS
 import com.zenkaigym.data.entity.MuscleGroup.ADDUCTORS
 import com.zenkaigym.data.entity.MuscleGroup.BICEPS
 import com.zenkaigym.data.entity.MuscleGroup.CALVES
 import com.zenkaigym.data.entity.MuscleGroup.CARDIO
 import com.zenkaigym.data.entity.MuscleGroup.CHEST
-import com.zenkaigym.data.entity.MuscleGroup.CORE
+import com.zenkaigym.data.entity.MuscleGroup.FOREARMS
 import com.zenkaigym.data.entity.MuscleGroup.GLUTES
 import com.zenkaigym.data.entity.MuscleGroup.HAMSTRINGS
 import com.zenkaigym.data.entity.MuscleGroup.LATS
+import com.zenkaigym.data.entity.MuscleGroup.LOWER_BACK
+import com.zenkaigym.data.entity.MuscleGroup.MID_BACK
+import com.zenkaigym.data.entity.MuscleGroup.OBLIQUES
 import com.zenkaigym.data.entity.MuscleGroup.QUADS
-import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_FRONT
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_REAR
+import com.zenkaigym.data.entity.MuscleGroup.SHOULDERS_SIDE
+import com.zenkaigym.data.entity.MuscleGroup.TRAPS
 import com.zenkaigym.data.entity.MuscleGroup.TRICEPS
-import com.zenkaigym.data.entity.MuscleGroup.UPPER_BACK
 import com.zenkaigym.data.entity.TrainingFocus
 
 data class PlannedItem(val exerciseId: Long, val sets: Int, val reps: String)
@@ -58,16 +64,23 @@ object WorkoutPlanner {
     private val volume: Map<MuscleGroup, Volume> = mapOf(
         CHEST to Volume(6, 12, 1.0),
         LATS to Volume(6, 12, 1.0),
-        UPPER_BACK to Volume(4, 10, 0.8),
-        SHOULDERS to Volume(4, 10, 0.8),
+        MID_BACK to Volume(4, 10, 0.8),
+        TRAPS to Volume(0, 6, 0.3),
+        LOWER_BACK to Volume(0, 6, 0.35),
+        // Os desenvolvimentos já treinam bastante o deltoide anterior: ele só ganha séries próprias com tempo de sobra.
+        SHOULDERS_FRONT to Volume(0, 6, 0.4),
+        SHOULDERS_SIDE to Volume(4, 12, 0.8),
+        SHOULDERS_REAR to Volume(3, 8, 0.6),
         BICEPS to Volume(3, 8, 0.6),
         TRICEPS to Volume(3, 8, 0.6),
+        FOREARMS to Volume(0, 4, 0.25),
         QUADS to Volume(6, 12, 1.0),
         HAMSTRINGS to Volume(5, 10, 1.0),
         GLUTES to Volume(4, 10, 0.9),
         ADDUCTORS to Volume(2, 6, 0.5),
         CALVES to Volume(3, 8, 0.6),
-        CORE to Volume(4, 8, 0.7)
+        ABS to Volume(3, 8, 0.7),
+        OBLIQUES to Volume(2, 6, 0.5)
     )
 
     /** Grupos treinados com séries próprias, do mais prioritário ao menos. */
@@ -85,7 +98,7 @@ object WorkoutPlanner {
 
     private fun focusGroups(focus: TrainingFocus): Set<MuscleGroup> = when (focus) {
         TrainingFocus.BALANCED -> emptySet()
-        TrainingFocus.UPPER -> setOf(CHEST, LATS, UPPER_BACK, SHOULDERS, BICEPS, TRICEPS)
+        TrainingFocus.UPPER -> setOf(CHEST, LATS, MID_BACK, TRAPS, SHOULDERS_FRONT, SHOULDERS_SIDE, SHOULDERS_REAR, BICEPS, TRICEPS)
         TrainingFocus.LOWER -> setOf(QUADS, HAMSTRINGS, GLUTES, ADDUCTORS, CALVES)
         TrainingFocus.GLUTES -> setOf(GLUTES, HAMSTRINGS, ADDUCTORS)
     }
@@ -94,11 +107,17 @@ object WorkoutPlanner {
 
     private val all = trained.toSet()
     private fun full(name: String) = Session(name, all)
-    private val push = Session("Push · peito, ombro, tríceps", setOf(CHEST, SHOULDERS, TRICEPS, CORE))
-    private val pull = Session("Pull · costas, bíceps", setOf(LATS, UPPER_BACK, BICEPS, CORE))
-    private val legs = Session("Pernas", setOf(QUADS, HAMSTRINGS, GLUTES, ADDUCTORS, CALVES, CORE))
-    private val upper = Session("Superiores", setOf(CHEST, LATS, UPPER_BACK, SHOULDERS, BICEPS, TRICEPS, CORE))
-    private val lower = Session("Inferiores", setOf(QUADS, HAMSTRINGS, GLUTES, ADDUCTORS, CALVES, CORE))
+    private val push = Session("Push · peito, ombro, tríceps", setOf(CHEST, SHOULDERS_FRONT, SHOULDERS_SIDE, TRICEPS, ABS))
+    private val pull = Session(
+        "Pull · costas, bíceps",
+        setOf(LATS, MID_BACK, TRAPS, SHOULDERS_REAR, BICEPS, FOREARMS, LOWER_BACK, OBLIQUES)
+    )
+    private val legs = Session("Pernas", setOf(QUADS, HAMSTRINGS, GLUTES, ADDUCTORS, CALVES, ABS, OBLIQUES))
+    private val upper = Session(
+        "Superiores",
+        setOf(CHEST, LATS, MID_BACK, TRAPS, SHOULDERS_FRONT, SHOULDERS_SIDE, SHOULDERS_REAR, BICEPS, TRICEPS, FOREARMS, ABS)
+    )
+    private val lower = Session("Inferiores", setOf(QUADS, HAMSTRINGS, GLUTES, ADDUCTORS, CALVES, LOWER_BACK, ABS, OBLIQUES))
 
     private fun split(sessions: Int): Pair<String, List<Session>> = when (sessions) {
         1 -> "Corpo inteiro" to listOf(full("Corpo inteiro"))
@@ -273,7 +292,7 @@ object WorkoutPlanner {
         ExerciseKind.CARDIO -> "10min"
         ExerciseKind.COMPOUND -> when (goal) { Goal.GAIN -> "6-10"; Goal.MAINTAIN -> "8-12"; Goal.LOSE -> "10-15" }
         ExerciseKind.ISOLATION ->
-            if (exercise.group == CORE) "15-20"
+            if (exercise.group == ABS || exercise.group == OBLIQUES) "15-20"
             else when (goal) { Goal.GAIN -> "10-12"; Goal.MAINTAIN -> "10-15"; Goal.LOSE -> "12-15" }
     }
 

@@ -156,7 +156,8 @@ class ZenRepository(
         return result
     }
 
-    suspend fun updateProfile(profile: UserProfile) = reweigh { saveProfile(profile) }
+    suspend fun updateProfile(profile: UserProfile, availability: List<Availability>? = null) =
+        reweigh { saveProfile(profile, availability) }
 
     suspend fun registerWeight(kg: Double) = reweigh { addWeight(kg) }
 

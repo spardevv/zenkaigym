@@ -39,25 +39,34 @@ class SetupUiTest {
     }
 
     @Test fun camposVaziosMostramErroDeAltura() {
-        rule.onNodeWithText("Começar").performClick()
+        rule.onNodeWithText("Continuar").performClick()
         rule.onNodeWithText("Altura inválida (100–250 cm).").assertIsDisplayed()
         assertTrue(app.viewModel.showSetup.value)
     }
 
     @Test fun pesoInvalidoMostraErroDePeso() {
         fill("175", "5", "30")
-        rule.onNodeWithText("Começar").performClick()
+        rule.onNodeWithText("Continuar").performClick()
         rule.onNodeWithText("Peso inválido (30–300 kg).").assertIsDisplayed()
         assertTrue(app.viewModel.showSetup.value)
     }
 
-    @Test fun dadosValidosConcluemAConfiguracaoESalvamOPerfil() {
+    @Test fun dadosValidosAvancamParaOTreino() {
         fill("175", "72,5", "30")
-        rule.onNodeWithText("Começar").performClick()
-        rule.waitUntil(10_000) { !app.viewModel.showSetup.value }
-        assertTrue(app.flags.setupDone)
+        rule.onNodeWithText("Continuar").performClick()
+        rule.onNodeWithText("Dias e horários").assertIsDisplayed()
+        // Ainda não terminou: o Dojo só abre depois de aceitar treino e dieta.
+        assertTrue(app.viewModel.showSetup.value)
+    }
+
+    @Test fun montarOTreinoSalvaOPerfilEPreparaASugestao() {
+        fill("175", "72,5", "30")
+        rule.onNodeWithText("Continuar").performClick()
+        rule.onNodeWithText("Montar meu treino").performClick()
+        rule.waitUntil(10_000) { runBlocking { app.repo.profile.first() } != null }
         val profile = runBlocking { app.repo.profile.first() }
         assertEquals(175, profile?.heightCm)
         assertEquals(72.5, profile?.weightKg ?: 0.0, 0.0)
+        assertTrue(app.viewModel.showSetup.value)
     }
 }
