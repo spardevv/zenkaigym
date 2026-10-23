@@ -153,9 +153,25 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 )
             }
 
+            ZenCard(accent = Ao, entranceIndex = 4) {
+                SectionTitle(tr("Aviso de saúde"), accent = Ao)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    tr("O Zenkaigym é uma ferramenta de apoio e não substitui médico, nutricionista ou educador físico. Metas de calorias, cardápios e fichas de treino são sugestões gerais. Antes de mudar a dieta ou começar a treinar, consulte um profissional de saúde, principalmente se tiver alguma condição médica, estiver grávida ou for menor de idade. Pare o exercício se sentir dor ou mal-estar."),
+                    color = Zen.p.muted
+                )
+                Spacer(Modifier.height(10.dp))
+                SectionTitle(tr("Privacidade"), accent = Ao)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    tr("Não há conta, anúncios, rastreamento nem coleta de dados. Seus dados não saem do aparelho e não vão para backup na nuvem. Ao apagar os dados ou desinstalar o app, tudo é perdido."),
+                    color = Zen.p.muted
+                )
+            }
+
             ZenButton(tr("Rever apresentação"), viewModel::replayIntro, accent = Zen.p.card, small = true)
 
-            ZenCard(accent = Aka, entranceIndex = 4) {
+            ZenCard(accent = Aka, entranceIndex = 5) {
                 SectionTitle(tr("Zona de perigo"), accent = Aka)
                 Spacer(Modifier.height(6.dp))
                 Text(tr("Apaga perfil, pesos, fichas, dietas, alimentos cadastrados e todo o histórico de treinos e refeições."), color = Zen.p.muted)
