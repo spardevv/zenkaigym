@@ -65,6 +65,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -132,6 +135,16 @@ private fun kgText(kg: Double): String = if (kg % 1.0 == 0.0) kg.toLong().toStri
 
 private data class SetDraftState(val weight: String, val reps: String)
 
+/** Guarda os rascunhos digitados para sobreviver à rotação da tela: [id do exercício, série, carga, reps] em sequência. */
+private val DraftsSaver = listSaver<SnapshotStateMap<Pair<Long, Int>, SetDraftState>, String>(
+    save = { map -> map.flatMap { (k, v) -> listOf(k.first.toString(), k.second.toString(), v.weight, v.reps) } },
+    restore = { list ->
+        mutableStateMapOf<Pair<Long, Int>, SetDraftState>().also { map ->
+            list.chunked(4).forEach { map[it[0].toLong() to it[1].toInt()] = SetDraftState(it[2], it[3]) }
+        }
+    }
+)
+
 /** Série registrada como texto dos campos (carga zero = campo vazio). */
 private fun SetLog.asDraft() = SetDraftState(if (weightKg > 0) kgText(weightKg) else "", reps.toString())
 
@@ -166,7 +179,7 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     val items = remember(day, swaps, exercises) { WorkoutSwaps.apply(day, swaps, exercises).items.sortedBy { it.item.position } }
     val originals = remember(day) { day.items.associate { it.item.id to it.exercise } }
     // Rascunho por (exercício, série): começa com os mesmos kg e reps do treino anterior e é editável.
-    val drafts = remember(day) { mutableStateMapOf<Pair<Long, Int>, SetDraftState>() }
+    val drafts = rememberSaveable(day, saver = DraftsSaver) { mutableStateMapOf<Pair<Long, Int>, SetDraftState>() }
     val hints = remember(day) { mutableStateMapOf<Long, String>() }
     var swapping by remember { mutableStateOf<WorkoutItemFull?>(null) }
 

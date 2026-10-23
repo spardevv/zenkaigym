@@ -14,7 +14,7 @@ Somente no seu aparelho. O app não tem conta, não pede permissão de internet,
 Os dados são excluídos do backup na nuvem do Android (Google Drive). Só a transferência direta entre aparelhos, feita pelo próprio sistema ao configurar um celular novo, pode copiar os dados.
 
 ## Compartilhamento
-O app só compartilha algo quando você usa o botão de compartilhar a lista de compras. O texto vai para o aplicativo que você escolher.
+O app só envia algo para fora quando você pede: ao compartilhar a lista de compras ou ao exportar seus dados (Ajustes > Seus dados). Nos dois casos o conteúdo vai para o aplicativo ou o local que você escolher.
 
 ## Seus direitos
 Você pode apagar tudo em Ajustes > Zona de perigo > Apagar todos os dados, ou desinstalando o app. Como não coletamos dados, não há nada guardado em outro lugar.

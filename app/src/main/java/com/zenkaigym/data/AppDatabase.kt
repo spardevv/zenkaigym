@@ -36,7 +36,7 @@ import com.zenkaigym.data.entity.WorkoutSwap
         WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
     ],
     version = 8,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao

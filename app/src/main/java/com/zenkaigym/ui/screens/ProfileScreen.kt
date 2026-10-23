@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,11 +71,11 @@ fun ProfileScreen(viewModel: ZenViewModel) {
     val weights by viewModel.weights.collectAsStateWithLifecycle()
 
     // O formulário recomeça do perfil salvo sempre que ele muda (ao salvar ou ao registrar um peso novo).
-    var height by remember(profile) { mutableStateOf(profile?.heightCm?.toString() ?: "") }
-    var weight by remember(profile) { mutableStateOf(profile?.weightKg?.let { "%.1f".format(it) } ?: "") }
-    var age by remember(profile) { mutableStateOf(profile?.age?.toString() ?: "") }
-    var sex by remember(profile) { mutableStateOf(profile?.sex ?: Sex.MALE) }
-    var goal by remember(profile) { mutableStateOf(profile?.goal ?: Goal.MAINTAIN) }
+    var height by rememberSaveable(profile) { mutableStateOf(profile?.heightCm?.toString() ?: "") }
+    var weight by rememberSaveable(profile) { mutableStateOf(profile?.weightKg?.let { "%.1f".format(it) } ?: "") }
+    var age by rememberSaveable(profile) { mutableStateOf(profile?.age?.toString() ?: "") }
+    var sex by rememberSaveable(profile) { mutableStateOf(profile?.sex ?: Sex.MALE) }
+    var goal by rememberSaveable(profile) { mutableStateOf(profile?.goal ?: Goal.MAINTAIN) }
     var prefs by remember(profile) {
         mutableStateOf(profile?.let { TrainingChoices(it.level, it.cardio, it.focus, it.equipment) } ?: TrainingChoices())
     }

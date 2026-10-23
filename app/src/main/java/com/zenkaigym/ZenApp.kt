@@ -9,9 +9,8 @@ import com.zenkaigym.domain.IntroGate
 import com.zenkaigym.domain.RuleBasedEngine
 
 class ZenApp : Application() {
-    val repository: ZenRepository by lazy {
-        ZenRepository(AppDatabase.create(this), RuleBasedEngine())
-    }
+    val database: AppDatabase by lazy { AppDatabase.create(this) }
+    val repository: ZenRepository by lazy { ZenRepository(database, RuleBasedEngine()) }
     val appFlags: AppFlags by lazy { AppFlags(this) }
     val introGate: IntroGate by lazy { IntroGate(IntroPrefs(this)) }
 }

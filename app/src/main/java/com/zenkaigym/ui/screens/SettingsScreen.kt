@@ -1,6 +1,18 @@
 package com.zenkaigym.ui.screens
 
 import com.zenkaigym.domain.tr
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.zenkaigym.ZenApp
+import com.zenkaigym.data.Backup
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,6 +67,21 @@ fun SettingsScreen(viewModel: ZenViewModel) {
     val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     var confirming by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pendingImport by remember { mutableStateOf<Uri?>(null) }
+    val app = context.applicationContext as ZenApp
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { runCatching { Backup.export(context, app.database, uri) }.isSuccess }
+            Toast.makeText(context, if (ok) tr("Backup salvo!") else tr("Não foi possível salvar o backup."), Toast.LENGTH_LONG).show()
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) pendingImport = uri
+    }
 
     ZenPage {
         Column(
@@ -151,6 +178,16 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     tr("Tudo fica salvo só neste aparelho, de forma local. Nada é enviado para a internet nem precisa de permissão de armazenamento."),
                     color = Zen.p.muted
                 )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    tr("Para trocar de celular ou guardar uma cópia, exporte seus dados para um arquivo e importe no outro aparelho. O arquivo só vai para onde você escolher."),
+                    color = Zen.p.muted
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenButton(tr("Exportar dados"), { exportLauncher.launch(Backup.suggestedName()) }, Modifier.weight(1f), accent = Ao, fill = true)
+                    ZenButton(tr("Importar dados"), { importLauncher.launch(arrayOf("*/*")) }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+                }
             }
 
             ZenCard(accent = Ao, entranceIndex = 4) {
@@ -181,7 +218,47 @@ fun SettingsScreen(viewModel: ZenViewModel) {
         }
     }
 
+    pendingImport?.let { uri ->
+        ImportDialog(
+            onConfirm = {
+                pendingImport = null
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { runCatching { Backup.import(context, app.database, uri) }.getOrDefault(Backup.ImportResult.INVALID) }
+                    when (result) {
+                        Backup.ImportResult.OK -> {
+                            Toast.makeText(context, tr("Dados importados! Reiniciando…"), Toast.LENGTH_LONG).show()
+                            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                            if (launch != null) context.startActivity(Intent.makeRestartActivityTask(launch.component))
+                            Runtime.getRuntime().exit(0)
+                        }
+                        Backup.ImportResult.TOO_NEW ->
+                            Toast.makeText(context, tr("Esse backup é de uma versão mais nova do app. Atualize o Zenkaigym."), Toast.LENGTH_LONG).show()
+                        Backup.ImportResult.INVALID ->
+                            Toast.makeText(context, tr("Esse arquivo não é um backup do Zenkaigym."), Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onDismiss = { pendingImport = null }
+        )
+    }
+
     if (confirming) WipeDialog(onConfirm = { confirming = false; viewModel.wipeAllData() }, onDismiss = { confirming = false })
+}
+
+/** Importar troca tudo o que existe no aparelho pelo conteúdo do backup. */
+@Composable
+private fun ImportDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    ZenDialog(
+        tr("Importar dados?"), onDismiss, accent = Aka,
+        footer = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Importar"), onConfirm, Modifier.weight(1f), accent = Aka, fill = true)
+                ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+            }
+        }
+    ) {
+        Text(tr("Tudo o que está neste aparelho será substituído pelo conteúdo do backup. O app vai reiniciar."), color = Zen.p.muted)
+    }
 }
 
 /**

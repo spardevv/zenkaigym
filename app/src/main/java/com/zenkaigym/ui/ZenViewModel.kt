@@ -32,6 +32,10 @@ import com.zenkaigym.domain.ThemeMode
 import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.domain.WorkoutWeek
 import com.zenkaigym.util.Clock
+import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -113,12 +117,12 @@ class ZenViewModel(
     val showSetup: StateFlow<Boolean> = _showSetup
 
     /** Passo do treino na configuração inicial: salva perfil e agenda e monta as sugestões de treino e dieta. */
-    fun saveSetupProfile(profile: UserProfile, availability: List<Availability>) = viewModelScope.launch {
+    fun saveSetupProfile(profile: UserProfile, availability: List<Availability>) = launchSafe {
         working(tr("Montando seu treino e sua dieta…")) { repo.updateProfile(profile, availability) }
     }
 
     /** Último passo: ativa a dieta revisada e abre o Dojo com treino e dieta já definidos. */
-    fun acceptDietAndFinish(planId: Long) = viewModelScope.launch {
+    fun acceptDietAndFinish(planId: Long) = launchSafe {
         repo.acceptDiet(planId)
         flags.setupDone = true
         _showSetup.value = false
@@ -303,7 +307,7 @@ class ZenViewModel(
     // ---- Apagar todos os dados ----
 
     /** Apaga perfil, fichas, dietas, alimentos e histórico; mantém só tema e idioma. Volta à configuração inicial. */
-    fun wipeAllData() = viewModelScope.launch {
+    fun wipeAllData() = launchSafe {
         stopTraining()
         working(tr("Apagando seus dados…")) { repo.wipeAll() }
         flags.foodsSeeded = true // a lista inicial de alimentos já foi recriada
@@ -321,20 +325,37 @@ class ZenViewModel(
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
+    /** Texto do que está sendo salvo/recalculado agora; null quando ocioso. Alimenta o indicador de carregamento. */
+    private val _busy = MutableStateFlow<String?>(null)
+    val busy: StateFlow<String?> = _busy
+
+    /** Falha numa operação em segundo plano vira aviso na tela em vez de derrubar o app. */
+    private val failureHandler = CoroutineExceptionHandler { _, error ->
+        Log.e("ZenViewModel", "Falha em operação em segundo plano", error)
+        _busy.value = null
+        toast(tr("Algo deu errado. Tente de novo."))
+    }
+
+    private fun launchSafe(block: suspend CoroutineScope.() -> Unit): Job =
+        viewModelScope.launch(failureHandler, block = block)
+
     init {
-        viewModelScope.launch {
-            val started = System.currentTimeMillis()
-            repo.ensureSeed(seedFoods = !flags.foodsSeeded)
-            flags.foodsSeeded = true
-            pending.first { it == 0 }
-            // Quem já tinha perfil antes desta versão não precisa refazer a configuração inicial.
-            if (profile.value != null && !flags.setupDone) {
-                flags.setupDone = true
-                _showSetup.value = false
+        launchSafe {
+            try {
+                val started = System.currentTimeMillis()
+                repo.ensureSeed(seedFoods = !flags.foodsSeeded)
+                flags.foodsSeeded = true
+                pending.first { it == 0 }
+                // Quem já tinha perfil antes desta versão não precisa refazer a configuração inicial.
+                if (profile.value != null && !flags.setupDone) {
+                    flags.setupDone = true
+                    _showSetup.value = false
+                }
+                val remaining = MIN_LOADING_MS - (System.currentTimeMillis() - started)
+                if (remaining > 0) delay(remaining)
+            } finally {
+                _ready.value = true // mesmo com falha, não deixa o app preso na tela de carregamento
             }
-            val remaining = MIN_LOADING_MS - (System.currentTimeMillis() - started)
-            if (remaining > 0) delay(remaining)
-            _ready.value = true
         }
     }
 
@@ -342,9 +363,6 @@ class ZenViewModel(
         if (text != null) _messages.tryEmit(text)
     }
 
-    /** Texto do que está sendo salvo/recalculado agora; null quando ocioso. Alimenta o indicador de carregamento. */
-    private val _busy = MutableStateFlow<String?>(null)
-    val busy: StateFlow<String?> = _busy
 
     /** Mostra o carregamento por um tempo mínimo, para o usuário perceber que algo aconteceu. */
     private suspend fun <T> working(label: String, block: suspend () -> T): T {
@@ -361,22 +379,22 @@ class ZenViewModel(
 
     // ---- Perfil, peso e metas ----
 
-    fun saveProfile(profile: UserProfile) = viewModelScope.launch {
+    fun saveProfile(profile: UserProfile) = launchSafe {
         working(tr("Atualizando dieta e treino…")) { repo.updateProfile(profile) }
         toast(tr("Perfil salvo! Dieta e treino foram reponderados — revise as sugestões."))
     }
 
-    fun saveAvailability(list: List<Availability>) = viewModelScope.launch {
+    fun saveAvailability(list: List<Availability>) = launchSafe {
         val changed = working(tr("Salvando agenda…")) { repo.updateAvailability(list) }
         toast(if (changed) tr("Agenda salva! Treino e dieta reponderados — revise as sugestões.") else tr("Agenda salva."))
     }
 
-    fun addWeight(kg: Double) = viewModelScope.launch {
+    fun addWeight(kg: Double) = launchSafe {
         working(tr("Registrando peso…")) { repo.registerWeight(kg) }
         toast(tr("Peso registrado! Dieta e treino reponderados."))
     }
 
-    fun acceptTarget(target: NutritionTarget) = viewModelScope.launch {
+    fun acceptTarget(target: NutritionTarget) = launchSafe {
         working(tr("Aplicando meta…")) { repo.updateTarget(target) }
         toast(tr("Meta salva! A dieta foi ajustada a ela."))
     }
@@ -386,42 +404,42 @@ class ZenViewModel(
 
     // ---- Alimentos ----
 
-    fun saveFood(food: Food) = viewModelScope.launch {
+    fun saveFood(food: Food) = launchSafe {
         working(tr("Salvando alimento…")) { repo.saveFood(food) }
         toast(tr("Alimento salvo."))
     }
-    fun deleteFood(id: Long) = viewModelScope.launch {
+    fun deleteFood(id: Long) = launchSafe {
         working(tr("Removendo alimento…")) { repo.deleteFood(id) }
         toast(tr("Alimento removido."))
     }
-    fun deleteAllFoods() = viewModelScope.launch {
+    fun deleteAllFoods() = launchSafe {
         working(tr("Removendo alimentos…")) { repo.deleteAllFoods() }
         toast(tr("Todos os alimentos foram removidos."))
     }
-    fun resetFoods() = viewModelScope.launch {
+    fun resetFoods() = launchSafe {
         working(tr("Refazendo lista e dieta…")) { repo.resetFoodsToSuggestion() }
         toast(tr("Lista sugerida restaurada! Revise a nova dieta."))
     }
-    fun addFoodExamples() = viewModelScope.launch {
+    fun addFoodExamples() = launchSafe {
         working(tr("Adicionando alimentos…")) { repo.addFoodExamples() }
         toast(tr("Lista pronta adicionada."))
     }
 
     // ---- Treino ----
 
-    fun generateWorkout() = viewModelScope.launch {
+    fun generateWorkout() = launchSafe {
         toast(working(tr("Montando treino…")) { repo.generateWorkoutProposal() } ?: tr("Nova sugestão de treino pronta."))
     }
-    fun ensureWorkoutSuggestion() = viewModelScope.launch { repo.ensureWorkoutSuggestion() }
-    fun acceptWorkout(planId: Long) = viewModelScope.launch {
+    fun ensureWorkoutSuggestion() = launchSafe { repo.ensureWorkoutSuggestion() }
+    fun acceptWorkout(planId: Long) = launchSafe {
         repo.acceptWorkout(planId)
         toast(tr("Ficha de treino ativada!"))
     }
-    fun discardWorkout() = viewModelScope.launch { repo.discardWorkoutProposal() }
-    fun removeWorkoutItem(id: Long) = viewModelScope.launch { repo.removeWorkoutItem(id) }
-    fun setWorkoutSets(id: Long, sets: Int) = viewModelScope.launch { repo.setWorkoutSets(id, sets) }
-    fun replaceExercise(itemId: Long, exercise: Exercise) = viewModelScope.launch { repo.replaceExercise(itemId, exercise.id) }
-    fun addWorkoutItem(dayId: Long, exercise: Exercise) = viewModelScope.launch { repo.addWorkoutItem(dayId, exercise.id) }
+    fun discardWorkout() = launchSafe { repo.discardWorkoutProposal() }
+    fun removeWorkoutItem(id: Long) = launchSafe { repo.removeWorkoutItem(id) }
+    fun setWorkoutSets(id: Long, sets: Int) = launchSafe { repo.setWorkoutSets(id, sets) }
+    fun replaceExercise(itemId: Long, exercise: Exercise) = launchSafe { repo.replaceExercise(itemId, exercise.id) }
+    fun addWorkoutItem(dayId: Long, exercise: Exercise) = launchSafe { repo.addWorkoutItem(dayId, exercise.id) }
 
     /** Última vez e melhor carga anteriores a hoje, para pré-preencher e sugerir a progressão. */
     suspend fun history(exerciseId: Long): ExerciseHistory {
@@ -432,18 +450,18 @@ class ZenViewModel(
         )
     }
 
-    fun logSet(exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) = viewModelScope.launch {
+    fun logSet(exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) = launchSafe {
         val today = clock.value.epochDay
         val best = repo.bestWeight(exerciseId, today)
         repo.logSet(today, exerciseId, setIndex, reps, weightKg)
         if (Progression.isPersonalRecord(weightKg, best) && best > 0) toast(tr("Novo recorde! {0} kg", weightKg))
     }
 
-    fun unlogSet(exerciseId: Long, setIndex: Int) = viewModelScope.launch {
+    fun unlogSet(exerciseId: Long, setIndex: Int) = launchSafe {
         repo.unlogSet(clock.value.epochDay, exerciseId, setIndex)
     }
 
-    fun setWorkoutDone(done: Boolean) = viewModelScope.launch {
+    fun setWorkoutDone(done: Boolean) = launchSafe {
         repo.setWorkoutDone(clock.value.epochDay, done)
         if (done) {
             stopTraining() // também zera o descanso
@@ -452,65 +470,65 @@ class ZenViewModel(
     }
 
     /** Marca o treino de hoje como não realizado: a sessão passa para o próximo dia de treino. */
-    fun setWorkoutSkipped(skipped: Boolean) = viewModelScope.launch {
+    fun setWorkoutSkipped(skipped: Boolean) = launchSafe {
         repo.setWorkoutSkipped(clock.value.epochDay, skipped)
         if (skipped) toast(tr("Anotado! A semana de treino foi reorganizada."))
     }
 
-    fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
+    fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = launchSafe {
         repo.replaceExercise(itemId, repo.addExercise(name, group))
     }
 
     /** Troca o exercício só no treino de hoje; escolher o da ficha desfaz a troca. */
-    fun swapExerciseToday(itemId: Long, exercise: Exercise) = viewModelScope.launch {
+    fun swapExerciseToday(itemId: Long, exercise: Exercise) = launchSafe {
         repo.swapExerciseForDay(clock.value.epochDay, itemId, exercise.id)
         toast(tr("Trocado só por hoje: {0}.", tr(exercise.name)))
     }
 
-    fun createExerciseAndSwapToday(name: String, group: MuscleGroup, itemId: Long) = viewModelScope.launch {
+    fun createExerciseAndSwapToday(name: String, group: MuscleGroup, itemId: Long) = launchSafe {
         repo.swapExerciseForDay(clock.value.epochDay, itemId, repo.addExercise(name, group))
         toast(tr("Trocado só por hoje: {0}.", name))
     }
 
-    fun createExerciseAndAdd(name: String, group: MuscleGroup, dayId: Long) = viewModelScope.launch {
+    fun createExerciseAndAdd(name: String, group: MuscleGroup, dayId: Long) = launchSafe {
         repo.addWorkoutItem(dayId, repo.addExercise(name, group))
     }
 
     // ---- Dieta ----
 
-    fun generateDiet() = viewModelScope.launch {
+    fun generateDiet() = launchSafe {
         toast(working(tr("Montando dieta…")) { repo.generateDietProposal() } ?: tr("Nova sugestão de dieta pronta."))
     }
     /** Cria o cardápio da semana, sugerido ou em branco, com o dia do lixo escolhido (se houver). */
-    fun createWeek(manual: Boolean, cheat: CheatDay?) = viewModelScope.launch {
+    fun createWeek(manual: Boolean, cheat: CheatDay?) = launchSafe {
         val label = if (manual) tr("Preparando cardápio…") else tr("Montando cardápio da semana…")
         val error = working(label) { repo.generateDietProposal(ZenRepository.WeekRequest(manual, cheat)) }
         toast(error ?: if (manual) tr("Cardápio em branco pronto — adicione os alimentos de cada dia.") else tr("Cardápio da semana pronto — revise e aceite."))
     }
-    fun ensureDietSuggestion() = viewModelScope.launch { repo.ensureDietSuggestion() }
-    fun acceptDiet(planId: Long) = viewModelScope.launch {
+    fun ensureDietSuggestion() = launchSafe { repo.ensureDietSuggestion() }
+    fun acceptDiet(planId: Long) = launchSafe {
         repo.acceptDiet(planId)
         toast(tr("Dieta ativada!"))
     }
-    fun discardDiet() = viewModelScope.launch { repo.discardDietProposal() }
-    fun removeMealItem(id: Long) = viewModelScope.launch { repo.removeMealItem(id) }
-    fun setMealItemGrams(id: Long, grams: Int) = viewModelScope.launch { repo.setMealItemGrams(id, grams) }
+    fun discardDiet() = launchSafe { repo.discardDietProposal() }
+    fun removeMealItem(id: Long) = launchSafe { repo.removeMealItem(id) }
+    fun setMealItemGrams(id: Long, grams: Int) = launchSafe { repo.setMealItemGrams(id, grams) }
 
     /** Troca o alimento mantendo o equivalente em proteína (ou calorias) do item atual. */
-    fun replaceFood(itemId: Long, old: Food, oldGrams: Int, new: Food) = viewModelScope.launch {
+    fun replaceFood(itemId: Long, old: Food, oldGrams: Int, new: Food) = launchSafe {
         repo.replaceMealItemFood(itemId, new.id, DietPlanner.equivalentGrams(old, oldGrams, new))
     }
 
-    fun addFoodToMeal(mealId: Long, food: Food) = viewModelScope.launch {
+    fun addFoodToMeal(mealId: Long, food: Food) = launchSafe {
         repo.addMealItem(mealId, food.id, DietPlanner.defaultGrams(food))
     }
 
-    fun createFoodAndReplace(food: Food, itemId: Long, old: Food, oldGrams: Int) = viewModelScope.launch {
+    fun createFoodAndReplace(food: Food, itemId: Long, old: Food, oldGrams: Int) = launchSafe {
         val id = repo.addFood(food)
         repo.replaceMealItemFood(itemId, id, DietPlanner.equivalentGrams(old, oldGrams, food))
     }
 
-    fun createFoodAndAdd(food: Food, mealId: Long) = viewModelScope.launch {
+    fun createFoodAndAdd(food: Food, mealId: Long) = launchSafe {
         val id = repo.addFood(food)
         repo.addMealItem(mealId, id, DietPlanner.defaultGrams(food))
     }
@@ -518,7 +536,7 @@ class ZenViewModel(
     // ---- Pratos extras do dia ----
 
     /** Registra um alimento da lista comido na refeição [type] hoje. */
-    fun addFoodExtra(type: MealType, food: Food, grams: Int) = viewModelScope.launch {
+    fun addFoodExtra(type: MealType, food: Food, grams: Int) = launchSafe {
         repo.addExtra(
             MealExtra(
                 epochDay = clock.value.epochDay, type = type, foodId = food.id, grams = grams, name = food.name,
@@ -529,29 +547,29 @@ class ZenViewModel(
     }
 
     /** Registra um prato livre (nome e valores estimados) comido na refeição [type] hoje. */
-    fun addFreeExtra(type: MealType, name: String, kcal: Int, protein: Int) = viewModelScope.launch {
+    fun addFreeExtra(type: MealType, name: String, kcal: Int, protein: Int) = launchSafe {
         repo.addExtra(MealExtra(epochDay = clock.value.epochDay, type = type, name = name.trim(), kcal = kcal, protein = protein))
         toast(tr("Anotado! As próximas refeições de hoje foram ajustadas."))
     }
 
-    fun removeExtra(id: Long) = viewModelScope.launch { repo.removeExtra(id) }
+    fun removeExtra(id: Long) = launchSafe { repo.removeExtra(id) }
 
     // ---- Agenda de refeições ----
 
-    fun setMealCount(count: Int) = viewModelScope.launch {
+    fun setMealCount(count: Int) = launchSafe {
         working(tr("Ajustando refeições…")) { repo.updateMealCount(count) }
         toast(tr("{0} refeições por dia. Dieta reponderada — revise a sugestão.", count))
     }
-    fun setMealTime(type: MealType, time: String) = viewModelScope.launch {
+    fun setMealTime(type: MealType, time: String) = launchSafe {
         repo.setMealTime(type, time)
         toast(tr("Horário de {0} salvo: {1}.", type.label.lowercase(), time))
     }
     /** Marca a refeição como feita; [kcal] são as calorias que ela teve de fato (com o ajuste do dia). */
-    fun setMealDone(type: MealType, done: Boolean, kcal: Int? = null) = viewModelScope.launch {
+    fun setMealDone(type: MealType, done: Boolean, kcal: Int? = null) = launchSafe {
         repo.setMealDone(type, clock.value.epochDay, done, kcal)
     }
 
-    fun setMealSkipped(type: MealType, skipped: Boolean) = viewModelScope.launch {
+    fun setMealSkipped(type: MealType, skipped: Boolean) = launchSafe {
         repo.setMealSkipped(type, clock.value.epochDay, skipped)
         if (skipped) toast(tr("Anotado! O resto do dia e da semana foi reajustado."))
     }
