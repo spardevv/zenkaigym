@@ -20,8 +20,9 @@ android {
         applicationId = "com.zenkaigym"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // Em release o workflow passa -PversionCode/-PversionName derivados da tag (vX.Y.Z).
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

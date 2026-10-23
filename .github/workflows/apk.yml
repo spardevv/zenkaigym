@@ -1,6 +1,6 @@
-# Gera o APK de release assinado.
-# - Tag "v*" (ex.: v1.1): cria uma Release no GitHub com o APK para baixar direto no celular.
-# - Execução manual (aba Actions > APK > Run workflow): APK fica como artifact da execução.
+# Gera o APK e o AAB de release assinados, mais o mapping.txt do R8.
+# - Tag "v*" (ex.: v1.1.0): versionName/versionCode saem da tag; cria uma Release no GitHub com os arquivos.
+# - Execução manual (aba Actions > APK > Run workflow): arquivos ficam como artifact da execução.
 # Secrets necessários: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD (ver README).
 name: APK
 
@@ -48,21 +48,48 @@ jobs:
       - name: Testes unitários
         run: bash ./gradlew testDebugUnitTest
 
-      - name: APK de release
+      # Tag vX.Y.Z -> versionName X.Y.Z e versionCode X*10000+Y*100+Z (sempre crescente).
+      # Execução manual não é tag: usa o padrão do gradle.
+      - name: Versão a partir da tag
+        id: ver
         run: |
-          bash ./gradlew assembleRelease
-          NAME="zenkaigym-${GITHUB_REF_NAME//\//-}.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$NAME"
-          echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+            if ! [[ "$V" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+              echo "::error::Tag '$GITHUB_REF_NAME' fora do padrão vX, vX.Y ou vX.Y.Z."
+              exit 1
+            fi
+            IFS=. read -r MA MI PA <<< "$V"
+            CODE=$(( 10#${MA} * 10000 + 10#${MI:-0} * 100 + 10#${PA:-0} ))
+            echo "args=-PversionName=$V -PversionCode=$CODE" >> "$GITHUB_OUTPUT"
+            echo "Versão $V (code $CODE)"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: APK e AAB de release
+        run: |
+          bash ./gradlew assembleRelease bundleRelease ${{ steps.ver.outputs.args }}
+          BASE="zenkaigym-${GITHUB_REF_NAME//\//-}"
+          cp app/build/outputs/apk/release/app-release.apk "$BASE.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$BASE.aab"
+          cp app/build/outputs/mapping/release/mapping.txt "$BASE-mapping.txt"
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APK_NAME }}
-          path: ${{ env.APK_NAME }}
+          name: ${{ env.BASE }}
+          path: |
+            ${{ env.BASE }}.apk
+            ${{ env.BASE }}.aab
+            ${{ env.BASE }}-mapping.txt
 
-      - name: Release com o APK
+      - name: Release com o APK e o AAB
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.APK_NAME }}
+          files: |
+            ${{ env.BASE }}.apk
+            ${{ env.BASE }}.aab
+            ${{ env.BASE }}-mapping.txt
           generate_release_notes: true
