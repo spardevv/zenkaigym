@@ -204,6 +204,9 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     tr("Não há conta, anúncios, rastreamento nem coleta de dados. Seus dados não saem do aparelho e não vão para backup na nuvem. Ao apagar os dados ou desinstalar o app, tudo é perdido."),
                     color = Zen.p.muted
                 )
+                Spacer(Modifier.height(10.dp))
+                val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
+                Text(tr("Zenkaigym versão {0}", version), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
             }
 
             ZenButton(tr("Rever apresentação"), viewModel::replayIntro, accent = Zen.p.card, small = true)

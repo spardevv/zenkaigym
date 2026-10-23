@@ -20,3 +20,5 @@ local.properties
 keystore.properties
 *.jks
 /keystore/
+
+/.idea/claudeCodeTabState.xml

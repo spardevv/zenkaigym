@@ -179,6 +179,7 @@ object Translations {
         "Importar", "Import", "読み込む",
         "Tudo o que está neste aparelho será substituído pelo conteúdo do backup. O app vai reiniciar.", "Everything on this device will be replaced by the backup's contents. The app will restart.", "この端末のデータはすべてバックアップの内容に置き換わります。アプリは再起動します。",
         "Evolução do peso: de {0} kg para {1} kg", "Weight trend: from {0} kg to {1} kg", "体重の推移：{0} kgから{1} kgへ",
+        "Zenkaigym versão {0}", "Zenkaigym version {0}", "Zenkaigym バージョン {0}",
         "Diminuir", "Decrease", "減らす",
         "Aumentar", "Increase", "増やす",
         "Aviso de saúde", "Health notice", "健康に関する注意",

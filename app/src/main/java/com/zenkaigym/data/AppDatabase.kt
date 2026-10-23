@@ -35,7 +35,7 @@ import com.zenkaigym.data.entity.WorkoutSwap
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
         WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -136,6 +136,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v9: índice do histórico por exercício em set_log (nome padrão do Room, senão a validação do esquema falha). */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_set_log_exerciseId_epochDay ON set_log (exerciseId, epochDay)")
+            }
+        }
+
         /** Põe os exercícios do catálogo no grupo, tipo e equipamento atuais e insere os que ainda não existem. */
         private fun syncCatalog(db: SupportSQLiteDatabase) {
             ExerciseCatalog.entries.forEach {
@@ -151,7 +158,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .build()
     }
 }

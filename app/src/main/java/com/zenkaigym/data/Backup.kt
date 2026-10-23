@@ -11,7 +11,7 @@ import java.io.File
  */
 object Backup {
     /** Versão do esquema do banco deste app; arquivos de versão maior vêm de um app mais novo e são recusados. */
-    private const val MAX_VERSION = 8
+    private const val MAX_VERSION = 9 // manter igual a AppDatabase.version
     private const val DB_NAME = "zenkaigym.db"
     private val SQLITE_HEADER = "SQLite format 3\u0000".toByteArray(Charsets.ISO_8859_1)
 

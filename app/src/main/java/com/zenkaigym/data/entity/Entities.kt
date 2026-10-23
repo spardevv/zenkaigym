@@ -225,7 +225,11 @@ data class WorkoutLog(
 /** Uma série realizada. Guarda o exercício (não o item da ficha) para o histórico sobreviver a trocas de ficha. */
 @Entity(
     tableName = "set_log",
-    indices = [Index(value = ["epochDay", "exerciseId", "setIndex"], unique = true)]
+    indices = [
+        Index(value = ["epochDay", "exerciseId", "setIndex"], unique = true),
+        // Histórico por exercício (última vez, melhor carga) sem varrer a tabela inteira.
+        Index(value = ["exerciseId", "epochDay"])
+    ]
 )
 data class SetLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
