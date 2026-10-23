@@ -52,6 +52,7 @@ import androidx.navigation.compose.rememberNavController
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.screens.DietScreen
 import com.zenkaigym.ui.screens.FoodsScreen
+import com.zenkaigym.ui.screens.HistoryScreen
 import com.zenkaigym.ui.screens.HomeScreen
 import com.zenkaigym.ui.screens.ProfileScreen
 import com.zenkaigym.ui.screens.SettingsScreen
@@ -80,6 +81,7 @@ object Routes {
     const val WORKOUT = "workout"
     const val DIET = "diet"
     const val FOODS = "foods"
+    const val HISTORY = "history"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
 }
@@ -100,13 +102,17 @@ private val TabOrder = listOf(Routes.WORKOUT, Routes.DIET, Routes.HOME, Routes.P
 
 /** 1 = entra pela direita, -1 = pela esquerda. "Meus alimentos" se comporta como uma subtela à direita da Dieta. */
 private fun navDirection(from: String?, to: String?): Int = when {
-    to == Routes.FOODS -> 1
+    to == Routes.FOODS || to == Routes.HISTORY -> 1
     from == Routes.FOODS && to == Routes.DIET -> -1
-    else -> Motion.tabDirection(
-        TabOrder,
-        from?.let { if (it == Routes.FOODS) Routes.DIET else it },
-        to?.let { if (it == Routes.FOODS) Routes.DIET else it }
-    )
+    from == Routes.HISTORY && to == Routes.PROFILE -> -1
+    else -> Motion.tabDirection(TabOrder, from?.let(::parentTab), to?.let(::parentTab))
+}
+
+/** Subtelas pertencem à aba de onde são abertas: Alimentos à Dieta, Histórico ao Perfil. */
+private fun parentTab(route: String): String = when (route) {
+    Routes.FOODS -> Routes.DIET
+    Routes.HISTORY -> Routes.PROFILE
+    else -> route
 }
 
 // Troca de tela: desliza um pouco para o lado da aba escolhida + fade (barato e dá noção de direção).
@@ -135,8 +141,8 @@ fun AppNav(viewModel: ZenViewModel) {
 
     fun go(route: String) {
         // "Meus alimentos" é uma subtela da Dieta: ao trocar de aba ela sai da pilha, e a Dieta volta limpa.
-        if (navController.currentDestination?.route == Routes.FOODS) {
-            navController.popBackStack(Routes.FOODS, inclusive = true)
+        navController.currentDestination?.route?.takeIf { it == Routes.FOODS || it == Routes.HISTORY }?.let {
+            navController.popBackStack(it, inclusive = true)
         }
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -165,12 +171,15 @@ fun AppNav(viewModel: ZenViewModel) {
                     composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
                     composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
                     composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
-                    composable(Routes.PROFILE) { ProfileScreen(viewModel) }
+                    composable(Routes.PROFILE) {
+                        ProfileScreen(viewModel, onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } })
+                    }
+                    composable(Routes.HISTORY) { HistoryScreen(viewModel, onBack = { navController.popBackStack() }) }
                     composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
                 }
             }
             // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
-            BottomBar(if (current == Routes.FOODS) Routes.DIET else current, onSelect = ::go)
+            BottomBar(parentTab(current), onSelect = ::go)
         }
         AnimatedVisibility(
             visible = trainingActive && trainingDay != null,

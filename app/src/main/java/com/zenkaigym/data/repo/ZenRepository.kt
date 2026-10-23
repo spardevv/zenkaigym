@@ -57,6 +57,8 @@ class ZenRepository(
     val availability = profileDao.observeAvailability()
     val foods = foodDao.observeFoods()
     val exercises = workoutDao.observeExercises()
+    val loggedExercises = workoutDao.observeLoggedExercises()
+    fun setsOf(exerciseId: Long) = workoutDao.observeSetsOf(exerciseId)
     val mealSlots = dietDao.observeSlots()
     fun mealChecks(epochDay: Long) = dietDao.observeChecks(epochDay)
     val proposedWorkout = workoutDao.observeByStatus(PlanStatus.PROPOSED)

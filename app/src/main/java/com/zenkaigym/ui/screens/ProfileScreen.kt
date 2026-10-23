@@ -68,7 +68,7 @@ import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Sumi
 
 @Composable
-fun ProfileScreen(viewModel: ZenViewModel) {
+fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val weights by viewModel.weights.collectAsStateWithLifecycle()
 
@@ -111,6 +111,8 @@ fun ProfileScreen(viewModel: ZenViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ZenHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))
+
+            ZenButton(tr("Histórico de treinos  →"), onOpenHistory, accent = Ki, fill = true)
 
             ZenCard(accent = Daidai, entranceIndex = 0) {
                 SectionTitle(tr("Corpo"), accent = Daidai)

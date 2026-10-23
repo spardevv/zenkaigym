@@ -152,6 +152,12 @@ class ZenViewModel(
     val availability = repo.availability.eager(emptyList())
     val foods = repo.foods.eager(emptyList())
     val exercises = repo.exercises.eager(emptyList())
+
+    /** Histórico: exercícios com séries registradas e, de um deles, todo o registro. */
+    val loggedExercises: StateFlow<List<Exercise>> =
+        repo.loggedExercises.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setsOf(exerciseId: Long): Flow<List<SetLog>> = repo.setsOf(exerciseId)
     val mealSlots = repo.mealSlots.eager(emptyList())
     val proposedWorkout = repo.proposedWorkout.eager(null)
     val activeWorkout = repo.activeWorkout.eager(null)

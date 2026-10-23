@@ -152,6 +152,14 @@ interface WorkoutDao {
     @Query("SELECT COALESCE(MAX(weightKg), 0) FROM set_log WHERE exerciseId = :exerciseId AND epochDay < :beforeDay")
     suspend fun bestWeight(exerciseId: Long, beforeDay: Long): Double
 
+    /** Exercícios que já têm alguma série registrada. */
+    @Query("SELECT * FROM exercise WHERE id IN (SELECT DISTINCT exerciseId FROM set_log) ORDER BY name")
+    fun observeLoggedExercises(): Flow<List<Exercise>>
+
+    /** Todas as séries já feitas do exercício, das mais antigas às mais recentes. */
+    @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId ORDER BY epochDay, setIndex")
+    fun observeSetsOf(exerciseId: Long): Flow<List<SetLog>>
+
     @Query("SELECT * FROM workout_log WHERE epochDay = :epochDay")
     fun observeWorkoutLog(epochDay: Long): Flow<WorkoutLog?>
 
