@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -168,6 +170,9 @@ private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: T
 
 private const val MIN_LABEL_SP = 9f
 
+/** Largura máxima do conteúdo das páginas e da barra inferior. */
+internal val MAX_CONTENT_WIDTH = 640.dp
+
 /** Tamanho mínimo recomendado para alvos de toque (acessibilidade). */
 internal val MIN_TOUCH = 48.dp
 
@@ -208,7 +213,8 @@ fun ZenField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
-    placeholder: String = ""
+    placeholder: String = "",
+    imeAction: ImeAction = ImeAction.Done
 ) {
     val p = Zen.p
     Column(modifier) {
@@ -220,7 +226,7 @@ fun ZenField(
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink),
             cursorBrush = SolidColor(Aka),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(Zen.look.smallShape)
@@ -377,7 +383,8 @@ fun ZenPage(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().background(Zen.p.bg)) {
         if (Zen.look.kawaii) Sparkles(Modifier.height(260.dp).fillMaxWidth())
         else SpeedLines(Modifier.height(260.dp).fillMaxWidth())
-        content()
+        // Em telas largas (tablet, dobrável, paisagem) o conteúdo fica numa coluna centralizada.
+        Box(Modifier.align(Alignment.TopCenter).widthIn(max = MAX_CONTENT_WIDTH).fillMaxSize()) { content() }
     }
 }
 

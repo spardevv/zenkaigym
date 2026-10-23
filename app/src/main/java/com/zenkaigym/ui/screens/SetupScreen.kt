@@ -1,5 +1,17 @@
 package com.zenkaigym.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import com.zenkaigym.ui.components.LocalMotionEnabled
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +38,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +95,13 @@ fun SetupScreen(viewModel: ZenViewModel) {
     // Segunda, quarta e sexta já vêm marcadas; é só ajustar.
     val windows = remember { mutableStateMapOf<Int, TimeWindow>().apply { listOf(1, 3, 5).forEach { put(it, TimeWindow.DEFAULT) } } }
     var error by remember { mutableStateOf<String?>(null) }
+    val motion = LocalMotionEnabled.current
+
+    // Voltar do sistema acompanha o botão "Voltar" de cada etapa, em vez de fechar o app.
+    BackHandler(enabled = step > 0) {
+        error = null
+        step--
+    }
 
     ZenPage {
         Column(
@@ -104,17 +124,32 @@ fun SetupScreen(viewModel: ZenViewModel) {
                 subtitle = tr("Etapa {0} de {1}", step + 1, STEPS)
             )
 
-            when (step) {
-                0 -> YouStep(
-                    viewModel, height, { height = it }, weight, { weight = it }, age, { age = it }, sex, { sex = it },
-                    goal, {
-                        goal = it
-                        if (!cardioTouched) prefs = prefs.copy(cardio = if (it == Goal.LOSE) CardioPref.FINISHER else CardioPref.WARMUP)
-                    }, error
-                )
-                1 -> TrainingStep(windows, prefs, { cardioTouched = cardioTouched || it.cardio != prefs.cardio; prefs = it }, error)
-                2 -> WorkoutReviewStep(viewModel)
-                else -> DietStep(viewModel)
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    if (!motion) EnterTransition.None togetherWith ExitTransition.None
+                    else {
+                        val dir = if (targetState > initialState) 1 else -1
+                        (fadeIn(tween(200, delayMillis = 40)) + slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { it / 8 * dir }) togetherWith
+                            (fadeOut(tween(120)) + slideOutHorizontally(tween(260, easing = FastOutSlowInEasing)) { -it / 8 * dir })
+                    }
+                },
+                label = "setup-step"
+            ) { shown ->
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    when (shown) {
+                        0 -> YouStep(
+                            viewModel, height, { height = it }, weight, { weight = it }, age, { age = it }, sex, { sex = it },
+                            goal, {
+                                goal = it
+                                if (!cardioTouched) prefs = prefs.copy(cardio = if (it == Goal.LOSE) CardioPref.FINISHER else CardioPref.WARMUP)
+                            }, error
+                        )
+                        1 -> TrainingStep(windows, prefs, { cardioTouched = cardioTouched || it.cardio != prefs.cardio; prefs = it }, error)
+                        2 -> WorkoutReviewStep(viewModel)
+                        else -> DietStep(viewModel)
+                    }
+                }
             }
 
             when (step) {
@@ -199,8 +234,8 @@ private fun YouStep(
         SectionTitle(tr("Seus dados"))
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ZenField(tr("Altura (cm)"), height, onHeight, Modifier.weight(1f), KeyboardType.Number)
-            ZenField(tr("Peso (kg)"), weight, onWeight, Modifier.weight(1f), KeyboardType.Decimal)
+            ZenField(tr("Altura (cm)"), height, onHeight, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
+            ZenField(tr("Peso (kg)"), weight, onWeight, Modifier.weight(1f), KeyboardType.Decimal, imeAction = ImeAction.Next)
             ZenField(tr("Idade"), age, onAge, Modifier.weight(1f), KeyboardType.Number)
         }
         Spacer(Modifier.height(12.dp))

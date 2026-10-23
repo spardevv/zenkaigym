@@ -10,6 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
+import com.zenkaigym.ui.components.LocalMotionEnabled
+import com.zenkaigym.ui.components.motionEnabled
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -87,6 +90,7 @@ fun ZenkaigymTheme(
         LocalZenPalette provides palette,
         LocalZenLook provides if (kawaii) ZenLook.KAWAII else ZenLook.SHONEN,
         LocalWeekStart provides weekStart,
+        LocalMotionEnabled provides motionEnabled(LocalContext.current),
         LocalContentColor provides palette.ink
     ) {
         MaterialTheme(colorScheme = scheme, typography = if (kawaii) KawaiiTypography else ZenTypography, content = content)

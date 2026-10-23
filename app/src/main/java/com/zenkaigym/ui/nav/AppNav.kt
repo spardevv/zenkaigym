@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import com.zenkaigym.ui.components.MAX_CONTENT_WIDTH
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import com.zenkaigym.ui.components.FeedbackHost
+import com.zenkaigym.ui.components.LocalMotionEnabled
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -128,6 +131,7 @@ fun AppNav(viewModel: ZenViewModel) {
     val backStack by navController.currentBackStackEntryAsState()
     val current = backStack?.destination?.route ?: Routes.HOME
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val motion = LocalMotionEnabled.current
     var message by remember { mutableStateOf<String?>(null) }
 
     // Confirmações aparecem por alguns segundos; uma nova substitui a anterior.
@@ -162,10 +166,10 @@ fun AppNav(viewModel: ZenViewModel) {
                 NavHost(
                     navController,
                     startDestination = Routes.HOME,
-                    enterTransition = { tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) },
-                    exitTransition = { tabExit(navDirection(initialState.destination.route, targetState.destination.route)) },
-                    popEnterTransition = { tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) },
-                    popExitTransition = { tabExit(navDirection(initialState.destination.route, targetState.destination.route)) }
+                    enterTransition = { if (motion) tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) else EnterTransition.None },
+                    exitTransition = { if (motion) tabExit(navDirection(initialState.destination.route, targetState.destination.route)) else ExitTransition.None },
+                    popEnterTransition = { if (motion) tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) else EnterTransition.None },
+                    popExitTransition = { if (motion) tabExit(navDirection(initialState.destination.route, targetState.destination.route)) else ExitTransition.None }
                 ) {
                     composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go) }
                     composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
@@ -201,7 +205,7 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
     val p = Zen.p
     Column(Modifier.background(p.card).navigationBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.align(Alignment.CenterHorizontally).widthIn(max = MAX_CONTENT_WIDTH).fillMaxWidth()) {
             tabs().forEach { tab ->
                 val selected = tab.route == current
                 val background by animateColorAsState(

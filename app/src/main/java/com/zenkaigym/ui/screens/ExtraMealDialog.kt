@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zenkaigym.data.entity.Food
@@ -108,10 +109,10 @@ fun AddExtraDialog(
             Spacer(Modifier.height(8.dp))
             ZenButton(tr("Fechar"), onDismiss, accent = Zen.p.card, fill = true, small = true)
         } else {
-            ZenField(tr("Prato"), name, { name = it }, placeholder = tr("ex.: Pizza, 2 fatias"))
+            ZenField(tr("Prato"), name, { name = it }, placeholder = tr("ex.: Pizza, 2 fatias"), imeAction = ImeAction.Next)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenField(tr("Kcal (estimado)"), kcal, { kcal = it }, Modifier.weight(1f), KeyboardType.Number)
+                ZenField(tr("Kcal (estimado)"), kcal, { kcal = it }, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
                 ZenField(tr("Proteína (g)"), protein, { protein = it }, Modifier.weight(1f), KeyboardType.Number, placeholder = "0")
             }
             error?.let {

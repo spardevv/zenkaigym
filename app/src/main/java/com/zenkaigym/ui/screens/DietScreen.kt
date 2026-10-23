@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -199,7 +200,7 @@ private fun TargetCard(profile: UserProfile, suggested: NutritionTarget?, viewMo
         Spacer(Modifier.height(12.dp))
         if (editing) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ZenField(tr("Calorias"), kcalText, { kcalText = it }, Modifier.weight(1f), KeyboardType.Number)
+                ZenField(tr("Calorias"), kcalText, { kcalText = it }, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
                 ZenField(tr("Proteína (g)"), proteinText, { proteinText = it }, Modifier.weight(1f), KeyboardType.Number)
             }
             Spacer(Modifier.height(10.dp))

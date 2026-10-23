@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -122,8 +123,8 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
                 SectionTitle(tr("Corpo"), accent = Daidai)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ZenField(tr("Altura (cm)"), height, { height = it }, Modifier.weight(1f), KeyboardType.Number)
-                    ZenField(tr("Peso (kg)"), weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal)
+                    ZenField(tr("Altura (cm)"), height, { height = it }, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
+                    ZenField(tr("Peso (kg)"), weight, { weight = it }, Modifier.weight(1f), KeyboardType.Decimal, imeAction = ImeAction.Next)
                     ZenField(tr("Idade"), age, { age = it }, Modifier.weight(1f), KeyboardType.Number)
                 }
                 Spacer(Modifier.height(12.dp))
