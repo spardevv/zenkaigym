@@ -69,7 +69,7 @@ val KawaiiLightPalette = ZenPalette(
     bg = Color(0xFFFFF5FA),
     card = Color(0xFFFFFFFF),
     ink = Color(0xFF4A3552),
-    muted = Color(0xFF8E7A99),
+    muted = Color(0xFF7A6585),
     border = Color(0xFFC9A8E0),
     shadow = Color(0xFFEBD9F4)
 )

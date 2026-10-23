@@ -37,6 +37,10 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -578,14 +582,14 @@ private fun ToolButton(
             .padding(end = 3.dp, bottom = 3.dp)
             .zenShadow(3.dp, p.shadow, look.corner / 2)
             .pressScale(interaction)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .clip(look.smallShape)
             .background(bg)
             .drawBehind {
                 if (progress != null) drawRect(accent, size = size.copy(width = size.width * progress.coerceIn(0f, 1f)))
             }
             .border(look.thinBorder, p.border, look.smallShape)
-            .clickable(interaction, null, enabled = enabled, onClick = onClick)
+            .clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -634,14 +638,16 @@ private fun TrainHeader(dayName: String, onClose: () -> Unit) {
             KanjiBadge(if (Zen.look.kawaii) "♡" else "体", color = Ki, size = 40.dp)
             Spacer(Modifier.width(10.dp))
             val interaction = remember { MutableInteractionSource() }
+            val closeLabel = tr("Fechar")
             Box(
                 Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .pressScale(interaction)
                     .clip(Zen.look.smallShape)
                     .background(p.bg)
                     .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
-                    .clickable(interaction, null, onClick = onClose),
+                    .semantics { contentDescription = closeLabel }
+                    .clickable(interaction, null, role = Role.Button, onClick = onClose),
                 contentAlignment = Alignment.Center
             ) {
                 Text("✕", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)

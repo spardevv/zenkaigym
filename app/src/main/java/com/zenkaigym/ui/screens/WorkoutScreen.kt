@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -162,7 +164,7 @@ private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> 
         Spacer(Modifier.height(6.dp))
         day.items.sortedBy { it.item.position }.forEach { entry ->
             Row(
-                Modifier.fillMaxWidth().clickable { onEdit(entry.item.id) }.padding(vertical = 7.dp),
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {

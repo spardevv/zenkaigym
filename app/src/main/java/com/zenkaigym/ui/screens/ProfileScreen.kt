@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import com.zenkaigym.domain.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -296,7 +298,8 @@ private fun WeightChart(entries: List<WeightEntry>) {
         progress.snapTo(0f)
         progress.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
     }
-    Canvas(Modifier.fillMaxWidth().height(80.dp)) {
+    val summary = tr("Evolução do peso: de {0} kg para {1} kg", "%.1f".format(entries.first().weightKg), "%.1f".format(entries.last().weightKg))
+    Canvas(Modifier.fillMaxWidth().height(80.dp).semantics { contentDescription = summary }) {
         val min = entries.minOf { it.weightKg }
         val max = entries.maxOf { it.weightKg }
         val range = (max - min).coerceAtLeast(0.5)

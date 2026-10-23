@@ -17,7 +17,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -134,7 +138,8 @@ fun ZenButton(
                 .clip(look.shape)
                 .background(background)
                 .border(look.border, p.border, look.shape)
-                .clickable(interaction, null, enabled = enabled, onClick = onClick)
+                .defaultMinSize(minHeight = MIN_TOUCH)
+                .clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -163,6 +168,9 @@ private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: T
 
 private const val MIN_LABEL_SP = 9f
 
+/** Tamanho mínimo recomendado para alvos de toque (acessibilidade). */
+internal val MIN_TOUCH = 48.dp
+
 @Composable
 fun ZenChip(
     text: String,
@@ -183,7 +191,9 @@ fun ZenChip(
             .clip(look.shape)
             .background(background)
             .border(look.border, p.border, look.shape)
-            .clickable(interaction, null, onClick = onClick)
+            .defaultMinSize(minHeight = MIN_TOUCH)
+            .semantics { this.selected = selected }
+            .clickable(interaction, null, role = Role.Button, onClick = onClick)
             .padding(horizontal = if (compact) 0.dp else 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {

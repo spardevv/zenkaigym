@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -480,7 +482,7 @@ private fun MealCard(meal: MealFull, time: String, onEdit: (Long) -> Unit, onAdd
         }
         meal.items.forEach { entry ->
             Row(
-                Modifier.fillMaxWidth().clickable { onEdit(entry.item.id) }.padding(vertical = 7.dp),
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {

@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -348,7 +350,7 @@ private fun NextMeal(
                     Text(tr("COMIDO FORA DO CARDÁPIO"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
                     mealExtras.forEach { extra ->
                         Row(
-                            Modifier.fillMaxWidth().clickable { onRemoveExtra(extra.id) }.padding(vertical = 3.dp),
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onRemoveExtra(extra.id) }.padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("+ " + tr(extra.name) + (extra.grams?.let { " · $it g" } ?: ""), Modifier.weight(1f))

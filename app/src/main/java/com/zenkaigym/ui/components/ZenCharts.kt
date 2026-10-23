@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -96,10 +98,13 @@ fun ZenBarChart(
             )
         }
         Spacer(Modifier.height(8.dp))
+        // Leitores de tela não enxergam o desenho: recebem a descrição de todas as barras em texto.
+        val summary = values.indices.joinToString(". ") { describe(it) }
         Canvas(
             Modifier
                 .fillMaxWidth()
                 .height(height)
+                .semantics { contentDescription = summary }
                 .pointerInput(values.size) {
                     detectTapGestures { pos ->
                         if (values.isEmpty()) return@detectTapGestures

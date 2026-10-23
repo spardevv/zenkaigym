@@ -12,6 +12,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -203,13 +207,14 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
                     Modifier
                         .weight(if (tab.hero) 1.25f else 1f)
                         .background(background)
-                        .clickable { onSelect(tab.route) }
+                        .semantics(mergeDescendants = true) { this.selected = selected }
+                        .clickable(role = Role.Tab) { onSelect(tab.route) }
                         .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         tab.kanji,
-                        modifier = Modifier.graphicsLayer {
+                        modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
                             scaleX = scale
                             scaleY = scale
                         },
