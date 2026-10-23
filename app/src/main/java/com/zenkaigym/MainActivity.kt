@@ -1,5 +1,9 @@
 package com.zenkaigym
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import com.zenkaigym.notify.ReminderScheduler
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -59,6 +63,15 @@ class MainActivity : ComponentActivity() {
                     else -> AppNav(viewModel)
                 }
             }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Horários de refeição e treino podem ter mudado: os alarmes acompanham a agenda atual.
+        val app = application as ZenApp
+        if (app.appFlags.remindersEnabled) {
+            CoroutineScope(Dispatchers.IO).launch { ReminderScheduler.rescheduleAll(app) }
         }
     }
 

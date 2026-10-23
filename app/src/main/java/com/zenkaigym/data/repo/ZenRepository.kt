@@ -163,6 +163,26 @@ class ZenRepository(
 
     suspend fun registerWeight(kg: Double) = reweigh { addWeight(kg) }
 
+    /** Corrige um registro de peso. O perfil acompanha o registro mais recente e a dieta e o treino são remontados. */
+    suspend fun editWeight(id: Long, kg: Double) = reweigh { changeWeight(id, kg) }
+
+    /** Remove um registro de peso; o último que sobra não pode ser removido. */
+    suspend fun removeWeight(id: Long) = reweigh { changeWeight(id, null) }
+
+    private suspend fun changeWeight(id: Long, kg: Double?) {
+        db.withTransaction {
+            if (kg == null) {
+                if (profileDao.getWeights().size <= 1) return@withTransaction
+                profileDao.deleteWeight(id)
+            } else {
+                profileDao.updateWeight(id, kg)
+            }
+            val newest = profileDao.getWeights().lastOrNull() ?: return@withTransaction
+            val profile = profileDao.getProfile() ?: return@withTransaction
+            if (profile.weightKg != newest.weightKg) profileDao.upsertProfile(profile.copy(weightKg = newest.weightKg))
+        }
+    }
+
     /** Salva a agenda de treino; só remonta treino e dieta se os dias disponíveis mudaram. Devolve true se remontou. */
     suspend fun updateAvailability(list: List<Availability>): Boolean {
         // Mudou o dia ou o horário (a duração define quanto treino cabe): remonta.
@@ -264,6 +284,23 @@ class ZenRepository(
     /** Cadastra um exercício próprio do usuário e devolve o id. */
     suspend fun addExercise(name: String, group: MuscleGroup): Long =
         workoutDao.insertExercise(Exercise(name = name.trim(), group = group))
+
+    /** Renomeia um exercício próprio. Devolve false se o nome estiver vazio ou já existir. */
+    suspend fun renameExercise(id: Long, name: String): Boolean = db.withTransaction {
+        val clean = name.trim()
+        if (clean.isEmpty() || workoutDao.exerciseNameTaken(clean, id) > 0) return@withTransaction false
+        workoutDao.renameExercise(id, clean)
+        true
+    }
+
+    /** Exclui um exercício próprio com o histórico dele. Devolve false se ainda estiver numa ficha. */
+    suspend fun deleteExercise(id: Long): Boolean = db.withTransaction {
+        if (workoutDao.itemCountForExercise(id) > 0) return@withTransaction false
+        workoutDao.deleteSwapsOfExercise(id)
+        workoutDao.deleteSetsOfExercise(id)
+        workoutDao.deleteExercise(id)
+        true
+    }
 
     /** Gera uma sugestão em silêncio quando o usuário ainda não tem nenhuma ficha. */
     suspend fun ensureWorkoutSuggestion() {

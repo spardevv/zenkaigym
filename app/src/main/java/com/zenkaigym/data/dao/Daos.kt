@@ -45,6 +45,15 @@ interface ProfileDao {
     @Insert
     suspend fun insertWeight(entry: WeightEntry)
 
+    @Query("SELECT * FROM weight_entry ORDER BY epochDay ASC, id ASC")
+    suspend fun getWeights(): List<WeightEntry>
+
+    @Query("UPDATE weight_entry SET weightKg = :weightKg WHERE id = :id")
+    suspend fun updateWeight(id: Long, weightKg: Double)
+
+    @Query("DELETE FROM weight_entry WHERE id = :id")
+    suspend fun deleteWeight(id: Long)
+
     @Query("SELECT * FROM availability ORDER BY dayOfWeek")
     fun observeAvailability(): Flow<List<Availability>>
 
@@ -95,6 +104,24 @@ interface WorkoutDao {
 
     @Insert
     suspend fun insertExercise(exercise: Exercise): Long
+
+    @Query("UPDATE exercise SET name = :name WHERE id = :id")
+    suspend fun renameExercise(id: Long, name: String)
+
+    @Query("SELECT COUNT(*) FROM exercise WHERE LOWER(name) = LOWER(:name) AND id != :id")
+    suspend fun exerciseNameTaken(name: String, id: Long): Int
+
+    @Query("SELECT COUNT(*) FROM workout_item WHERE exerciseId = :id")
+    suspend fun itemCountForExercise(id: Long): Int
+
+    @Query("DELETE FROM workout_swap WHERE exerciseId = :id")
+    suspend fun deleteSwapsOfExercise(id: Long)
+
+    @Query("DELETE FROM set_log WHERE exerciseId = :id")
+    suspend fun deleteSetsOfExercise(id: Long)
+
+    @Query("DELETE FROM exercise WHERE id = :id")
+    suspend fun deleteExercise(id: Long)
 
     @Query("SELECT COUNT(*) FROM workout_plan")
     suspend fun planCount(): Int

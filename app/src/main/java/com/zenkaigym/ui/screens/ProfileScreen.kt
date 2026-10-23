@@ -1,5 +1,9 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenDialog
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import com.zenkaigym.domain.tr
@@ -162,7 +166,7 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
             }
 
             profile?.let {
-                WeightCard(it, weights, viewModel::addWeight)
+                WeightCard(it, weights, viewModel::addWeight, viewModel::editWeight, viewModel::removeWeight)
                 ProgressCards(viewModel)
             }
         }
@@ -262,8 +266,15 @@ private fun Label(text: String) {
 }
 
 @Composable
-private fun WeightCard(profile: UserProfile, weights: List<WeightEntry>, onRegister: (Double) -> Unit) {
+private fun WeightCard(
+    profile: UserProfile,
+    weights: List<WeightEntry>,
+    onRegister: (Double) -> Unit,
+    onEdit: (Long, Double) -> Unit,
+    onRemove: (Long) -> Unit
+) {
     var input by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf<WeightEntry?>(null) }
     ZenCard(accent = Daidai, entranceIndex = 1) {
         SectionTitle(tr("Evolução do peso"), accent = Daidai)
         Spacer(Modifier.height(8.dp))
@@ -288,6 +299,41 @@ private fun WeightCard(profile: UserProfile, weights: List<WeightEntry>, onRegis
                     input = ""
                 }
             }, accent = Daidai)
+        }
+        if (weights.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text(tr("Registros de peso"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+            weights.takeLast(8).asReversed().forEach { entry ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { editing = entry },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(formatEpochDay(entry.epochDay), Modifier.weight(1f), color = Zen.p.muted)
+                    Text("%.1f kg".format(entry.weightKg), style = MaterialTheme.typography.bodyLarge)
+                    Text("  ✎", color = Zen.p.muted)
+                }
+            }
+        }
+    }
+
+    editing?.let { entry ->
+        var text by remember(entry.id) { mutableStateOf("%.1f".format(entry.weightKg)) }
+        val kg = text.toDecimalOrNull()
+        val valid = kg != null && kg in 30.0..300.0
+        ZenDialog(
+            tr("Editar peso"), { editing = null }, accent = Daidai,
+            footer = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenButton(tr("Salvar"), { editing = null; onEdit(entry.id, kg!!) }, Modifier.weight(1f), accent = Daidai, enabled = valid, fill = true)
+                    if (weights.size > 1) {
+                        ZenButton(tr("Remover"), { editing = null; onRemove(entry.id) }, Modifier.weight(1f), accent = Aka, fill = true)
+                    }
+                }
+            }
+        ) {
+            Text(formatEpochDay(entry.epochDay), color = Zen.p.muted)
+            Spacer(Modifier.height(8.dp))
+            ZenField(tr("Peso (kg)"), text, { text = it }, keyboardType = KeyboardType.Decimal)
         }
     }
 }

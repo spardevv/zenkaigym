@@ -221,6 +221,7 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
 
     // Tela acesa enquanto o modo treino estiver aberto (se ligado em Ajustes).
     val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
     val view = LocalView.current
     DisposableEffect(keepOn) {
         view.keepScreenOn = keepOn
@@ -261,7 +262,7 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
         when {
             isLast || kind == ExerciseKind.CARDIO -> Unit
             kind == ExerciseKind.HOLD -> viewModel.startRest(45)
-            else -> viewModel.startRest(Progression.restSeconds(reps))
+            else -> viewModel.startRest(restPreset.takeIf { it > 0 } ?: Progression.restSeconds(reps))
         }
         return true
     }
@@ -468,6 +469,8 @@ private fun TrainFooter(
 ) {
     val p = Zen.p
     val rest by viewModel.rest.collectAsStateWithLifecycle()
+    val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
+    val manualRest = restPreset.takeIf { it > 0 } ?: 90
     val context = LocalContext.current
 
     // Relógio do descanso: atualiza o visor e vibra ao terminar.
@@ -494,8 +497,8 @@ private fun TrainFooter(
                 val restEnabled = !allDone && !done
                 ToolButton(
                     top = if (r != null) tr("DESCANSO · PULAR") else tr("DESCANSO"),
-                    main = if (r != null) "%d:%02d".format(remainingMs / 60_000, remainingMs / 1000 % 60) else "⏱ 1:30",
-                    onClick = { if (r != null) viewModel.stopRest() else viewModel.startRest(90) },
+                    main = if (r != null) "%d:%02d".format(remainingMs / 60_000, remainingMs / 1000 % 60) else "⏱ %d:%02d".format(manualRest / 60, manualRest % 60),
+                    onClick = { if (r != null) viewModel.stopRest() else viewModel.startRest(manualRest) },
                     modifier = Modifier.weight(1f),
                     accent = Ao,
                     progress = r?.let { 1f - remainingMs.toFloat() / it.totalMs },

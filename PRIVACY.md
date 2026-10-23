@@ -10,6 +10,9 @@ Perfil (idade, sexo, altura, peso, objetivo), pesos registrados, fichas e cargas
 ## Onde ficam
 Somente no seu aparelho. O app não tem conta, não pede permissão de internet, não usa anúncios, não usa ferramentas de análise nem rastreamento, e não envia nada para servidores do desenvolvedor nem de terceiros.
 
+## Lembretes
+Se você ligar os lembretes em Ajustes, o app pede permissão para mostrar notificações e agenda alarmes locais nos horários da sua agenda de refeições e de treino. Eles funcionam sem internet e nenhum dado é enviado. Para reagendar depois de reiniciar o aparelho, o app usa a permissão de início do sistema.
+
 ## Backup
 Os dados são excluídos do backup na nuvem do Android (Google Drive). Só a transferência direta entre aparelhos, feita pelo próprio sistema ao configurar um celular novo, pode copiar os dados.
 

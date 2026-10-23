@@ -1,5 +1,8 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.MiniButton
+import com.zenkaigym.data.ExerciseCatalog
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
@@ -85,6 +88,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
 
     var editingId by remember { mutableStateOf<Long?>(null) }
     var addingTo by remember { mutableStateOf<Long?>(null) }
+    var managing by remember { mutableStateOf(false) }
 
     ZenPage {
         val listState = rememberLazyListState()
@@ -96,6 +100,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
             item(key = "header") { ZenHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha")) }
             item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
             item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
+            item(key = "mine") { ZenButton(tr("Meus exercícios"), { managing = true }, accent = Zen.p.card, small = true) }
             if (shown != null) {
                 items(shown.days.sortedBy { week.position(it.day.dayOfWeek) }, key = { it.day.id }) { day ->
                     // Dias que entram, saem ou mudam de lugar (nova sugestão) deslizam em vez de pular.
@@ -114,6 +119,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
         if (pair == null) editingId = null
         else ExerciseItemDialog(pair.first, pair.second, exercises, viewModel) { editingId = null }
     }
+    if (managing) MyExercisesDialog(exercises, viewModel) { managing = false }
     addingTo?.let { id ->
         val day = shown?.days?.firstOrNull { it.day.id == id }
         if (day == null) addingTo = null
@@ -286,6 +292,57 @@ internal fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave
                 if (name.isBlank()) error = tr("Informe o nome do exercício.") else onSave(name.trim())
             }, Modifier.weight(1f), accent = Ki, fill = true)
             ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+        }
+    }
+}
+
+/** Exercícios cadastrados pelo usuário: renomear ou excluir (só os que não estão em nenhuma ficha). */
+@Composable
+private fun MyExercisesDialog(exercises: List<Exercise>, viewModel: ZenViewModel, onClose: () -> Unit) {
+    val catalogNames = remember { ExerciseCatalog.entries.map { it.name }.toSet() }
+    val mine = remember(exercises) { exercises.filter { it.name !in catalogNames } }
+    var renaming by remember { mutableStateOf<Exercise?>(null) }
+    var deleting by remember { mutableStateOf<Exercise?>(null) }
+
+    ZenDialog(tr("Meus exercícios"), onClose, accent = Ki) {
+        if (mine.isEmpty()) {
+            Text(tr("Você ainda não criou nenhum exercício. Crie um ao trocar ou adicionar exercícios na ficha."), color = Zen.p.muted)
+        }
+        mine.forEach { exercise ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(exercise.group.label, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                }
+                MiniButton("✎", { renaming = exercise }, description = tr("Renomear"))
+                Spacer(Modifier.width(4.dp))
+                MiniButton("✕", { deleting = exercise }, color = Aka)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true)
+    }
+
+    renaming?.let { exercise ->
+        var name by remember(exercise.id) { mutableStateOf(exercise.name) }
+        ZenDialog(tr("Renomear exercício"), { renaming = null }, accent = Ki) {
+            ZenField(tr("Nome"), name, { name = it })
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Salvar"), { renaming = null; viewModel.renameExercise(exercise.id, name) }, Modifier.weight(1f), accent = Ki, enabled = name.isNotBlank(), fill = true)
+                ZenButton(tr("Cancelar"), { renaming = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+            }
+        }
+    }
+
+    deleting?.let { exercise ->
+        ZenDialog(tr("Excluir exercício?"), { deleting = null }, accent = Aka) {
+            Text(tr("{0} e todo o histórico de cargas dele serão apagados. Isso não pode ser desfeito.", exercise.name), color = Zen.p.muted)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Excluir"), { deleting = null; viewModel.deleteExercise(exercise.id) }, Modifier.weight(1f), accent = Aka, fill = true)
+                ZenButton(tr("Cancelar"), { deleting = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+            }
         }
     }
 }

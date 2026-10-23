@@ -243,6 +243,23 @@ class ZenViewModel(
         stopRest()
     }
 
+    /** Descanso fixo entre séries em segundos; 0 = automático. */
+    private val _restPreset = MutableStateFlow(flags.restSeconds)
+    val restPreset: StateFlow<Int> = _restPreset
+
+    fun setRestPreset(seconds: Int) {
+        flags.restSeconds = seconds
+        _restPreset.value = seconds
+    }
+
+    private val _reminders = MutableStateFlow(flags.remindersEnabled)
+    val reminders: StateFlow<Boolean> = _reminders
+
+    fun setReminders(on: Boolean) {
+        flags.remindersEnabled = on
+        _reminders.value = on
+    }
+
     private val _keepScreenOn = MutableStateFlow(flags.keepScreenOn)
     val keepScreenOn: StateFlow<Boolean> = _keepScreenOn
 
@@ -400,6 +417,16 @@ class ZenViewModel(
         toast(tr("Peso registrado! Dieta e treino reponderados."))
     }
 
+    fun editWeight(id: Long, kg: Double) = launchSafe {
+        working(tr("Atualizando dieta e treino…")) { repo.editWeight(id, kg) }
+        toast(tr("Peso corrigido! Dieta e treino reponderados."))
+    }
+
+    fun removeWeight(id: Long) = launchSafe {
+        working(tr("Atualizando dieta e treino…")) { repo.removeWeight(id) }
+        toast(tr("Registro removido."))
+    }
+
     fun acceptTarget(target: NutritionTarget) = launchSafe {
         working(tr("Aplicando meta…")) { repo.updateTarget(target) }
         toast(tr("Meta salva! A dieta foi ajustada a ela."))
@@ -479,6 +506,14 @@ class ZenViewModel(
     fun setWorkoutSkipped(skipped: Boolean) = launchSafe {
         repo.setWorkoutSkipped(clock.value.epochDay, skipped)
         if (skipped) toast(tr("Anotado! A semana de treino foi reorganizada."))
+    }
+
+    fun renameExercise(id: Long, name: String) = launchSafe {
+        toast(if (repo.renameExercise(id, name)) tr("Exercício renomeado.") else tr("Esse nome já existe ou está vazio."))
+    }
+
+    fun deleteExercise(id: Long) = launchSafe {
+        toast(if (repo.deleteExercise(id)) tr("Exercício excluído.") else tr("Esse exercício está numa ficha. Tire-o da ficha primeiro."))
     }
 
     fun createExerciseAndReplace(name: String, group: MuscleGroup, itemId: Long) = launchSafe {

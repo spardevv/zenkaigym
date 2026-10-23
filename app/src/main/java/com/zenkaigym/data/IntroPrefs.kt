@@ -55,6 +55,16 @@ class AppFlags(context: Context) {
         get() = prefs.getBoolean("keep_screen_on", true)
         set(value) = prefs.edit().putBoolean("keep_screen_on", value).apply()
 
+    /** Descanso fixo entre séries em segundos; 0 = automático (pela faixa de repetições). */
+    var restSeconds: Int
+        get() = prefs.getInt("rest_seconds", 0)
+        set(value) = prefs.edit().putInt("rest_seconds", value).apply()
+
+    /** Lembretes de refeição e treino ligados. */
+    var remindersEnabled: Boolean
+        get() = prefs.getBoolean("reminders_enabled", false)
+        set(value) = prefs.edit().putBoolean("reminders_enabled", value).apply()
+
     /** Configuração inicial (tema + perfil) já concluída. */
     var setupDone: Boolean
         get() = prefs.getBoolean("setup_done", false)

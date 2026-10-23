@@ -1,5 +1,10 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.notify.ReminderScheduler
+import androidx.core.content.ContextCompat
+import android.os.Build
+import android.content.pm.PackageManager
+import android.Manifest
 import com.zenkaigym.domain.tr
 import android.content.Intent
 import android.net.Uri
@@ -65,6 +70,8 @@ fun SettingsScreen(viewModel: ZenViewModel) {
     val language by viewModel.language.collectAsStateWithLifecycle()
     val style by viewModel.style.collectAsStateWithLifecycle()
     val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
+    val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     var confirming by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -78,6 +85,18 @@ fun SettingsScreen(viewModel: ZenViewModel) {
             val ok = withContext(Dispatchers.IO) { runCatching { Backup.export(context, app.database, uri) }.isSuccess }
             Toast.makeText(context, if (ok) tr("Backup salvo!") else tr("Não foi possível salvar o backup."), Toast.LENGTH_LONG).show()
         }
+    }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) {
+            Toast.makeText(context, tr("Sem a permissão de notificações os avisos não aparecem. Libere nas configurações do celular."), Toast.LENGTH_LONG).show()
+        }
+    }
+    fun changeReminders(on: Boolean) {
+        viewModel.setReminders(on)
+        scope.launch(Dispatchers.IO) { ReminderScheduler.rescheduleAll(context) }
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (on && needsPermission) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) pendingImport = uri
@@ -132,6 +151,39 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 Text(
                     if (keepOn) tr("A tela do treino fica sempre ativa enquanto o modo treino estiver aberto, sem apagar no descanso.")
                     else tr("A tela do treino apaga sozinha como as outras, conforme o tempo de tela do celular."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            ZenCard(accent = Ki, entranceIndex = 2) {
+                SectionTitle(tr("Descanso entre séries"), accent = Ki)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0, 60, 90, 120, 180).forEach { seconds ->
+                        ZenChip(
+                            if (seconds == 0) tr("Auto") else seconds.toString(),
+                            restPreset == seconds, { viewModel.setRestPreset(seconds) }, Modifier.weight(1f), accent = Ki, compact = true
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (restPreset == 0) tr("Automático: o descanso muda conforme as repetições da série (de 60 a 120 segundos).")
+                    else tr("Descanso fixo de {0} segundos depois de cada série.", restPreset),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            ZenCard(accent = Sakura, entranceIndex = 2) {
+                SectionTitle(tr("Lembretes"), accent = Sakura)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenChip(tr("Ligados"), reminders, { if (!reminders) changeReminders(true) }, Modifier.weight(1f), accent = Sakura)
+                    ZenChip(tr("Desligados"), !reminders, { if (reminders) changeReminders(false) }, Modifier.weight(1f), accent = Sakura)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    tr("Avisos nos horários da sua agenda de refeições e de treino. Funciona sem internet, direto no aparelho."),
                     color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                 )
             }
