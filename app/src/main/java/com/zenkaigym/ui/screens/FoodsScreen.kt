@@ -30,6 +30,7 @@ import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.FoodCategory
 import com.zenkaigym.domain.Portions
 import com.zenkaigym.ui.ZenViewModel
+import com.zenkaigym.ui.components.ConfirmDialog
 import com.zenkaigym.ui.components.FoodFormDialog
 import com.zenkaigym.ui.components.KanjiBadge
 import com.zenkaigym.ui.components.SectionTitle
@@ -55,6 +56,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val foods by viewModel.foods.collectAsStateWithLifecycle()
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Food?>(null) }
+    var deleting by remember { mutableStateOf<Food?>(null) }
     var confirm by remember { mutableStateOf<FoodsAction?>(null) }
     val grouped = remember(foods) { FoodCategory.entries.map { cat -> cat to foods.filter { it.category == cat } }.filter { it.second.isNotEmpty() } }
 
@@ -129,7 +131,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                     if (reset) viewModel.resetFoods() else viewModel.deleteAllFoods()
                     confirm = null
                 }, Modifier.weight(1f), accent = if (reset) Sakura else Aka, fill = true)
-                ZenButton(tr("Cancelar"), { confirm = null }, accent = Zen.p.card)
+                ZenButton(tr("Cancelar"), { confirm = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
         }
     }
@@ -146,7 +148,14 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
             initial = food,
             onDismiss = { editing = null },
             onSave = { viewModel.saveFood(it); editing = null },
-            onDelete = { viewModel.deleteFood(food.id); editing = null }
+            onDelete = { deleting = food }
+        )
+    }
+    deleting?.let { food ->
+        ConfirmDialog(
+            tr("Excluir alimento?"), tr("{0} será apagado da sua lista de alimentos.", tr(food.name)), tr("Excluir"),
+            onConfirm = { viewModel.deleteFood(food.id); deleting = null; editing = null },
+            onDismiss = { deleting = null }
         )
     }
 }

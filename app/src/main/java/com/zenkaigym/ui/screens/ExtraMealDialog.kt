@@ -127,7 +127,7 @@ fun AddExtraDialog(
                         is ExtraValidation.Valid -> onFree(r.name, r.kcal, r.protein)
                     }
                 }, Modifier.weight(1f), accent = Ao, fill = true)
-                ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+                ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
         }
     }

@@ -3,6 +3,7 @@ package com.zenkaigym.ui.screens
 import com.zenkaigym.ui.components.MiniButton
 import com.zenkaigym.data.ExerciseCatalog
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
@@ -45,6 +46,7 @@ import com.zenkaigym.domain.TimeWindow
 import com.zenkaigym.domain.timeWindow
 import com.zenkaigym.domain.windowsByDay
 import com.zenkaigym.ui.ZenViewModel
+import com.zenkaigym.ui.components.ConfirmDialog
 import com.zenkaigym.ui.components.PickRow
 import com.zenkaigym.ui.components.SectionTitle
 import com.zenkaigym.ui.components.Stepper
@@ -195,6 +197,7 @@ private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> 
 private fun ExerciseItemDialog(day: WorkoutDayFull, entry: WorkoutItemFull, exercises: List<Exercise>, viewModel: ZenViewModel, onClose: () -> Unit) {
     val group = entry.exercise.group
     var registering by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf(false) }
     val inDay = day.items.map { it.exercise.id }.toSet()
     val alternatives = remember(exercises, group, inDay) {
         exercises.filter { it.group == group && it.id !in inDay }
@@ -222,10 +225,18 @@ private fun ExerciseItemDialog(day: WorkoutDayFull, entry: WorkoutItemFull, exer
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Remover"), { viewModel.removeWorkoutItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
         }
         Spacer(Modifier.height(8.dp))
         ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
+    }
+
+    if (removing) {
+        ConfirmDialog(
+            tr("Remover exercício?"), tr("{0} sai deste dia da ficha.", tr(entry.exercise.name)), tr("Remover"),
+            onConfirm = { viewModel.removeWorkoutItem(entry.item.id); removing = false; onClose() },
+            onDismiss = { removing = false }
+        )
     }
 
     if (registering) {
@@ -247,10 +258,11 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
     val groups = MuscleGroup.entries
 
     ZenDialog(tr("Adicionar · {0}", tr(day.day.name)), onClose, accent = Ki) {
-        listOf(groups.take(4), groups.drop(4)).forEach { row ->
-            Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                row.forEach { ZenChip(it.label, group == it, { group = it }, Modifier.weight(1f), accent = Ki, compact = true) }
-            }
+        // A categoria escolhida é trazida para a vista, para não ficar escondida no fim da faixa.
+        val chipsState = rememberLazyListState()
+        LaunchedEffect(group) { chipsState.animateScrollToItem(groups.indexOf(group).coerceAtLeast(0)) }
+        LazyRow(state = chipsState, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(groups) { ZenChip(it.label, group == it, { group = it }, accent = Ki) }
         }
         Spacer(Modifier.height(6.dp))
         if (options.isEmpty()) Text(tr("Nenhum exercício disponível neste grupo."), color = Zen.p.muted)
@@ -291,7 +303,7 @@ internal fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave
             ZenButton(tr("Salvar"), {
                 if (name.isBlank()) error = tr("Informe o nome do exercício.") else onSave(name.trim())
             }, Modifier.weight(1f), accent = Ki, fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
     }
 }

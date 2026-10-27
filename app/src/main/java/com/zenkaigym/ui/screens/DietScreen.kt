@@ -51,6 +51,7 @@ import com.zenkaigym.domain.MealSchedule
 import com.zenkaigym.domain.NutritionTarget
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.FoodFormDialog
+import com.zenkaigym.ui.components.ConfirmDialog
 import com.zenkaigym.ui.components.PickRow
 import com.zenkaigym.ui.components.SectionTitle
 import com.zenkaigym.ui.components.StatPill
@@ -452,7 +453,7 @@ internal fun WeekSetupDialog(
                 val cheat = if (useCheat && chosen.isNotEmpty()) CheatDay(cheatDay, chosen) else null
                 onCreate(manual, cheat)
             }, Modifier.weight(1f), accent = Midori, fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
     }
 }
@@ -506,6 +507,7 @@ private fun FoodItemDialog(meal: MealFull, entry: MealItemFull, foods: List<Food
     val food = entry.food
     val grams = entry.item.grams
     var registering by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf(false) }
     val alternatives = remember(foods, food.id, meal.meal.type) {
         DietPlanner.alternatives(foods, food.category, meal.meal.type, excludeId = food.id)
     }
@@ -537,10 +539,18 @@ private fun FoodItemDialog(meal: MealFull, entry: MealItemFull, foods: List<Food
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Remover"), { viewModel.removeMealItem(entry.item.id); onClose() }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
         }
         Spacer(Modifier.height(8.dp))
         ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
+    }
+
+    if (removing) {
+        ConfirmDialog(
+            tr("Remover alimento?"), tr("{0} sai desta refeição.", tr(food.name)), tr("Remover"),
+            onConfirm = { viewModel.removeMealItem(entry.item.id); removing = false; onClose() },
+            onDismiss = { removing = false }
+        )
     }
 
     if (registering) {

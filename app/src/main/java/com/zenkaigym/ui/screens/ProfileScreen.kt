@@ -46,6 +46,7 @@ import com.zenkaigym.domain.ProfileValidation
 import com.zenkaigym.domain.ProfileValidator
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.SectionTitle
+import com.zenkaigym.ui.components.ConfirmDialog
 import com.zenkaigym.ui.components.ZenButton
 import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
@@ -276,6 +277,7 @@ private fun WeightCard(
 ) {
     var input by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<WeightEntry?>(null) }
+    var removing by remember { mutableStateOf<WeightEntry?>(null) }
     ZenCard(accent = Daidai, entranceIndex = 1) {
         SectionTitle(tr("Evolução do peso"), accent = Daidai)
         Spacer(Modifier.height(8.dp))
@@ -327,7 +329,7 @@ private fun WeightCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ZenButton(tr("Salvar"), { editing = null; onEdit(entry.id, kg!!) }, Modifier.weight(1f), accent = Daidai, enabled = valid, fill = true)
                     if (weights.size > 1) {
-                        ZenButton(tr("Remover"), { editing = null; onRemove(entry.id) }, Modifier.weight(1f), accent = Aka, fill = true)
+                        ZenButton(tr("Remover"), { removing = entry }, Modifier.weight(1f), accent = Aka, fill = true)
                     }
                 }
             }
@@ -336,6 +338,14 @@ private fun WeightCard(
             Spacer(Modifier.height(8.dp))
             ZenField(tr("Peso (kg)"), text, { text = it }, keyboardType = KeyboardType.Decimal)
         }
+    }
+
+    removing?.let { entry ->
+        ConfirmDialog(
+            tr("Remover peso?"), tr("O registro de {0} kg será apagado.", "%.1f".format(entry.weightKg)), tr("Remover"),
+            onConfirm = { removing = null; editing = null; onRemove(entry.id) },
+            onDismiss = { removing = null }
+        )
     }
 }
 

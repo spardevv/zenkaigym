@@ -173,9 +173,22 @@ fun ZenTimePickerDialog(
         Spacer(Modifier.height(8.dp))
         ZenChip(if (keyboard) tr("Relógio") else tr("Teclado"), false, { keyboard = !keyboard }, accent = Ao)
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ZenButton(tr("Cancelar"), onDismiss, accent = p.card)
-            ZenButton(tr("OK"), { onConfirm(TimeOfDay(state.hour, state.minute)) }, modifier = Modifier.weight(1f), fill = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("OK"), { onConfirm(TimeOfDay(state.hour, state.minute)) }, Modifier.weight(1f), fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = p.card, fill = true)
+        }
+    }
+}
+
+/** Confirmação de uma ação destrutiva: ação principal primeiro, "Cancelar" ao lado, com a mesma largura. */
+@Composable
+fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    ZenDialog(title, onDismiss, accent = Aka) {
+        Text(message, color = Zen.p.muted)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(confirmLabel, onConfirm, Modifier.weight(1f), accent = Aka, fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
     }
 }
@@ -281,7 +294,7 @@ fun FoodFormDialog(
                     }
                 }
             }, modifier = Modifier.weight(1f), accent = category.accent(), fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, accent = Zen.p.card)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
         if (onDelete != null) {
             Spacer(Modifier.height(6.dp))

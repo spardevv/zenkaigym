@@ -225,16 +225,19 @@ private fun BottomBar(current: String, onSelect: (String) -> Unit) {
                         .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        tab.kanji,
-                        modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                        fontSize = if (tab.hero) 28.sp else 22.sp,
-                        fontWeight = FontWeight.Black,
-                        color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
-                    )
+                    // Altura fixa para o kanji: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
+                    Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            tab.kanji,
+                            modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+                            fontSize = if (tab.hero) 28.sp else 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
+                        )
+                    }
                     Text(
                         tab.label.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
