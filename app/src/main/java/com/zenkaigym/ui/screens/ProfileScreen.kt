@@ -53,6 +53,7 @@ import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenField
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Zen
@@ -113,7 +114,7 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
 
     ZenPage {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ZenHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))

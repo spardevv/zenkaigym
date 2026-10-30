@@ -64,6 +64,7 @@ import com.zenkaigym.ui.components.ZenDialog
 import com.zenkaigym.ui.components.ZenField
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.components.ZenTimePickerDialog
 import com.zenkaigym.ui.components.accent
 import com.zenkaigym.ui.components.shortLabel
@@ -110,7 +111,7 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item(key = "header") {

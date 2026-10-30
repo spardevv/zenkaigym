@@ -58,6 +58,7 @@ import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.nav.Routes
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
@@ -95,7 +96,7 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
 
     ZenPage {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ZenHeader(tr("Dojo"), "道", subtitle = tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
@@ -122,20 +123,34 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 }
                 // Treino de hoje pulado: quem quer ganhar massa mantém a meta; os outros comem um pouco menos.
                 val todayBurn = if (workoutSkipped && goal != Goal.GAIN) WeekDietBalance.workoutBurnKcal(weight, minutesOf(dow)) else 0
-                TodayWorkout(
-                    workout, assignment, window, onNavigate, workoutDone, workoutSkipped,
-                    onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped
-                ) { day ->
-                    // O treino de hoje já aparece com as trocas feitas só para hoje.
-                    WorkoutSwaps.apply(day, swaps, exercises)
+                val todayCard: @Composable () -> Unit = {
+                    TodayWorkout(
+                        workout, assignment, window, onNavigate, workoutDone, workoutSkipped,
+                        onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped
+                    ) { day ->
+                        // O treino de hoje já aparece com as trocas feitas só para hoje.
+                        WorkoutSwaps.apply(day, swaps, exercises)
+                    }
                 }
-                NextMeal(
-                    diet, slots, done, skipped, recorded, extras, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate,
-                    goal = goal, dayDelta = balance.todayKcal - todayBurn.toDouble(), weekSurplus = balance.surplusKcal,
-                    onDone = viewModel::setMealDone, onSkip = viewModel::setMealSkipped,
-                    onAddExtra = { addingExtra = it },
-                    onRemoveExtra = viewModel::removeExtra
-                )
+                val mealCard: @Composable () -> Unit = {
+                    NextMeal(
+                        diet, slots, done, skipped, recorded, extras, clock.minutes, dayOfWeekFromEpochDay(clock.epochDay), onNavigate,
+                        goal = goal, dayDelta = balance.todayKcal - todayBurn.toDouble(), weekSurplus = balance.surplusKcal,
+                        onDone = viewModel::setMealDone, onSkip = viewModel::setMealSkipped,
+                        onAddExtra = { addingExtra = it },
+                        onRemoveExtra = viewModel::removeExtra
+                    )
+                }
+                // Em telas largas, treino e refeição ficam lado a lado.
+                if (currentWindowLayout.twoColumns) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.weight(1f)) { todayCard() }
+                        Column(Modifier.weight(1f)) { mealCard() }
+                    }
+                } else {
+                    todayCard()
+                    mealCard()
+                }
             }
         }
     }

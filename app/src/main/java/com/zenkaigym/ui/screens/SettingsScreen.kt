@@ -48,6 +48,7 @@ import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.components.KanjiBadge
@@ -104,7 +105,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
 
     ZenPage {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ZenHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, estilo, treino, semana, idioma e informações"))

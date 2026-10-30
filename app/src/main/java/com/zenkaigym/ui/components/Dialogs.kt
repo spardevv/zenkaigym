@@ -14,7 +14,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -75,7 +74,8 @@ fun ZenDialog(
     content: @Composable ColumnScope.() -> Unit
 ) {
     // Usa quase toda a altura disponível, para só rolar quando o conteúdo realmente não cabe.
-    val maxBody = (LocalConfiguration.current.screenHeightDp - if (footer != null) 270 else 190).dp
+    val layout = currentWindowLayout
+    val maxBody = (layout.heightDp - layout.dialogChrome - if (footer != null) 80 else 0).coerceAtLeast(120).dp
     val scroll = rememberScrollState()
     // Entrada: a janela "salta" de um pouco menor, com leve quique, em vez de surgir de uma vez.
     val enter = remember { Animatable(0f) }
@@ -83,8 +83,8 @@ fun ZenDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ZenCard(
             Modifier
-                .padding(horizontal = 28.dp, vertical = 24.dp)
-                .widthIn(max = 380.dp)
+                .padding(horizontal = if (layout.narrow) 16.dp else 28.dp, vertical = if (layout.shortHeight) 8.dp else 24.dp)
+                .widthIn(max = layout.dialogMaxWidth)
                 .graphicsLayer {
                     val v = enter.value
                     alpha = v.coerceIn(0f, 1f)

@@ -27,7 +27,19 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import com.zenkaigym.ui.components.MAX_CONTENT_WIDTH
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.Dp
+import com.zenkaigym.ui.components.WindowLayout
+import com.zenkaigym.ui.components.currentWindowLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -160,8 +172,13 @@ fun AppNav(viewModel: ZenViewModel) {
     val assignment by viewModel.todayWorkout.collectAsStateWithLifecycle()
     val trainingDay = assignment.session
 
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().background(Zen.p.bg).imePadding()) {
+    val layout = currentWindowLayout
+
+    Box(Modifier.fillMaxSize().background(Zen.p.bg).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+      Row(Modifier.fillMaxSize()) {
+        // Tablets e celulares deitados: as abas ficam numa coluna à esquerda, liberando a altura para o conteúdo.
+        if (layout.useRail) SideRail(parentTab(current), layout.railWidth, onSelect = ::go)
+        Column(Modifier.weight(1f).fillMaxHeight().background(Zen.p.bg).imePadding()) {
             Box(Modifier.weight(1f).statusBarsPadding()) {
                 NavHost(
                     navController,
@@ -183,8 +200,9 @@ fun AppNav(viewModel: ZenViewModel) {
                 }
             }
             // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
-            BottomBar(parentTab(current), onSelect = ::go)
+            if (!layout.useRail) BottomBar(parentTab(current), layout, onSelect = ::go)
         }
+      }
         AnimatedVisibility(
             visible = trainingActive && trainingDay != null,
             enter = slideInVertically(tween(320)) { it } + fadeIn(tween(200)),
@@ -200,52 +218,75 @@ fun AppNav(viewModel: ZenViewModel) {
     }
 }
 
+/** Uma aba (kanji + rótulo), igual na barra inferior e na coluna lateral. */
 @Composable
-private fun BottomBar(current: String, onSelect: (String) -> Unit) {
+private fun TabItem(tab: Tab, selected: Boolean, narrow: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
+    val p = Zen.p
+    val background by animateColorAsState(
+        if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
+    )
+    val scale by animateFloatAsState(
+        if (selected) 1.25f else 1f,
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "tab-scale"
+    )
+    Column(
+        modifier
+            .background(background)
+            .semantics(mergeDescendants = true) { this.selected = selected }
+            .clickable(role = Role.Tab) { onSelect(tab.route) }
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Altura fixa para o kanji: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
+        Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
+            Text(
+                tab.kanji,
+                modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+                fontSize = if (tab.hero) (if (narrow) 26.sp else 28.sp) else (if (narrow) 20.sp else 22.sp),
+                fontWeight = FontWeight.Black,
+                color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
+            )
+        }
+        Text(
+            tab.label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (tab.hero) FontWeight.Black else null,
+            maxLines = 1,
+            color = if (selected) Sumi else if (tab.hero) tab.color else p.muted
+        )
+    }
+}
+
+@Composable
+private fun BottomBar(current: String, layout: WindowLayout, onSelect: (String) -> Unit) {
     val p = Zen.p
     Column(Modifier.background(p.card).navigationBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
-        Row(Modifier.align(Alignment.CenterHorizontally).widthIn(max = MAX_CONTENT_WIDTH).fillMaxWidth()) {
+        Row(Modifier.align(Alignment.CenterHorizontally).widthIn(max = layout.contentMaxWidth).fillMaxWidth()) {
             tabs().forEach { tab ->
-                val selected = tab.route == current
-                val background by animateColorAsState(
-                    if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
-                )
-                val scale by animateFloatAsState(
-                    if (selected) 1.25f else 1f,
-                    spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                    label = "tab-scale"
-                )
-                Column(
-                    Modifier
-                        .weight(if (tab.hero) 1.25f else 1f)
-                        .background(background)
-                        .semantics(mergeDescendants = true) { this.selected = selected }
-                        .clickable(role = Role.Tab) { onSelect(tab.route) }
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Altura fixa para o kanji: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
-                    Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            tab.kanji,
-                            modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
-                            fontSize = if (tab.hero) 28.sp else 22.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
-                        )
-                    }
-                    Text(
-                        tab.label.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (tab.hero) FontWeight.Black else null,
-                        color = if (selected) Sumi else if (tab.hero) tab.color else p.muted
-                    )
+                TabItem(tab, tab.route == current, layout.narrow, Modifier.weight(if (tab.hero) 1.25f else 1f), onSelect)
+            }
+        }
+    }
+}
+
+/** Abas em coluna, para tablets e celulares deitados. Rola se a altura não bastar. */
+@Composable
+private fun SideRail(current: String, width: Dp, onSelect: (String) -> Unit) {
+    val p = Zen.p
+    Row(Modifier.fillMaxHeight().background(p.card)) {
+        Box(Modifier.width(width).fillMaxHeight().statusBarsPadding().navigationBarsPadding(), contentAlignment = Alignment.Center) {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                tabs().forEach { tab ->
+                    TabItem(tab, tab.route == current, narrow = false, Modifier.fillMaxWidth().padding(vertical = 2.dp), onSelect)
                 }
             }
         }
+        Box(Modifier.fillMaxHeight().width(3.dp).background(p.border))
     }
 }

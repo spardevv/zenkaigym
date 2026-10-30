@@ -42,6 +42,7 @@ import com.zenkaigym.ui.components.ZenButton
 import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
@@ -75,7 +76,7 @@ private fun ExerciseList(exercises: List<Exercise>, onBack: () -> Unit, onSelect
     val listState = rememberLazyListState()
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(currentWindowLayout.gutter),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "header") {
@@ -123,7 +124,7 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(currentWindowLayout.gutter),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "header") {

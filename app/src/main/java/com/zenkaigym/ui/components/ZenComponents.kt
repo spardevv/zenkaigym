@@ -170,9 +170,6 @@ private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: T
 
 private const val MIN_LABEL_SP = 9f
 
-/** Largura máxima do conteúdo das páginas e da barra inferior. */
-internal val MAX_CONTENT_WIDTH = 640.dp
-
 /** Tamanho mínimo recomendado para alvos de toque (acessibilidade). */
 internal val MIN_TOUCH = 48.dp
 
@@ -384,7 +381,7 @@ fun ZenPage(content: @Composable () -> Unit) {
         if (Zen.look.kawaii) Sparkles(Modifier.height(260.dp).fillMaxWidth())
         else SpeedLines(Modifier.height(260.dp).fillMaxWidth())
         // Em telas largas (tablet, dobrável, paisagem) o conteúdo fica numa coluna centralizada.
-        Box(Modifier.align(Alignment.TopCenter).widthIn(max = MAX_CONTENT_WIDTH).fillMaxSize()) { content() }
+        Box(Modifier.align(Alignment.TopCenter).widthIn(max = currentWindowLayout.contentMaxWidth).fillMaxSize()) { content() }
     }
 }
 

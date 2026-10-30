@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.clip
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.domain.WorkoutSwaps
 import com.zenkaigym.ui.components.PickRow
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.components.ZenDialog
 import com.zenkaigym.ui.components.drawSparkle
 import com.zenkaigym.ui.components.zenShadow
@@ -267,7 +268,10 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
         return true
     }
 
-    Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
+    // Em telas largas o treino ocupa uma coluna central; o fundo continua cobrindo a tela toda.
+    val layout = currentWindowLayout
+    val sideSpace = ((layout.widthDp - layout.contentMaxWidth.value) / 2).coerceAtLeast(0f).dp
+    Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = sideSpace)) {
         TrainHeader(tr(day.day.name), onClose)
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
             PowerGauge(doneSets, totalSets)

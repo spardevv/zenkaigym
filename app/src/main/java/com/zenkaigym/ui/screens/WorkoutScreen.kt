@@ -57,6 +57,7 @@ import com.zenkaigym.ui.components.ZenDialog
 import com.zenkaigym.ui.components.ZenField
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.components.zenEntrance
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Ao
@@ -96,7 +97,7 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item(key = "header") { ZenHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha")) }
