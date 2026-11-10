@@ -68,7 +68,14 @@ class ZenRepository(
 
     /** Dados iniciais: exercícios, agenda de refeições padrão e (uma única vez) alimentos de exemplo. */
     suspend fun ensureSeed(seedFoods: Boolean = false) {
-        if (workoutDao.exerciseCount() == 0) workoutDao.insertExercises(ExerciseCatalog.all())
+        if (workoutDao.exerciseCount() == 0) {
+            workoutDao.insertExercises(ExerciseCatalog.all())
+        } else {
+            // Quem já usa o app recebe os exercícios que entraram no catálogo depois (por nome, sem tocar nos existentes).
+            val known = workoutDao.exercises().map { it.name.lowercase() }.toSet()
+            val missing = ExerciseCatalog.all().filter { it.name.lowercase() !in known }
+            if (missing.isNotEmpty()) workoutDao.insertExercises(missing)
+        }
         if (dietDao.getSlots().isEmpty()) dietDao.insertSlots(MealSchedule.build(4))
         if (seedFoods && foodDao.getFoods().isEmpty()) foodDao.insertAll(FoodExamples.all())
         // Mantém cerca de um ano de refeições marcadas: alimentam o gráfico de aderência da dieta.

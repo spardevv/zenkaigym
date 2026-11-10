@@ -245,7 +245,9 @@ object WorkoutPlanner {
     /** Exercício novo para o grupo: compostos primeiro, depois isolados; entre iguais, o menos usado na semana. */
     private fun nextExercise(slot: Slot, group: MuscleGroup, pool: List<Exercise>, uses: Map<Long, Int>): Exercise? {
         val hasCompound = slot.blocks.any { it.group == group && it.exercise.kind == ExerciseKind.COMPOUND }
-        val preferred = if (hasCompound) ExerciseKind.ISOLATION else ExerciseKind.COMPOUND
+        // Braços já recebem muito dos compostos de peito e costas: aqui os isolados vêm primeiro, e variam entre as sessões.
+        val arms = group == BICEPS || group == TRICEPS
+        val preferred = if (hasCompound || arms) ExerciseKind.ISOLATION else ExerciseKind.COMPOUND
         return pool
             .filter { e -> slot.blocks.none { it.exercise.id == e.id } }
             .minWithOrNull(compareBy({ if (it.kind == preferred) 0 else 1 }, { uses.getOrDefault(it.id, 0) }))
