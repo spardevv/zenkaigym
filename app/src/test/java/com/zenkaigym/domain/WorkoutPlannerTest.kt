@@ -181,4 +181,38 @@ class WorkoutPlannerTest {
             }
         }
     }
+
+    @Test
+    fun machineNamesAllExistInTheCatalog() {
+        val names = ExerciseCatalog.entries.map { it.name }.toSet()
+        assertTrue(ExerciseCatalog.machines.filterNot { it in names }.toString(), names.containsAll(ExerciseCatalog.machines))
+    }
+
+    @Test
+    fun gym_prefersMachinesAndCables() {
+        for (goal in Goal.entries) {
+            val items = WorkoutPlanner.plan(request(mapOf(1 to 60, 3 to 60, 5 to 60), goal), catalog).days
+                .flatMap { it.items }.map { byId.getValue(it.exerciseId) }
+                .filter { it.kind != ExerciseKind.CARDIO && it.kind != ExerciseKind.HOLD && it.group !in tronco }
+            val machines = items.count { ExerciseCatalog.isMachine(it) }
+            assertTrue("$goal: $machines de ${items.size} em máquina/polia", machines * 10 >= items.size * 7)
+        }
+    }
+
+    @Test
+    fun gym_everyMajorGroupHasAMachineOption() {
+        listOf(
+            MuscleGroup.CHEST, MuscleGroup.LATS, MuscleGroup.MID_BACK, MuscleGroup.SHOULDERS_FRONT, MuscleGroup.SHOULDERS_SIDE,
+            MuscleGroup.SHOULDERS_REAR, MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS,
+            MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES
+        ).forEach { g ->
+            assertTrue("$g sem máquina", catalog.any { it.group == g && ExerciseCatalog.isMachine(it) && it.kind != ExerciseKind.HOLD })
+        }
+    }
+
+    @Test
+    fun atHome_neverPicksMachines() {
+        val plan = WorkoutPlanner.plan(request(mapOf(1 to 60, 3 to 60, 5 to 60), equipment = Equipment.DUMBBELLS), catalog)
+        plan.days.flatMap { it.items }.forEach { assertTrue(!ExerciseCatalog.isMachine(byId.getValue(it.exerciseId))) }
+    }
 }

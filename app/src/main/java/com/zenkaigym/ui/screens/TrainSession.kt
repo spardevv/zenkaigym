@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import com.zenkaigym.data.entity.Exercise
+import com.zenkaigym.ui.components.ExerciseImage
 import com.zenkaigym.domain.WorkoutSwaps
 import com.zenkaigym.ui.components.PickRow
 import com.zenkaigym.ui.components.currentWindowLayout
@@ -735,6 +736,8 @@ private fun ExercisePanel(
             Spacer(Modifier.height(4.dp))
             Text(tr("Trocado hoje · era {0}", tr(swappedFrom.name)), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
         }
+        Spacer(Modifier.height(8.dp))
+        ExerciseImage(entry.exercise.name)
         Spacer(Modifier.height(8.dp))
         // Com séries já registradas a troca fica travada: o registro pertence ao exercício atual.
         if (doneCount == 0) {

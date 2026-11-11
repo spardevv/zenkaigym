@@ -66,19 +66,45 @@ object ExerciseCatalog {
         level: Level = BEGINNER, vararg secondary: MuscleGroup
     ) = CatalogEntry(name, group, kind, equipment, level, secondary.toList())
 
+    /**
+     * Exercícios de máquina, polia (crossover) e afins. Quem treina em academia completa recebe estes primeiro:
+     * guiam o movimento, pedem menos técnica e dispensam anilhas e ajudante.
+     */
+    private val machineNames: Set<String> = setOf(
+        "Supino na máquina", "Supino inclinado na máquina", "Crucifixo na máquina", "Crossover na polia",
+        "Crossover polia alta", "Crossover polia baixa",
+        "Puxada frontal", "Puxada supinada", "Puxada articulada na máquina", "Pulldown braço reto",
+        "Remada baixa", "Remada na máquina", "Remada unilateral na polia", "Remada cavalinho", "Extensão lombar",
+        "Encolhimento na máquina", "Desenvolvimento na máquina", "Elevação frontal na polia",
+        "Elevação lateral na polia", "Elevação lateral na máquina",
+        "Crucifixo inverso na máquina", "Crucifixo inverso na polia", "Face pull",
+        "Rosca na polia", "Rosca na máquina", "Rosca martelo na corda", "Rosca na polia alta",
+        "Tríceps na polia", "Tríceps na corda", "Tríceps francês na polia", "Tríceps unilateral na polia",
+        "Tríceps na máquina", "Mergulho na máquina",
+        "Leg press 45°", "Leg press horizontal", "Agachamento hack", "Agachamento no Smith", "Cadeira extensora",
+        "Mesa flexora", "Cadeira flexora", "Flexora em pé", "Elevação pélvica na máquina", "Glúteo na máquina",
+        "Glúteo na polia", "Cadeira abdutora", "Cadeira adutora", "Adução na polia",
+        "Panturrilha em pé", "Panturrilha sentado", "Panturrilha no leg press",
+        "Abdominal na máquina", "Abdominal na polia", "Lenhador na polia", "Pallof press"
+    )
+
     val entries: List<CatalogEntry> = listOf(
         // Peitoral
         e("Supino reto com barra", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Supino na máquina", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS_FRONT),
+        e("Supino inclinado na máquina", CHEST, COMPOUND, GYM, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Supino reto com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Supino inclinado com halteres", CHEST, COMPOUND, DUMBBELLS, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Flexão de braço", CHEST, COMPOUND, BODYWEIGHT, BEGINNER, TRICEPS, SHOULDERS_FRONT),
         e("Crucifixo na máquina", CHEST, ISOLATION, GYM),
         e("Crossover na polia", CHEST, ISOLATION, GYM),
+        e("Crossover polia alta", CHEST, ISOLATION, GYM),
+        e("Crossover polia baixa", CHEST, ISOLATION, GYM),
         e("Crucifixo com halteres", CHEST, ISOLATION, DUMBBELLS),
         // Grande dorsal (puxadas verticais e pullovers)
         e("Puxada frontal", LATS, COMPOUND, GYM, BEGINNER, BICEPS, MID_BACK),
         e("Puxada supinada", LATS, COMPOUND, GYM, BEGINNER, BICEPS),
+        e("Puxada articulada na máquina", LATS, COMPOUND, GYM, BEGINNER, BICEPS, MID_BACK),
         e("Barra fixa", LATS, COMPOUND, BODYWEIGHT, INTERMEDIATE, BICEPS, MID_BACK),
         e("Remada unilateral com halter", LATS, COMPOUND, DUMBBELLS, BEGINNER, BICEPS, MID_BACK),
         e("Pulldown braço reto", LATS, ISOLATION, GYM),
@@ -86,6 +112,7 @@ object ExerciseCatalog {
         // Meio das costas: romboides e trapézio médio (remadas horizontais)
         e("Remada baixa", MID_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS, SHOULDERS_REAR),
         e("Remada na máquina", MID_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS),
+        e("Remada unilateral na polia", MID_BACK, COMPOUND, GYM, BEGINNER, LATS, BICEPS),
         e("Remada cavalinho", MID_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS),
         e("Remada curvada", MID_BACK, COMPOUND, GYM, INTERMEDIATE, LATS, BICEPS, LOWER_BACK),
         e("Remada curvada com halteres", MID_BACK, COMPOUND, DUMBBELLS, BEGINNER, LATS, BICEPS),
@@ -93,6 +120,7 @@ object ExerciseCatalog {
         // Trapézio superior e inferior
         e("Encolhimento com barra", TRAPS, ISOLATION, GYM, BEGINNER, FOREARMS),
         e("Encolhimento com halteres", TRAPS, ISOLATION, DUMBBELLS, BEGINNER, FOREARMS),
+        e("Encolhimento na máquina", TRAPS, ISOLATION, GYM, BEGINNER, FOREARMS),
         e("Remada alta", TRAPS, COMPOUND, GYM, INTERMEDIATE, SHOULDERS_SIDE, BICEPS),
         e("Elevação Y deitado", TRAPS, ISOLATION, BODYWEIGHT),
         // Lombar (eretores da espinha)
@@ -104,6 +132,7 @@ object ExerciseCatalog {
         e("Desenvolvimento com halteres", SHOULDERS_FRONT, COMPOUND, DUMBBELLS, BEGINNER, SHOULDERS_SIDE, TRICEPS),
         e("Flexão pike", SHOULDERS_FRONT, COMPOUND, BODYWEIGHT, INTERMEDIATE, SHOULDERS_SIDE, TRICEPS),
         e("Elevação frontal", SHOULDERS_FRONT, ISOLATION, DUMBBELLS),
+        e("Elevação frontal na polia", SHOULDERS_FRONT, ISOLATION, GYM),
         // Deltoide lateral
         e("Elevação lateral", SHOULDERS_SIDE, ISOLATION, DUMBBELLS),
         e("Elevação lateral na polia", SHOULDERS_SIDE, ISOLATION, GYM),
@@ -111,6 +140,7 @@ object ExerciseCatalog {
         // Deltoide posterior
         e("Crucifixo inverso", SHOULDERS_REAR, ISOLATION, DUMBBELLS, BEGINNER, MID_BACK),
         e("Crucifixo inverso na máquina", SHOULDERS_REAR, ISOLATION, GYM, BEGINNER, MID_BACK),
+        e("Crucifixo inverso na polia", SHOULDERS_REAR, ISOLATION, GYM, BEGINNER, MID_BACK),
         e("Face pull", SHOULDERS_REAR, ISOLATION, GYM, BEGINNER, MID_BACK, TRAPS),
         // Bíceps
         e("Rosca direta", BICEPS, ISOLATION, GYM, BEGINNER, FOREARMS),
@@ -139,6 +169,7 @@ object ExerciseCatalog {
         e("Tríceps francês na polia", TRICEPS, ISOLATION, GYM),
         e("Tríceps unilateral na polia", TRICEPS, ISOLATION, GYM),
         e("Tríceps na máquina", TRICEPS, ISOLATION, GYM),
+        e("Mergulho na máquina", TRICEPS, COMPOUND, GYM, BEGINNER, CHEST, SHOULDERS_FRONT),
         e("Tríceps coice com halter", TRICEPS, ISOLATION, DUMBBELLS),
         e("Tríceps testa com halteres", TRICEPS, ISOLATION, DUMBBELLS),
         e("Extensão de tríceps no chão", TRICEPS, ISOLATION, BODYWEIGHT),
@@ -153,6 +184,8 @@ object ExerciseCatalog {
         e("Agachamento livre", QUADS, COMPOUND, GYM, INTERMEDIATE, GLUTES, ADDUCTORS),
         e("Leg press 45°", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
         e("Agachamento hack", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
+        e("Leg press horizontal", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
+        e("Agachamento no Smith", QUADS, COMPOUND, GYM, BEGINNER, GLUTES),
         e("Agachamento goblet", QUADS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES, ADDUCTORS),
         e("Afundo com halteres", QUADS, COMPOUND, DUMBBELLS, BEGINNER, GLUTES),
         e("Agachamento búlgaro", QUADS, COMPOUND, DUMBBELLS, INTERMEDIATE, GLUTES),
@@ -165,10 +198,13 @@ object ExerciseCatalog {
         e("Stiff unilateral sem peso", HAMSTRINGS, COMPOUND, BODYWEIGHT, BEGINNER, GLUTES),
         e("Mesa flexora", HAMSTRINGS, ISOLATION, GYM),
         e("Cadeira flexora", HAMSTRINGS, ISOLATION, GYM),
+        e("Flexora em pé", HAMSTRINGS, ISOLATION, GYM),
         e("Flexão nórdica", HAMSTRINGS, ISOLATION, BODYWEIGHT, ADVANCED),
         // Glúteos (máximo e médio)
         e("Elevação pélvica", GLUTES, COMPOUND, GYM, BEGINNER, HAMSTRINGS),
         e("Elevação pélvica com halter", GLUTES, COMPOUND, DUMBBELLS, BEGINNER, HAMSTRINGS),
+        e("Elevação pélvica na máquina", GLUTES, COMPOUND, GYM, BEGINNER, HAMSTRINGS),
+        e("Glúteo na máquina", GLUTES, ISOLATION, GYM),
         e("Ponte de glúteo", GLUTES, COMPOUND, BODYWEIGHT, BEGINNER, HAMSTRINGS),
         e("Glúteo na polia", GLUTES, ISOLATION, GYM),
         e("Cadeira abdutora", GLUTES, ISOLATION, GYM),
@@ -193,6 +229,7 @@ object ExerciseCatalog {
         e("Abdominal bicicleta", ABS, ISOLATION, BODYWEIGHT, BEGINNER, OBLIQUES),
         e("Dead bug", ABS, ISOLATION, BODYWEIGHT),
         e("Abdominal na polia", ABS, ISOLATION, GYM),
+        e("Abdominal na máquina", ABS, ISOLATION, GYM),
         e("Roda abdominal", ABS, ISOLATION, DUMBBELLS, INTERMEDIATE),
         // Oblíquos e estabilidade do tronco
         e("Prancha lateral", OBLIQUES, HOLD, BODYWEIGHT, BEGINNER, ABS),
@@ -214,6 +251,12 @@ object ExerciseCatalog {
     )
 
     private val byName = entries.associateBy { it.name }
+
+    /** Nomes de máquina/polia, para conferir o catálogo nos testes. */
+    internal val machines: Set<String> get() = machineNames
+
+    /** Exercício de máquina ou polia (próprios do usuário nunca são). */
+    fun isMachine(exercise: Exercise): Boolean = exercise.name in machineNames
 
     fun info(name: String): CatalogEntry? = byName[name]
 

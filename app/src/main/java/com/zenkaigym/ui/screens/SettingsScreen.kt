@@ -258,6 +258,10 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     color = Zen.p.muted
                 )
                 Spacer(Modifier.height(10.dp))
+                var showCredits by remember { mutableStateOf(false) }
+                ZenButton(tr("Créditos das imagens"), { showCredits = true }, accent = Zen.p.card, small = true)
+                if (showCredits) ImageCreditsDialog { showCredits = false }
+                Spacer(Modifier.height(10.dp))
                 val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty() }
                 Text(tr("Zenkaigym versão {0}", version), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
             }
@@ -354,5 +358,29 @@ private fun WipeDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
         Text(tr("Serão apagados: perfil e pesos, fichas de treino, séries registradas, dietas, alimentos e refeições marcadas. Tema, estilo, semana e idioma continuam como estão."))
         Spacer(Modifier.height(14.dp))
         ZenField(tr("Digite {0} para confirmar", word), typed, { typed = it }, placeholder = word)
+    }
+}
+
+/** Atribuição exigida pelas licenças Creative Commons das ilustrações (wger.de). */
+@Composable
+private fun ImageCreditsDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val credits = remember { com.zenkaigym.data.ExerciseImages.allCredits(context) }
+    ZenDialog(
+        tr("Créditos das imagens"), onDismiss, accent = Ao,
+        footer = { ZenButton(tr("Fechar"), onDismiss, Modifier.fillMaxWidth(), accent = Zen.p.card, fill = true) }
+    ) {
+        Text(
+            tr("As ilustrações dos exercícios vêm do wger.de e são licenciadas por seus autores sob Creative Commons (CC-BY-SA). Foram redimensionadas e convertidas para WebP; continuam sob a mesma licença."),
+            color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(8.dp))
+        credits.forEach {
+            Text(
+                "${tr(it.name)} — ${it.author} · ${it.license}\n${it.source}",
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+            )
+            Spacer(Modifier.height(6.dp))
+        }
     }
 }

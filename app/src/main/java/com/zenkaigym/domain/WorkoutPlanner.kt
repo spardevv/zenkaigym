@@ -52,6 +52,7 @@ data class WorkoutRequest(
  * ajustados por nível e foco), e as séries são distribuídas pelas sessões até acabar o tempo de cada dia.
  * Primeiro garante o mínimo de todos (grandes antes dos pequenos), depois sobe em direção ao alvo.
  * Séries de exercícios compostos também contam (metade) para os músculos auxiliares.
+ * Na academia completa, máquinas e polias (crossover etc.) são escolhidas antes de barras e halteres.
  */
 object WorkoutPlanner {
     private const val MAX_SESSIONS = 6
@@ -151,6 +152,8 @@ object WorkoutPlanner {
             Slot(i, templates[i], minutes, budget.toDouble())
         }
 
+        // Academia completa: máquinas e polias primeiro. Em casa não há máquina, então a regra não muda nada.
+        val machines = request.equipment == Equipment.GYM
         val pools = trained.associateWith { group -> pool(catalog, group, request) }
         val uses = mutableMapOf<Long, Int>()
         val effective = trained.associateWith { 0.0 }.toMutableMap()
@@ -171,7 +174,7 @@ object WorkoutPlanner {
                     val wanted = goalOf(g)
                     val deficit = wanted - effective.getValue(g)
                     if (deficit <= 0.0) continue
-                    val slot = chooseSlot(g, slots, pools.getValue(g), goal, uses) ?: continue
+                    val slot = chooseSlot(g, slots, pools.getValue(g), goal, uses, machines) ?: continue
                     val score = deficit / wanted * volume.getValue(g).weight
                     if (score > bestScore) {
                         bestScore = score
@@ -179,7 +182,7 @@ object WorkoutPlanner {
                     }
                 }
                 val (group, slot) = best ?: break
-                addSets(group, slot, pools.getValue(group), goal, uses, effective)
+                addSets(group, slot, pools.getValue(group), goal, uses, effective, machines)
             }
         }
 
@@ -233,9 +236,11 @@ object WorkoutPlanner {
     }
 
     /** Sessão onde mais cabe uma série do grupo: a que tem menos séries dele e, em empate, mais tempo livre. */
-    private fun chooseSlot(group: MuscleGroup, slots: List<Slot>, pool: List<Exercise>, goal: Goal, uses: Map<Long, Int>): Slot? =
+    private fun chooseSlot(
+        group: MuscleGroup, slots: List<Slot>, pool: List<Exercise>, goal: Goal, uses: Map<Long, Int>, machines: Boolean
+    ): Slot? =
         slots
-            .filter { group in it.session.groups && it.setsOf(group) < MAX_DIRECT_PER_SESSION && canAdd(it, group, pool, goal, uses) }
+            .filter { group in it.session.groups && it.setsOf(group) < MAX_DIRECT_PER_SESSION && canAdd(it, group, pool, goal, uses, machines) }
             .minWithOrNull(compareBy<Slot>({ it.setsOf(group) }, { -it.left }, { it.index }))
 
     /** Bloco aberto do grupo na sessão (ainda com espaço para séries) ou, se não há, o próximo exercício a abrir. */
@@ -243,24 +248,35 @@ object WorkoutPlanner {
         slot.blocks.firstOrNull { it.group == group && it.sets < capOf(it.exercise.kind) }
 
     /** Exercício novo para o grupo: compostos primeiro, depois isolados; entre iguais, o menos usado na semana. */
-    private fun nextExercise(slot: Slot, group: MuscleGroup, pool: List<Exercise>, uses: Map<Long, Int>): Exercise? {
+    private fun nextExercise(
+        slot: Slot, group: MuscleGroup, pool: List<Exercise>, uses: Map<Long, Int>, preferMachines: Boolean
+    ): Exercise? {
         val hasCompound = slot.blocks.any { it.group == group && it.exercise.kind == ExerciseKind.COMPOUND }
         // Braços já recebem muito dos compostos de peito e costas: aqui os isolados vêm primeiro, e variam entre as sessões.
         val arms = group == BICEPS || group == TRICEPS
         val preferred = if (hasCompound || arms) ExerciseKind.ISOLATION else ExerciseKind.COMPOUND
         return pool
             .filter { e -> slot.blocks.none { it.exercise.id == e.id } }
-            .minWithOrNull(compareBy({ if (it.kind == preferred) 0 else 1 }, { uses.getOrDefault(it.id, 0) }))
+            .minWithOrNull(
+                compareBy(
+                    // Na academia, máquinas e polias vêm antes de barra e halteres, mesmo antes do tipo do exercício.
+                    { if (preferMachines && ExerciseCatalog.isMachine(it)) 0 else 1 },
+                    { if (it.kind == preferred) 0 else 1 },
+                    { uses.getOrDefault(it.id, 0) }
+                )
+            )
     }
 
-    private fun canAdd(slot: Slot, group: MuscleGroup, pool: List<Exercise>, goal: Goal, uses: Map<Long, Int>): Boolean {
-        val kind = openBlock(slot, group)?.exercise?.kind ?: nextExercise(slot, group, pool, uses)?.kind ?: return false
+    private fun canAdd(
+        slot: Slot, group: MuscleGroup, pool: List<Exercise>, goal: Goal, uses: Map<Long, Int>, machines: Boolean
+    ): Boolean {
+        val kind = openBlock(slot, group)?.exercise?.kind ?: nextExercise(slot, group, pool, uses, machines)?.kind ?: return false
         return slot.left >= setMinutes(kind, goal, slot.minutes)
     }
 
     private fun addSets(
         group: MuscleGroup, slot: Slot, pool: List<Exercise>, goal: Goal,
-        uses: MutableMap<Long, Int>, effective: MutableMap<MuscleGroup, Double>
+        uses: MutableMap<Long, Int>, effective: MutableMap<MuscleGroup, Double>, machines: Boolean
     ) {
         val open = openBlock(slot, group)
         val block: Block
@@ -268,7 +284,7 @@ object WorkoutPlanner {
         if (open != null) {
             block = open
         } else {
-            val exercise = nextExercise(slot, group, pool, uses)!!
+            val exercise = nextExercise(slot, group, pool, uses, machines)!!
             block = Block(exercise, group, 0)
             slot.blocks += block
             uses[exercise.id] = uses.getOrDefault(exercise.id, 0) + 1
