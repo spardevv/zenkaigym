@@ -3,55 +3,55 @@ package com.zenkaigym.data
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import org.json.JSONArray
+import org.json.JSONObject
 
-/** Crédito de uma imagem de exercício (wger.de, licenças Creative Commons). */
-data class ImageCredit(
-    val name: String,
-    val file: String,
-    val title: String,
-    val author: String,
-    val license: String,
-    val licenseUrl: String,
-    val source: String
-)
+/** Crédito do diagrama de músculos, igual para todos os exercícios. */
+data class DiagramCredit(val title: String, val author: String, val license: String, val licenseUrl: String, val source: String)
+
+/** Imagem de um exercício: o diagrama de músculos em [file]. */
+data class ExerciseImage(val name: String, val file: String)
 
 /**
- * Ilustrações dos exercícios, embutidas no app (assets/exercises) e vindas do banco aberto wger.de.
- * Cada imagem tem licença e autor próprios, guardados em credits.json e mostrados na tela e em Ajustes.
- * Funciona sem internet. Exercícios sem imagem (e os criados pelo usuário) simplesmente não mostram nada.
+ * Imagens dos exercícios, embutidas no app (assets/exercises) a partir do banco aberto wger.de: todo exercício
+ * tem o mesmo diagrama de músculos (frente e costas, principal em vermelho e auxiliares em laranja).
+ * Funciona sem internet. Exercícios criados pelo usuário simplesmente não mostram imagem.
  */
 object ExerciseImages {
     private const val DIR = "exercises"
 
-    @Volatile private var credits: Map<String, ImageCredit>? = null
+    private class Data(val diagram: DiagramCredit?, val items: Map<String, ExerciseImage>)
 
-    private fun parse(json: String): Map<String, ImageCredit> {
-        val array = JSONArray(json)
-        return (0 until array.length()).map { array.getJSONObject(it) }.associate { o ->
-            o.getString("name") to ImageCredit(
-                name = o.getString("name"), file = o.getString("file"), title = o.getString("title"),
-                author = o.getString("author"), license = o.getString("license"),
-                licenseUrl = o.getString("licenseUrl"), source = o.getString("source")
+    @Volatile private var data: Data? = null
+
+    private fun parse(json: String): Data {
+        val root = JSONObject(json)
+        val d = root.optJSONObject("diagram")?.let {
+            DiagramCredit(
+                it.getString("title"), it.getString("author"), it.getString("license"),
+                it.getString("licenseUrl"), it.getString("source")
             )
         }
+        val array = root.getJSONArray("items")
+        val items = (0 until array.length()).map { array.getJSONObject(it) }.associate { o ->
+            o.getString("name") to ExerciseImage(o.getString("name"), o.getString("file"))
+        }
+        return Data(d, items)
     }
 
-    private fun all(context: Context): Map<String, ImageCredit> = credits ?: synchronized(this) {
-        credits ?: runCatching {
+    private fun data(context: Context): Data = data ?: synchronized(this) {
+        data ?: runCatching {
             parse(context.assets.open("$DIR/credits.json").bufferedReader(Charsets.UTF_8).use { it.readText() })
-        }.getOrDefault(emptyMap()).also { credits = it }
+        }.getOrDefault(Data(null, emptyMap())).also { data = it }
     }
 
-    fun creditFor(context: Context, exerciseName: String): ImageCredit? = all(context)[exerciseName]
+    fun imageFor(context: Context, exerciseName: String): ExerciseImage? = data(context).items[exerciseName]
 
-    /** Todos os créditos, em ordem alfabética, para a tela de Ajustes. */
-    fun allCredits(context: Context): List<ImageCredit> = all(context).values.sortedBy { it.name }
+    fun diagramCredit(context: Context): DiagramCredit? = data(context).diagram
 
     fun load(context: Context, exerciseName: String): Bitmap? {
-        val credit = creditFor(context, exerciseName) ?: return null
+        val image = imageFor(context, exerciseName) ?: return null
         return runCatching {
-            context.assets.open("$DIR/${credit.file}").use { BitmapFactory.decodeStream(it) }
+            context.assets.open("$DIR/${image.file}").use { BitmapFactory.decodeStream(it) }
         }.getOrNull()
     }
 }

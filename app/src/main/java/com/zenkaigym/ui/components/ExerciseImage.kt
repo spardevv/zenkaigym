@@ -33,7 +33,7 @@ fun ExerciseImage(exerciseName: String, modifier: Modifier = Modifier) {
         value = withContext(Dispatchers.IO) { ExerciseImages.load(context, exerciseName)?.asImageBitmap() }
     }
     val image = bitmap ?: return
-    val credit = ExerciseImages.creditFor(context, exerciseName)
+    val diagram = ExerciseImages.diagramCredit(context)
     Column(modifier) {
         Image(
             bitmap = image,
@@ -41,10 +41,10 @@ fun ExerciseImage(exerciseName: String, modifier: Modifier = Modifier) {
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(12.dp))
         )
-        if (credit != null) {
+        if (diagram != null) {
             Spacer(Modifier.height(2.dp))
             Text(
-                tr("Imagem: {0} · {1} · wger.de", credit.author, credit.license),
+                tr("Diagrama: {0} · CC-BY-SA · wger.de", diagram.author),
                 color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
             )
         }

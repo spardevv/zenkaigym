@@ -361,26 +361,25 @@ private fun WipeDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     }
 }
 
-/** Atribuição exigida pelas licenças Creative Commons das ilustrações (wger.de). */
+/** Atribuição exigida pelas licenças Creative Commons das imagens (wger.de). */
 @Composable
 private fun ImageCreditsDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val credits = remember { com.zenkaigym.data.ExerciseImages.allCredits(context) }
+    val diagram = remember { com.zenkaigym.data.ExerciseImages.diagramCredit(context) }
     ZenDialog(
         tr("Créditos das imagens"), onDismiss, accent = Ao,
         footer = { ZenButton(tr("Fechar"), onDismiss, Modifier.fillMaxWidth(), accent = Zen.p.card, fill = true) }
     ) {
         Text(
-            tr("As ilustrações dos exercícios vêm do wger.de e são licenciadas por seus autores sob Creative Commons (CC-BY-SA). Foram redimensionadas e convertidas para WebP; continuam sob a mesma licença."),
+            tr("O diagrama de músculos dos exercícios vem do wger.de e é licenciado pelo autor sob Creative Commons (CC-BY-SA). Foi redimensionado e colorido por exercício; continua sob a mesma licença."),
             color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
         )
-        Spacer(Modifier.height(8.dp))
-        credits.forEach {
+        if (diagram != null) {
+            Spacer(Modifier.height(8.dp))
             Text(
-                "${tr(it.name)} — ${it.author} · ${it.license}\n${it.source}",
+                tr("Diagrama de músculos") + ": ${diagram.title} — ${diagram.author} · ${diagram.license}\n${diagram.source}",
                 color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
             )
-            Spacer(Modifier.height(6.dp))
         }
     }
 }
