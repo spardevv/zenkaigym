@@ -1,0 +1,95 @@
+# Gera o APK e o AAB de release assinados, mais o mapping.txt do R8.
+# - Tag "v*" (ex.: v1.1.0): versionName/versionCode saem da tag; cria uma Release no GitHub com os arquivos.
+# - Execução manual (aba Actions > APK > Run workflow): arquivos ficam como artifact da execução.
+# Secrets necessários: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD (ver README).
+name: APK
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Recria keystore e keystore.properties a partir dos secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Secrets de assinatura ausentes (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD)."
+            exit 1
+          fi
+          mkdir -p keystore
+          echo "$KEYSTORE_BASE64" | base64 --decode > keystore/release.jks
+          {
+            echo "storeFile=keystore/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Testes unitários
+        run: bash ./gradlew testDebugUnitTest
+
+      # Tag vX.Y.Z -> versionName X.Y.Z e versionCode X*10000+Y*100+Z (sempre crescente).
+      # Execução manual não é tag: usa o padrão do gradle.
+      - name: Versão a partir da tag
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+            if ! [[ "$V" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+              echo "::error::Tag '$GITHUB_REF_NAME' fora do padrão vX, vX.Y ou vX.Y.Z."
+              exit 1
+            fi
+            IFS=. read -r MA MI PA <<< "$V"
+            CODE=$(( 10#${MA} * 10000 + 10#${MI:-0} * 100 + 10#${PA:-0} ))
+            echo "args=-PversionName=$V -PversionCode=$CODE" >> "$GITHUB_OUTPUT"
+            echo "Versão $V (code $CODE)"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: APK e AAB de release
+        run: |
+          bash ./gradlew assembleRelease bundleRelease ${{ steps.ver.outputs.args }}
+          BASE="zenkaigym-${GITHUB_REF_NAME//\//-}"
+          cp app/build/outputs/apk/release/app-release.apk "$BASE.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$BASE.aab"
+          cp app/build/outputs/mapping/release/mapping.txt "$BASE-mapping.txt"
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BASE }}
+          path: |
+            ${{ env.BASE }}.apk
+            ${{ env.BASE }}.aab
+            ${{ env.BASE }}-mapping.txt
+
+      - name: Release com o APK e o AAB
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.BASE }}.apk
+            ${{ env.BASE }}.aab
+            ${{ env.BASE }}-mapping.txt
+          generate_release_notes: true

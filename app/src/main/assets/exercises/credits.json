@@ -1,0 +1,532 @@
+{
+ "diagram": {
+  "title": "Muscular system (front/back)",
+  "author": "Termininja",
+  "license": "CC-BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "source": "https://commons.wikimedia.org/wiki/File:Muscular_system.svg",
+  "via": "wger.de"
+ },
+ "items": [
+  {
+   "name": "Supino reto com barra",
+   "file": "x000.webp"
+  },
+  {
+   "name": "Supino na máquina",
+   "file": "x001.webp"
+  },
+  {
+   "name": "Supino inclinado na máquina",
+   "file": "x002.webp"
+  },
+  {
+   "name": "Supino reto com halteres",
+   "file": "x003.webp"
+  },
+  {
+   "name": "Supino inclinado com halteres",
+   "file": "x004.webp"
+  },
+  {
+   "name": "Flexão de braço",
+   "file": "x005.webp"
+  },
+  {
+   "name": "Crucifixo na máquina",
+   "file": "x006.webp"
+  },
+  {
+   "name": "Crossover na polia",
+   "file": "x007.webp"
+  },
+  {
+   "name": "Crossover polia alta",
+   "file": "x008.webp"
+  },
+  {
+   "name": "Crossover polia baixa",
+   "file": "x009.webp"
+  },
+  {
+   "name": "Crucifixo com halteres",
+   "file": "x010.webp"
+  },
+  {
+   "name": "Puxada frontal",
+   "file": "x011.webp"
+  },
+  {
+   "name": "Puxada supinada",
+   "file": "x012.webp"
+  },
+  {
+   "name": "Puxada articulada na máquina",
+   "file": "x013.webp"
+  },
+  {
+   "name": "Barra fixa",
+   "file": "x014.webp"
+  },
+  {
+   "name": "Remada unilateral com halter",
+   "file": "x015.webp"
+  },
+  {
+   "name": "Pulldown braço reto",
+   "file": "x016.webp"
+  },
+  {
+   "name": "Pullover com halter",
+   "file": "x017.webp"
+  },
+  {
+   "name": "Remada baixa",
+   "file": "x018.webp"
+  },
+  {
+   "name": "Remada na máquina",
+   "file": "x019.webp"
+  },
+  {
+   "name": "Remada unilateral na polia",
+   "file": "x020.webp"
+  },
+  {
+   "name": "Remada cavalinho",
+   "file": "x021.webp"
+  },
+  {
+   "name": "Remada curvada",
+   "file": "x022.webp"
+  },
+  {
+   "name": "Remada curvada com halteres",
+   "file": "x023.webp"
+  },
+  {
+   "name": "Remada invertida",
+   "file": "x024.webp"
+  },
+  {
+   "name": "Encolhimento com barra",
+   "file": "x025.webp"
+  },
+  {
+   "name": "Encolhimento com halteres",
+   "file": "x026.webp"
+  },
+  {
+   "name": "Encolhimento na máquina",
+   "file": "x027.webp"
+  },
+  {
+   "name": "Remada alta",
+   "file": "x028.webp"
+  },
+  {
+   "name": "Elevação Y deitado",
+   "file": "x029.webp"
+  },
+  {
+   "name": "Extensão lombar",
+   "file": "x030.webp"
+  },
+  {
+   "name": "Good morning",
+   "file": "x031.webp"
+  },
+  {
+   "name": "Superman",
+   "file": "x032.webp"
+  },
+  {
+   "name": "Desenvolvimento na máquina",
+   "file": "x033.webp"
+  },
+  {
+   "name": "Desenvolvimento com halteres",
+   "file": "x034.webp"
+  },
+  {
+   "name": "Flexão pike",
+   "file": "x035.webp"
+  },
+  {
+   "name": "Elevação frontal",
+   "file": "x036.webp"
+  },
+  {
+   "name": "Elevação frontal na polia",
+   "file": "x037.webp"
+  },
+  {
+   "name": "Elevação lateral",
+   "file": "x038.webp"
+  },
+  {
+   "name": "Elevação lateral na polia",
+   "file": "x039.webp"
+  },
+  {
+   "name": "Elevação lateral na máquina",
+   "file": "x040.webp"
+  },
+  {
+   "name": "Crucifixo inverso",
+   "file": "x041.webp"
+  },
+  {
+   "name": "Crucifixo inverso na máquina",
+   "file": "x042.webp"
+  },
+  {
+   "name": "Crucifixo inverso na polia",
+   "file": "x043.webp"
+  },
+  {
+   "name": "Face pull",
+   "file": "x044.webp"
+  },
+  {
+   "name": "Rosca direta",
+   "file": "x045.webp"
+  },
+  {
+   "name": "Rosca na polia",
+   "file": "x046.webp"
+  },
+  {
+   "name": "Rosca alternada",
+   "file": "x047.webp"
+  },
+  {
+   "name": "Rosca martelo",
+   "file": "x048.webp"
+  },
+  {
+   "name": "Rosca concentrada",
+   "file": "x049.webp"
+  },
+  {
+   "name": "Rosca Scott",
+   "file": "x050.webp"
+  },
+  {
+   "name": "Rosca na máquina",
+   "file": "x051.webp"
+  },
+  {
+   "name": "Rosca com barra W",
+   "file": "x052.webp"
+  },
+  {
+   "name": "Rosca martelo na corda",
+   "file": "x053.webp"
+  },
+  {
+   "name": "Rosca na polia alta",
+   "file": "x054.webp"
+  },
+  {
+   "name": "Rosca inclinada com halteres",
+   "file": "x055.webp"
+  },
+  {
+   "name": "Rosca Zottman",
+   "file": "x056.webp"
+  },
+  {
+   "name": "Rosca spider",
+   "file": "x057.webp"
+  },
+  {
+   "name": "Rosca martelo cruzada",
+   "file": "x058.webp"
+  },
+  {
+   "name": "Barra fixa supinada",
+   "file": "x059.webp"
+  },
+  {
+   "name": "Rosca isométrica na barra",
+   "file": "x060.webp"
+  },
+  {
+   "name": "Tríceps na polia",
+   "file": "x061.webp"
+  },
+  {
+   "name": "Tríceps testa",
+   "file": "x062.webp"
+  },
+  {
+   "name": "Tríceps francês com halter",
+   "file": "x063.webp"
+  },
+  {
+   "name": "Mergulho no banco",
+   "file": "x064.webp"
+  },
+  {
+   "name": "Flexão diamante",
+   "file": "x065.webp"
+  },
+  {
+   "name": "Tríceps na corda",
+   "file": "x066.webp"
+  },
+  {
+   "name": "Tríceps francês na polia",
+   "file": "x067.webp"
+  },
+  {
+   "name": "Tríceps unilateral na polia",
+   "file": "x068.webp"
+  },
+  {
+   "name": "Tríceps na máquina",
+   "file": "x069.webp"
+  },
+  {
+   "name": "Mergulho na máquina",
+   "file": "x070.webp"
+  },
+  {
+   "name": "Tríceps coice com halter",
+   "file": "x071.webp"
+  },
+  {
+   "name": "Tríceps testa com halteres",
+   "file": "x072.webp"
+  },
+  {
+   "name": "Extensão de tríceps no chão",
+   "file": "x073.webp"
+  },
+  {
+   "name": "Supino fechado",
+   "file": "x074.webp"
+  },
+  {
+   "name": "Mergulho nas paralelas",
+   "file": "x075.webp"
+  },
+  {
+   "name": "Flexão fechada",
+   "file": "x076.webp"
+  },
+  {
+   "name": "Rosca de punho",
+   "file": "x077.webp"
+  },
+  {
+   "name": "Rosca inversa",
+   "file": "x078.webp"
+  },
+  {
+   "name": "Suspensão na barra",
+   "file": "x079.webp"
+  },
+  {
+   "name": "Agachamento livre",
+   "file": "x080.webp"
+  },
+  {
+   "name": "Leg press 45°",
+   "file": "x081.webp"
+  },
+  {
+   "name": "Agachamento hack",
+   "file": "x082.webp"
+  },
+  {
+   "name": "Leg press horizontal",
+   "file": "x083.webp"
+  },
+  {
+   "name": "Agachamento no Smith",
+   "file": "x084.webp"
+  },
+  {
+   "name": "Agachamento goblet",
+   "file": "x085.webp"
+  },
+  {
+   "name": "Afundo com halteres",
+   "file": "x086.webp"
+  },
+  {
+   "name": "Agachamento búlgaro",
+   "file": "x087.webp"
+  },
+  {
+   "name": "Agachamento sem peso",
+   "file": "x088.webp"
+  },
+  {
+   "name": "Cadeira extensora",
+   "file": "x089.webp"
+  },
+  {
+   "name": "Stiff com barra",
+   "file": "x090.webp"
+  },
+  {
+   "name": "Levantamento terra",
+   "file": "x091.webp"
+  },
+  {
+   "name": "Stiff com halteres",
+   "file": "x092.webp"
+  },
+  {
+   "name": "Stiff unilateral sem peso",
+   "file": "x093.webp"
+  },
+  {
+   "name": "Mesa flexora",
+   "file": "x094.webp"
+  },
+  {
+   "name": "Cadeira flexora",
+   "file": "x095.webp"
+  },
+  {
+   "name": "Flexora em pé",
+   "file": "x096.webp"
+  },
+  {
+   "name": "Flexão nórdica",
+   "file": "x097.webp"
+  },
+  {
+   "name": "Elevação pélvica",
+   "file": "x098.webp"
+  },
+  {
+   "name": "Elevação pélvica com halter",
+   "file": "x099.webp"
+  },
+  {
+   "name": "Elevação pélvica na máquina",
+   "file": "x100.webp"
+  },
+  {
+   "name": "Glúteo na máquina",
+   "file": "x101.webp"
+  },
+  {
+   "name": "Ponte de glúteo",
+   "file": "x102.webp"
+  },
+  {
+   "name": "Glúteo na polia",
+   "file": "x103.webp"
+  },
+  {
+   "name": "Cadeira abdutora",
+   "file": "x104.webp"
+  },
+  {
+   "name": "Abdução deitado de lado",
+   "file": "x105.webp"
+  },
+  {
+   "name": "Cadeira adutora",
+   "file": "x106.webp"
+  },
+  {
+   "name": "Adução na polia",
+   "file": "x107.webp"
+  },
+  {
+   "name": "Agachamento sumô com halter",
+   "file": "x108.webp"
+  },
+  {
+   "name": "Adução deitado de lado",
+   "file": "x109.webp"
+  },
+  {
+   "name": "Prancha de Copenhague",
+   "file": "x110.webp"
+  },
+  {
+   "name": "Panturrilha em pé",
+   "file": "x111.webp"
+  },
+  {
+   "name": "Panturrilha sentado",
+   "file": "x112.webp"
+  },
+  {
+   "name": "Panturrilha no leg press",
+   "file": "x113.webp"
+  },
+  {
+   "name": "Panturrilha unilateral com halter",
+   "file": "x114.webp"
+  },
+  {
+   "name": "Panturrilha no degrau",
+   "file": "x115.webp"
+  },
+  {
+   "name": "Prancha",
+   "file": "x116.webp"
+  },
+  {
+   "name": "Abdominal supra",
+   "file": "x117.webp"
+  },
+  {
+   "name": "Abdominal infra",
+   "file": "x118.webp"
+  },
+  {
+   "name": "Elevação de pernas",
+   "file": "x119.webp"
+  },
+  {
+   "name": "Abdominal bicicleta",
+   "file": "x120.webp"
+  },
+  {
+   "name": "Dead bug",
+   "file": "x121.webp"
+  },
+  {
+   "name": "Abdominal na polia",
+   "file": "x122.webp"
+  },
+  {
+   "name": "Abdominal na máquina",
+   "file": "x123.webp"
+  },
+  {
+   "name": "Roda abdominal",
+   "file": "x124.webp"
+  },
+  {
+   "name": "Prancha lateral",
+   "file": "x125.webp"
+  },
+  {
+   "name": "Abdominal oblíquo",
+   "file": "x126.webp"
+  },
+  {
+   "name": "Russian twist",
+   "file": "x127.webp"
+  },
+  {
+   "name": "Lenhador na polia",
+   "file": "x128.webp"
+  },
+  {
+   "name": "Pallof press",
+   "file": "x129.webp"
+  }
+ ]
+}
