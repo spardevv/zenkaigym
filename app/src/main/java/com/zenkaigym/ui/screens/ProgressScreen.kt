@@ -1,5 +1,8 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.IconText
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -97,7 +100,7 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             ZenFixedHeader(
                 tr("Evolução"), "進", accent = Daidai, subtitle = tr("Treino, dieta, peso e conquistas"),
-                back = { ZenButton(tr("←  Voltar ao perfil"), onBack, accent = Zen.p.card, small = true) }
+                back = { ZenButton(tr("Voltar ao perfil"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
             )
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = gutter),
@@ -188,8 +191,8 @@ private fun SummaryTab(s: ProgressStats, onSeeAchievements: () -> Unit) {
         }
         Spacer(Modifier.height(12.dp))
         ZenButton(
-            tr("Ver conquistas ({0}/{1})  →", s.unlockedCount, s.achievements.size),
-            onSeeAchievements, accent = Sakura, fill = true, small = true
+            tr("Ver conquistas ({0}/{1})", s.unlockedCount, s.achievements.size),
+            onSeeAchievements, accent = Sakura, fill = true, small = true, trailing = ZenIcons.ArrowRight
         )
     }
 
@@ -234,7 +237,7 @@ private fun WeekCard(s: ProgressStats) {
                             .border(if (dow == todayDow) look.border else look.thinBorder, p.border, look.smallShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (done) Text("✓", color = Sumi, fontWeight = FontWeight.Black)
+                        if (done) ZenIcon(ZenIcons.Check, size = 18.dp, color = Sumi)
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(WEEK_DAYS_SHORT[dow - 1], color = if (dow == todayDow) p.ink else p.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
@@ -300,10 +303,11 @@ private fun TrainingTab(s: ProgressStats) {
             ((s.volumePerWeek.last() - s.volumePerWeek[s.volumePerWeek.size - 2]) / s.volumePerWeek[s.volumePerWeek.size - 2] * 100).roundToInt()
         } else null
         change?.let {
-            Text(
-                if (it >= 0) tr("▲ {0}% sobre a semana passada", it) else tr("▼ {0}% sobre a semana passada", -it),
-                color = Sumi, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
-                modifier = Modifier.background(if (it >= 0) Midori else Daidai).padding(horizontal = 8.dp, vertical = 3.dp)
+            IconText(
+                if (it >= 0) tr("+{0}% sobre a semana passada", it) else tr("−{0}% sobre a semana passada", -it),
+                Modifier.background(if (it >= 0) Midori else Daidai).padding(horizontal = 8.dp, vertical = 3.dp),
+                leading = if (it >= 0) ZenIcons.TrendUp else ZenIcons.TrendDown,
+                color = Sumi, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), iconSize = 12.dp
             )
             Spacer(Modifier.height(10.dp))
         }
@@ -553,7 +557,7 @@ private fun AchievementRow(a: Achievement, accent: Color) {
                 Text(a.progressText, color = p.muted, style = MaterialTheme.typography.labelSmall)
             }
         }
-        if (a.unlocked) Text("✓", Modifier.padding(start = 8.dp), color = Midori, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+        if (a.unlocked) ZenIcon(ZenIcons.Check, Modifier.padding(start = 8.dp), size = 20.dp, color = Midori)
     }
 }
 

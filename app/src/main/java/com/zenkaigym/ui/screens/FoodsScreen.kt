@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.domain.tr
@@ -67,7 +69,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
       Column(Modifier.fillMaxSize()) {
         ZenFixedHeader(
             tr("Alimentos"), "米", accent = Midori, subtitle = tr("Valores por 100 g · a dieta usa estes"),
-            back = { ZenButton(tr("←  Voltar à dieta"), onBack, accent = Zen.p.card, small = true) }
+            back = { ZenButton(tr("Voltar à dieta"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
         )
         Box(Modifier.weight(1f)) {
         val listState = rememberLazyListState()
@@ -115,7 +117,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                                     Text(tr("1 {0} = {1} g", tr(food.unitLabel.orEmpty()), it.fmt()), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
-                            Text("✎", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
+                            ZenIcon(ZenIcons.Edit, size = 20.dp, color = Zen.p.muted)
                         }
                     }
                 }

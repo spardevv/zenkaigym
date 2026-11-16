@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -105,7 +107,7 @@ fun AvailabilitySection(
                     modifier = Modifier.width(52.dp)
                 )
                 TimeChip(window.start.format(), { picker = PickerTarget(day, true) }, Modifier.weight(1f), accent = Ki.copy(alpha = 0.5f))
-                Text("→", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
+                ZenIcon(ZenIcons.ArrowRight, Modifier.padding(horizontal = 8.dp))
                 TimeChip(window.end.format(), { picker = PickerTarget(day, false) }, Modifier.weight(1f), accent = Daidai.copy(alpha = 0.5f))
             }
         }

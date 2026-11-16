@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -119,7 +120,9 @@ fun ZenButton(
     accent: Color = Aka,
     enabled: Boolean = true,
     fill: Boolean = false,
-    small: Boolean = false
+    small: Boolean = false,
+    leading: ImageVector? = null,
+    trailing: ImageVector? = null
 ) {
     val p = Zen.p
     val look = Zen.look
@@ -154,10 +157,23 @@ fun ZenButton(
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            FitLabel(
-                text.uppercase(), if (enabled && (accent == p.card || accent == p.bg)) p.ink else Sumi,
-                baseSp = if (small) 12f else 14f, letterSpacing = if (small) 0.5.sp else 1.sp
-            )
+            val ink = if (enabled && (accent == p.card || accent == p.bg)) p.ink else Sumi
+            val iconSize = if (small) 15.dp else 18.dp
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (leading != null) {
+                    ZenIcon(leading, size = iconSize, color = ink)
+                    Spacer(Modifier.width(6.dp))
+                }
+                FitLabel(
+                    text.uppercase(), ink,
+                    baseSp = if (small) 12f else 14f, letterSpacing = if (small) 0.5.sp else 1.sp,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (trailing != null) {
+                    Spacer(Modifier.width(6.dp))
+                    ZenIcon(trailing, size = iconSize, color = ink)
+                }
+            }
         }
     }
 }
@@ -167,10 +183,10 @@ fun ZenButton(
  * a fonte encolhe até um mínimo, para que todos os botões de uma fileira fiquem com a mesma altura.
  */
 @Composable
-private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: TextUnit) {
+private fun FitLabel(text: String, color: Color, baseSp: Float, letterSpacing: TextUnit, modifier: Modifier = Modifier) {
     var size by remember(text, baseSp) { mutableFloatStateOf(baseSp) }
     Text(
-        text, color = color, style = MaterialTheme.typography.labelLarge,
+        text, modifier, color = color, style = MaterialTheme.typography.labelLarge,
         fontSize = size.sp, letterSpacing = if (size < baseSp) 0.sp else letterSpacing,
         maxLines = 1, softWrap = false, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis,
         onTextLayout = { if (it.hasVisualOverflow && size > MIN_LABEL_SP) size = (size - 1f).coerceAtLeast(MIN_LABEL_SP) }
@@ -189,7 +205,8 @@ fun ZenChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accent: Color = Ki,
-    compact: Boolean = false
+    compact: Boolean = false,
+    mark: ImageVector? = null
 ) {
     val p = Zen.p
     val interaction = remember { MutableInteractionSource() }
@@ -208,7 +225,17 @@ fun ZenChip(
             .padding(horizontal = if (compact) 0.dp else 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        FitLabel(text, content, baseSp = if (compact) 12f else 14f, letterSpacing = if (compact) 0.sp else 1.sp)
+        // [mark] é um ícone pequeno antes do rótulo (ex.: refeição feita, dia do lixo).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (mark != null) {
+                ZenIcon(mark, size = if (compact) 10.dp else 14.dp, color = content)
+                Spacer(Modifier.width(if (compact) 2.dp else 5.dp))
+            }
+            FitLabel(
+                text, content, baseSp = if (compact) 12f else 14f, letterSpacing = if (compact) 0.sp else 1.sp,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
     }
 }
 

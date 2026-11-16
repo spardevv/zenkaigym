@@ -110,7 +110,7 @@ private fun CheckPop() {
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text("✓", color = com.zenkaigym.ui.theme.Sumi, style = MaterialTheme.typography.labelLarge)
+        ZenIcon(ZenIcons.Check, size = 16.dp, color = com.zenkaigym.ui.theme.Sumi)
     }
 }
 

@@ -1,5 +1,8 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.IconText
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.compose.ui.semantics.Role
@@ -119,7 +122,7 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
             contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "foods") { ZenButton(tr("Meus alimentos  →"), onOpenFoods, accent = Ao, fill = true, small = true) }
+            item(key = "foods") { ZenButton(tr("Meus alimentos"), onOpenFoods, accent = Ao, fill = true, small = true, trailing = ZenIcons.ArrowRight) }
             profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
             item(key = "schedule") { ScheduleCard(slots, viewModel) }
             item(key = "plan") {
@@ -333,11 +336,17 @@ private fun DayPicker(plan: DietPlanFull, day: Int, onSelect: (Int) -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Zen.week.days.forEach { dow ->
                 val label = WEEK_DAYS_SHORT[dow - 1]
-                ZenChip(if (dow == cheatDay) "$label★" else label, day == dow, { onSelect(dow) }, Modifier.weight(1f), accent = if (dow == cheatDay) Aka else Midori, compact = true)
+                ZenChip(
+                    label, day == dow, { onSelect(dow) }, Modifier.weight(1f), accent = if (dow == cheatDay) Aka else Midori,
+                    compact = true, mark = if (dow == cheatDay) ZenIcons.Star else null
+                )
             }
         }
         if (cheatDay != null) {
-            Text(tr("★ Dia do lixo: {0}", WEEK_DAYS_LONG[cheatDay - 1]), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+            IconText(
+                tr("Dia do lixo: {0}", WEEK_DAYS_LONG[cheatDay - 1]), leading = ZenIcons.Star,
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall, iconSize = 12.dp
+            )
         }
     }
 }
@@ -494,7 +503,7 @@ private fun MealCard(meal: MealFull, time: String, onEdit: (Long) -> Unit, onAdd
                     Text(tr(entry.food.name), style = MaterialTheme.typography.bodyLarge)
                     Text("${Portions.text(entry.food, entry.item.grams)} · ${entry.food.category.label}", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                 }
-                Text("⇄", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
+                ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
             }
         }
         Spacer(Modifier.height(6.dp))

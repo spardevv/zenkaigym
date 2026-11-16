@@ -15,7 +15,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 document.documentElement.classList.add('loading');
 </script>
 <noscript><style>#preloader{display:none!important}html.loading{overflow:auto!important}</style></noscript>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23F25A52' stroke='%233A3A40' stroke-width='5'/%3E%3Ctext x='32' y='45' font-size='36' font-weight='900' text-anchor='middle' fill='%2317171A' font-family='sans-serif'%3E禅%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Ccircle%20cx='32'%20cy='32'%20r='29'%20fill='%23F25A52'%20stroke='%233A3A40'%20stroke-width='5'/%3E%3Cg%20transform='rotate%28-35%2032%2032%29%20translate%2812%2012%29%20scale%281.667%29'%20fill='none'%20stroke='%2317171A'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M10%2012%20H14%20M6.6%206.5%20h2.6%20v11%20h-2.6%20Z%20M14.8%206.5%20h2.6%20v11%20h-2.6%20Z%20M3%209.5%20V14.5%20M21%209.5%20V14.5'/%3E%3C/g%3E%3C/svg%3E">
 <style>
 :root{
   --washi:#F3F0E8; --card:#FCFBF7; --ink:#17171A; --muted:#6E6E6A;
@@ -74,6 +74,7 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;g
   width:44px;height:44px;border-radius:50%;background:var(--aka);border:3px solid var(--border);
   display:grid;place-items:center;font-style:normal;font-size:22px;font-weight:900;flex:none;
 }
+.seal svg{width:62%;height:62%;transform:rotate(-35deg)}
 .seal.lg{width:64px;height:64px;font-size:34px}
 
 /* hero */
@@ -113,6 +114,7 @@ section>.wrap,section>.shots{width:100%}
   width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;
   background:var(--c);border:3px solid var(--border);font-style:normal;font-size:22px;font-weight:900;
 }
+.feat .kanji svg{width:24px;height:24px}
 .feat p{font-size:15px;color:#2b2b30}
 
 /* galeria */
@@ -254,13 +256,13 @@ html.loading .hero *{animation-play-state:paused!important}
 <body>
 
 <div id="preloader" role="status" aria-live="polite" aria-label="Carregando">
-  <div class="ring"><span class="seal" aria-hidden="true">禅</span></div>
+  <div class="ring"><span class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5"/></svg></span></div>
   <p>Carregando…</p>
 </div>
 
 <header class="top" id="topo">
   <div class="wrap">
-    <a class="brand" href="#" aria-label="Zenkaigym"><span class="seal" aria-hidden="true">禅</span>Zenkaigym</a>
+    <a class="brand" href="#" aria-label="Zenkaigym"><span class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5"/></svg></span>Zenkaigym</a>
     <a class="btn small" href="https://github.com/spardevv/zenkaigym/releases/latest" data-apk>Baixar APK</a>
   </div>
 </header>
@@ -282,7 +284,7 @@ html.loading .hero *{animation-play-state:paused!important}
         </ul>
       </div>
       <div>
-        <div class="phone"><img src="img/dojo.png" width="540" height="1134" alt="Tela Dojo do app: treino de hoje com a lista de exercícios e botão Treinar agora"></div>
+        <div class="phone"><img src="img/dojo.webp" width="540" height="1200" alt="Tela Dojo do app: treino de hoje com a lista de exercícios e botão Treinar agora"></div>
       </div>
     </div>
   </section>
@@ -295,27 +297,27 @@ html.loading .hero *{animation-play-state:paused!important}
       </div>
       <div class="grid">
         <article class="card feat" style="--c:var(--aka)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">道</span>Dojo</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 C7 7.5 17 7.5 21.5 5.5 M5 11 H19 M7.5 7.5 V20.5 M16.5 7.5 V20.5 M12 7 V11"/></svg></span>Dojo</h3>
           <p>O treino de hoje e a próxima refeição na tela inicial. Um toque em <b>Feito ✓</b> e pronto; deslize para ver as outras refeições.</p>
         </div></article>
         <article class="card feat" style="--c:var(--ki)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">体</span>Treino</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5"/></svg></span>Treino</h3>
           <p>Escolha dias e horários. O app sugere a ficha (ABC, superior/inferior, push/pull/legs…) conforme o objetivo, com máquinas e polias primeiro na academia.</p>
         </div></article>
         <article class="card feat" style="--c:var(--midori)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">食</span>Dieta</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12 H20.5 A8.5 8.5 0 0 1 3.5 12 Z M8 8.5 L18.5 3 M12 9 L20.5 6"/></svg></span>Dieta</h3>
           <p>Meta diária calculada, de 3 a 6 refeições com horário e quantidades, e alimentos adequados a cada período do dia.</p>
         </div></article>
         <article class="card feat" style="--c:var(--ao)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">替</span>Trocas</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8 H19.5 M16 4.5 L19.5 8 L16 11.5 M20 16 H4.5 M8 12.5 L4.5 16 L8 19.5"/></svg></span>Trocas</h3>
           <p>Toque em qualquer alimento ou exercício para ajustar, trocar por uma alternativa com porção equivalente, criar o seu ou remover.</p>
         </div></article>
         <article class="card feat" style="--c:var(--daidai)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">買</span>Lista de compras</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6 H20 M10 12 H20 M10 18 H20 M4 5.5 L5.5 7 L8 4.5 M4 11.5 L5.5 13 L8 10.5 M4 17.5 L5.5 19 L8 16.5"/></svg></span>Lista de compras</h3>
           <p>Soma o cardápio para a semana, a quinzena ou o mês, agrupa por categoria e compartilha no WhatsApp, notas ou e-mail.</p>
         </div></article>
         <article class="card feat" style="--c:var(--sakura)"><div class="in">
-          <h3><span class="kanji" aria-hidden="true">練</span>Modo treino</h3>
+          <h3><span class="kanji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13.5 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0 M12 13.5 V9.5 M9.5 3 H14.5"/></svg></span>Modo treino</h3>
           <p>Um exercício por vez, com diagrama dos músculos, cargas, repetições e descanso. Troque um exercício só no treino do dia.</p>
         </div></article>
       </div>
@@ -358,7 +360,7 @@ html.loading .hero *{animation-play-state:paused!important}
         </div>
       </div>
       <div>
-        <div class="phone"><img loading="lazy" src="img/evolucao.png" width="540" height="1134" alt="Tela Evolução: nível 2 Novato com barra de XP, meta da semana, dias treinados e próximas conquistas"></div>
+        <div class="phone"><img loading="lazy" src="img/evolucao.webp" width="540" height="1200" alt="Tela Evolução: nível 1 Novato com barra de XP, meta da semana, dias treinados e próximas conquistas"></div>
       </div>
     </div>
   </section>
@@ -366,7 +368,7 @@ html.loading .hero *{animation-play-state:paused!important}
   <section id="graficos">
     <div class="wrap split">
       <div>
-        <div class="phone"><img loading="lazy" src="img/conquistas.png" width="540" height="1134" alt="Aba Conquistas com a lista de conquistas e barras de progresso"></div>
+        <div class="phone"><img loading="lazy" src="img/conquistas.webp" width="540" height="1200" alt="Aba Conquistas com a lista de conquistas e barras de progresso"></div>
       </div>
       <div>
         <div class="sec-head">
@@ -432,12 +434,12 @@ html.loading .hero *{animation-play-state:paused!important}
       </div>
     </div>
     <div class="shots" tabindex="0" aria-label="Galeria de telas (role para o lado)">
-      <figure><div class="phone"><img loading="lazy" src="img/dojo.png" width="540" height="1134" alt="Tela Dojo"></div><figcaption>Dojo<small>O dia em uma tela</small></figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/evolucao.png" width="540" height="1134" alt="Tela Evolução com nível, XP e meta da semana"></div><figcaption>Evolução<small>Nível, metas e sequências</small></figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/conquistas.png" width="540" height="1134" alt="Aba Conquistas com barras de progresso"></div><figcaption>Conquistas<small>14 para desbloquear</small></figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/treino.webp" width="540" height="1134" alt="Tela Treino com dias e horários"></div><figcaption>Treino<small>Dias, horários e ficha</small></figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/dieta.webp" width="540" height="1134" alt="Tela Dieta com meta diária e refeições"></div><figcaption>Dieta<small>Meta, horários e refeições</small></figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/modo.webp" width="540" height="1134" alt="Modo treino com diagrama de músculos e séries"></div><figcaption>Modo treino<small>Um exercício por vez</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/dojo.webp" width="540" height="1200" alt="Tela Dojo"></div><figcaption>Dojo<small>O dia em uma tela</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/evolucao.webp" width="540" height="1200" alt="Tela Evolução com nível, XP e meta da semana"></div><figcaption>Evolução<small>Nível, metas e sequências</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/conquistas.webp" width="540" height="1200" alt="Aba Conquistas com barras de progresso"></div><figcaption>Conquistas<small>14 para desbloquear</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/treino.webp" width="540" height="1200" alt="Tela Treino com dias e horários"></div><figcaption>Treino<small>Dias, horários e ficha</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/dieta.webp" width="540" height="1200" alt="Tela Dieta com meta diária e refeições"></div><figcaption>Dieta<small>Meta, horários e refeições</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/modo.webp" width="540" height="1200" alt="Modo treino com diagrama de músculos e séries"></div><figcaption>Modo treino<small>Um exercício por vez</small></figcaption></figure>
     </div>
   </section>
 

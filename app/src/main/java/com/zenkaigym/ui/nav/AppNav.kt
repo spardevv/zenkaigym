@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Box
@@ -55,9 +54,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -103,15 +104,15 @@ object Routes {
     const val SETTINGS = "settings"
 }
 
-private class Tab(val route: String, val kanji: String, val label: String, val color: Color, val hero: Boolean = false)
+private class Tab(val route: String, val icon: ImageVector, val label: String, val color: Color, val hero: Boolean = false)
 
 // O Dojo (home) fica sempre no centro e com destaque maior.
 private fun tabs() = listOf(
-    Tab(Routes.WORKOUT, "体", tr("Treino"), Ki),
-    Tab(Routes.DIET, "食", tr("Dieta"), Midori),
-    Tab(Routes.HOME, "道", tr("Dojo"), Aka, hero = true),
-    Tab(Routes.PROFILE, "己", tr("Perfil"), Daidai),
-    Tab(Routes.SETTINGS, "設", tr("Ajustes"), Ao)
+    Tab(Routes.WORKOUT, ZenIcons.Workout, tr("Treino"), Ki),
+    Tab(Routes.DIET, ZenIcons.Diet, tr("Dieta"), Midori),
+    Tab(Routes.HOME, ZenIcons.Dojo, tr("Dojo"), Aka, hero = true),
+    Tab(Routes.PROFILE, ZenIcons.Profile, tr("Perfil"), Daidai),
+    Tab(Routes.SETTINGS, ZenIcons.Settings, tr("Ajustes"), Ao)
 )
 
 /** Ordem das abas na barra, para saber de que lado a próxima tela entra. */
@@ -226,7 +227,7 @@ fun AppNav(viewModel: ZenViewModel) {
     }
 }
 
-/** Uma aba (kanji + rótulo), igual na barra inferior e na coluna lateral. */
+/** Uma aba (ícone + rótulo), igual na barra inferior e na coluna lateral. */
 @Composable
 private fun TabItem(tab: Tab, selected: Boolean, narrow: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
     val p = Zen.p
@@ -247,16 +248,15 @@ private fun TabItem(tab: Tab, selected: Boolean, narrow: Boolean, modifier: Modi
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Altura fixa para o kanji: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
+        // Altura fixa para o ícone: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
         Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
-            Text(
-                tab.kanji,
-                modifier = Modifier.clearAndSetSemantics { }.graphicsLayer {
+            ZenIcon(
+                tab.icon,
+                modifier = Modifier.graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 },
-                fontSize = if (tab.hero) (if (narrow) 26.sp else 28.sp) else (if (narrow) 20.sp else 22.sp),
-                fontWeight = FontWeight.Black,
+                size = if (tab.hero) (if (narrow) 26.dp else 28.dp) else (if (narrow) 21.dp else 23.dp),
                 color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
             )
         }

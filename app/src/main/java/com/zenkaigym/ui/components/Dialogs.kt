@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import com.zenkaigym.domain.tr
 import androidx.compose.animation.animateContentSize
@@ -195,19 +196,22 @@ fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfir
     }
 }
 
-/** Ajuste de quantidade: [−] valor [+]. */
+/** Ajuste de quantidade: menos, valor, mais. */
 @Composable
 fun Stepper(label: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        MiniButton("−", onMinus)
+        MiniButton(ZenIcons.Minus, onMinus)
         Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
-        MiniButton("+", onPlus)
+        MiniButton(ZenIcons.Plus, onPlus)
     }
 }
 
 /** Linha tocável de uma lista de escolhas dentro de uma janela. */
 @Composable
-fun PickRow(title: String, subtitle: String?, trailing: String?, accent: Color, onClick: () -> Unit) {
+fun PickRow(
+    title: String, subtitle: String?, trailing: String?, accent: Color,
+    trailingIcon: ImageVector? = null, onClick: () -> Unit
+) {
     val p = Zen.p
     Row(
         Modifier
@@ -226,6 +230,7 @@ fun PickRow(title: String, subtitle: String?, trailing: String?, accent: Color, 
             if (subtitle != null) Text(subtitle, color = p.muted, style = MaterialTheme.typography.bodyMedium)
         }
         if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelLarge)
+        if (trailingIcon != null) ZenIcon(trailingIcon, size = 20.dp)
     }
 }
 

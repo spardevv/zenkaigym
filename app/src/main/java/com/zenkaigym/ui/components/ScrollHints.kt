@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.components
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
@@ -24,19 +25,19 @@ import androidx.compose.ui.unit.dp
 import com.zenkaigym.ui.theme.Zen
 
 /**
- * Setas que avisam que há mais conteúdo para rolar: ▲ quando dá para subir e ▼ quando dá para descer.
+ * Setas que avisam que há mais conteúdo para rolar: para cima quando dá para subir e para baixo quando dá para descer.
  * Não captam toque; ficam por cima da área rolável.
  */
 @Composable
 fun ScrollHints(canUp: Boolean, canDown: Boolean, modifier: Modifier = Modifier) {
     Box(modifier) {
-        Hint(canUp, "▲", Alignment.TopCenter, direction = -1f)
-        Hint(canDown, "▼", Alignment.BottomCenter, direction = 1f)
+        Hint(canUp, ZenIcons.ChevronUp, Alignment.TopCenter, direction = -1f)
+        Hint(canDown, ZenIcons.ChevronDown, Alignment.BottomCenter, direction = 1f)
     }
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.Hint(visible: Boolean, symbol: String, align: Alignment, direction: Float) {
+private fun androidx.compose.foundation.layout.BoxScope.Hint(visible: Boolean, symbol: ImageVector, align: Alignment, direction: Float) {
     val p = Zen.p
     AnimatedVisibility(visible, Modifier.align(align), enter = fadeIn(tween(150)), exit = fadeOut(tween(150))) {
         // A animação infinita só existe enquanto a seta está visível: escondida, não gasta quadros.
@@ -50,9 +51,9 @@ private fun androidx.compose.foundation.layout.BoxScope.Hint(visible: Boolean, s
                 .clip(Zen.look.smallShape)
                 .background(p.card)
                 .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
-                .padding(horizontal = 14.dp, vertical = 1.dp)
+                .padding(horizontal = 14.dp, vertical = 2.dp)
         ) {
-            Text(symbol, style = MaterialTheme.typography.labelLarge)
+            ZenIcon(symbol, size = 16.dp)
         }
     }
 }

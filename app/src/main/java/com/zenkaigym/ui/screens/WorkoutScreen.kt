@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.ui.components.MiniButton
@@ -189,7 +191,7 @@ private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> 
                         color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                Text("⇄", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
+                ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -335,9 +337,9 @@ private fun MyExercisesDialog(exercises: List<Exercise>, viewModel: ZenViewModel
                     Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
                     Text(exercise.group.label, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                 }
-                MiniButton("✎", { renaming = exercise }, description = tr("Renomear"))
+                MiniButton(ZenIcons.Edit, { renaming = exercise }, description = tr("Renomear"))
                 Spacer(Modifier.width(4.dp))
-                MiniButton("✕", { deleting = exercise }, color = Aka)
+                MiniButton(ZenIcons.Close, { deleting = exercise }, color = Aka)
             }
         }
     }

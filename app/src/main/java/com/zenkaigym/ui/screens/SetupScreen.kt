@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.IconText
+import com.zenkaigym.ui.components.ZenIcons
 import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -338,7 +340,7 @@ private fun WorkoutReviewStep(viewModel: ZenViewModel) {
                 ZenButton(tr("Outra"), viewModel::generateWorkout, Modifier.weight(1f), accent = Sakura, fill = true)
             }
         } else {
-            Text(tr("Treino aceito ✓"), color = Midori, style = MaterialTheme.typography.labelLarge)
+            IconText(tr("Treino aceito"), trailing = ZenIcons.Check, color = Midori, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

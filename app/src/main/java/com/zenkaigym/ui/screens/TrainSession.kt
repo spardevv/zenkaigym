@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -381,7 +383,7 @@ private fun SwapExerciseDialog(
         if (swapped && original != null) {
             Text(tr("VOLTAR AO DA FICHA"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
             Spacer(Modifier.height(4.dp))
-            PickRow(tr(original.name), group.label, "↺", accent) { onSwap(original) }
+            PickRow(tr(original.name), group.label, null, accent, trailingIcon = ZenIcons.Undo) { onSwap(original) }
             Spacer(Modifier.height(10.dp))
         }
         Text(tr("TROCAR POR ({0})", group.label.uppercase()), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
@@ -503,7 +505,8 @@ private fun TrainFooter(
                 val restEnabled = !allDone && !done
                 ToolButton(
                     top = if (r != null) tr("DESCANSO · PULAR") else tr("DESCANSO"),
-                    main = if (r != null) "%d:%02d".format(remainingMs / 60_000, remainingMs / 1000 % 60) else "⏱ %d:%02d".format(manualRest / 60, manualRest % 60),
+                    main = if (r != null) "%d:%02d".format(remainingMs / 60_000, remainingMs / 1000 % 60) else "%d:%02d".format(manualRest / 60, manualRest % 60),
+                    mainIcon = if (r != null) null else ZenIcons.Timer,
                     onClick = { if (r != null) viewModel.stopRest() else viewModel.startRest(manualRest) },
                     modifier = Modifier.weight(1f),
                     accent = Ao,
@@ -513,7 +516,8 @@ private fun TrainFooter(
                 )
                 // Ação principal do treino: vermelho sólido e mais larga, para achar sem procurar.
                 ToolButton(
-                    top = tr("PRÓXIMA SÉRIE") + "  ▶",
+                    top = tr("PRÓXIMA SÉRIE"),
+                    topIcon = ZenIcons.Play,
                     main = nextLabel ?: tr("Tudo feito!"),
                     onClick = onNext,
                     modifier = Modifier.weight(2f),
@@ -527,7 +531,10 @@ private fun TrainFooter(
                 ZenButton(tr("Sair"), onClose, Modifier.weight(1f), accent = p.card, fill = true)
                 if (done) {
                     // Sempre visível: mostra que já foi concluído e permite desfazer.
-                    ZenButton(tr("Treino feito ✓ · desfazer"), { viewModel.setWorkoutDone(false) }, Modifier.weight(1.4f), accent = Midori, fill = true)
+                    ZenButton(
+                        tr("Treino feito · desfazer"), { viewModel.setWorkoutDone(false) }, Modifier.weight(1.4f),
+                        accent = Midori, fill = true, leading = ZenIcons.Check
+                    )
                 } else {
                     // Com todas as séries feitas, o botão pulsa chamando para fechar o treino.
                     val pulse = if (allDone) {
@@ -562,7 +569,9 @@ private fun ToolButton(
     filled: Boolean = false,
     enabled: Boolean = true,
     icon: ImageVector? = null,
-    iconDescription: String? = null
+    iconDescription: String? = null,
+    topIcon: ImageVector? = null,
+    mainIcon: ImageVector? = null
 ) {
     val p = Zen.p
     val look = Zen.look
@@ -603,19 +612,29 @@ private fun ToolButton(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(top, color = topColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    top, Modifier.weight(1f, fill = false), color = topColor,
+                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1
+                )
+                if (topIcon != null) ZenIcon(topIcon, Modifier.padding(start = 5.dp), size = 9.dp, color = topColor)
+            }
             // Ícone vetorial em vez de símbolo de texto: símbolos como ☀ viram emoji colorido e ignoram a cor.
             if (icon != null) {
                 Icon(icon, contentDescription = iconDescription, tint = mainColor, modifier = Modifier.size(22.dp))
             } else {
-                Text(
-                    main,
-                    color = mainColor,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (mainIcon != null) ZenIcon(mainIcon, Modifier.padding(end = 5.dp), size = 16.dp, color = mainColor)
+                    Text(
+                        main,
+                        Modifier.weight(1f, fill = false),
+                        color = mainColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -659,7 +678,7 @@ private fun TrainHeader(dayName: String, onClose: () -> Unit) {
                     .clickable(interaction, null, role = Role.Button, onClick = onClose),
                 contentAlignment = Alignment.Center
             ) {
-                Text("✕", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                ZenIcon(ZenIcons.Close, size = 20.dp)
             }
         }
         Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
@@ -742,7 +761,7 @@ private fun ExercisePanel(
         Spacer(Modifier.height(8.dp))
         // Com séries já registradas a troca fica travada: o registro pertence ao exercício atual.
         if (doneCount == 0) {
-            ZenButton(tr("⇄ Trocar exercício ({0})", group.label), onSwap, accent = Zen.p.card, small = true)
+            ZenButton(tr("Trocar exercício ({0})", group.label), onSwap, accent = Zen.p.card, small = true, leading = ZenIcons.Swap)
         } else {
             Text(tr("Para trocar, desfaça as séries deste exercício."), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         }
@@ -917,15 +936,14 @@ private fun SetRow(
                 .clickable(interaction, null, enabled = canLog, onClick = onToggle),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                "✓",
+            ZenIcon(
+                ZenIcons.Check,
+                size = 20.dp,
                 color = when {
                     logged -> Sumi
                     canLog -> p.ink
                     else -> p.muted.copy(alpha = 0.4f)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black
+                }
             )
         }
     }

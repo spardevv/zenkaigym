@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.fillMaxSize
 import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.ui.components.ZenDialog
@@ -126,8 +128,8 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpe
             // Nível do jogador: toque para abrir a evolução completa.
             progress?.let { LevelCard(it.level, onClick = onOpenProgress) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Evolução  →"), onOpenProgress, Modifier.weight(1f), accent = Daidai, fill = true, small = true)
-                ZenButton(tr("Histórico  →"), onOpenHistory, Modifier.weight(1f), accent = Ki, fill = true, small = true)
+                ZenButton(tr("Evolução"), onOpenProgress, Modifier.weight(1f), accent = Daidai, fill = true, small = true, trailing = ZenIcons.ArrowRight)
+                ZenButton(tr("Histórico"), onOpenHistory, Modifier.weight(1f), accent = Ki, fill = true, small = true, trailing = ZenIcons.ArrowRight)
             }
 
             ZenCard(accent = Daidai, entranceIndex = 0) {
@@ -236,7 +238,7 @@ private fun WeightCard(
                 ) {
                     Text(formatEpochDay(entry.epochDay), Modifier.weight(1f), color = Zen.p.muted)
                     Text("%.1f kg".format(entry.weightKg), style = MaterialTheme.typography.bodyLarge)
-                    Text("  ✎", color = Zen.p.muted)
+                    ZenIcon(ZenIcons.Edit, Modifier.padding(start = 8.dp), size = 16.dp, color = Zen.p.muted)
                 }
             }
         }

@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcon
+import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.activity.compose.BackHandler
@@ -79,7 +81,7 @@ private fun ExerciseList(exercises: List<Exercise>, onBack: () -> Unit, onSelect
     Column(Modifier.fillMaxSize()) {
     ZenFixedHeader(
         tr("Histórico"), "歴", accent = Ki, subtitle = tr("Progressão por exercício"),
-        back = { ZenButton(tr("←  Voltar ao perfil"), onBack, accent = Zen.p.card, small = true) }
+        back = { ZenButton(tr("Voltar ao perfil"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
     )
     Box(Modifier.weight(1f)) {
     LazyColumn(
@@ -107,7 +109,7 @@ private fun ExerciseList(exercises: List<Exercise>, onBack: () -> Unit, onSelect
                         Text(tr(exercise.name), style = MaterialTheme.typography.bodyLarge)
                         Text(exercise.group.label, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text("→", style = MaterialTheme.typography.titleMedium, color = Zen.p.muted)
+                    ZenIcon(ZenIcons.ChevronRight, size = 20.dp, color = Zen.p.muted)
                 }
             }
         }
@@ -129,7 +131,7 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
     Column(Modifier.fillMaxSize()) {
     ZenFixedHeader(
         tr(exercise.name), "歴", accent = Ki, subtitle = exercise.group.label,
-        back = { ZenButton(tr("←  Voltar à lista"), onBack, accent = Zen.p.card, small = true) }
+        back = { ZenButton(tr("Voltar à lista"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
     )
     Box(Modifier.weight(1f)) {
     LazyColumn(

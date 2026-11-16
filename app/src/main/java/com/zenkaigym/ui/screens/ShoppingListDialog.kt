@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenIcons
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -62,10 +63,10 @@ fun ShoppingListDialog(plan: DietPlanFull, onClose: () -> Unit) {
                 }
                 context.startActivity(Intent.createChooser(send, tr("Compartilhar")))
             }, Modifier.weight(1f), accent = Midori, fill = true, small = true, enabled = !list.isEmpty)
-            ZenButton(if (copied > 0) tr("Copiado ✓") else tr("Copiar"), {
+            ZenButton(if (copied > 0) tr("Copiado") else tr("Copiar"), {
                 clipboard.setText(AnnotatedString(text))
                 copied++
-            }, Modifier.weight(1f), accent = Ao, fill = true, small = true, enabled = !list.isEmpty)
+            }, Modifier.weight(1f), accent = Ao, fill = true, small = true, enabled = !list.isEmpty, trailing = if (copied > 0) ZenIcons.Check else null)
         }
         Spacer(Modifier.height(8.dp))
         ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)

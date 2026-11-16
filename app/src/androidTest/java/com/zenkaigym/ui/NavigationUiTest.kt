@@ -48,7 +48,7 @@ class NavigationUiTest {
 
     @Test fun dietaAbreMeusAlimentosEVolta() {
         openTab("Dieta", "Meta, horários e refeições")
-        rule.onNodeWithText("Meus alimentos  →").performClick()
+        rule.onNodeWithText("Meus alimentos").performClick()
         rule.waitUntil(5_000) { rule.onAllNodesWithTextCount("Valores por 100 g · a dieta usa estes") > 0 }
         // Trocar de aba fecha a sub-tela de alimentos.
         openTab("Ajustes", "Aparência, idioma e informações")
