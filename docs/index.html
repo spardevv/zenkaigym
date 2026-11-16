@@ -15,10 +15,10 @@
   --washi:#F3F0E8; --card:#FCFBF7; --ink:#17171A; --muted:#6E6E6A;
   --border:#3A3A40; --shadow:#77757D;
   --aka:#F25A52; --ki:#F8CC4A; --ao:#45C0EE; --midori:#55D48A; --sakura:#E888B0; --daidai:#F59A40;
-  --gut:16px;
+  --gut:16px; --hh:83px;
 }
 *{box-sizing:border-box;margin:0}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;scroll-padding-top:var(--hh);scroll-snap-type:y proximity}
 body{
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   background:var(--washi); color:var(--ink); line-height:1.5; font-weight:500;
@@ -57,7 +57,11 @@ h2::after{content:"";display:block;width:84px;height:8px;background:var(--aka);m
 .card .in{padding:20px 22px 24px}
 
 /* topo */
-header.top{padding:18px 0}
+header.top{height:var(--hh);display:flex;align-items:center;position:sticky;top:0;z-index:50;border-bottom:3px solid transparent;transition:background .2s,border-color .2s}
+header.top .wrap{width:100%}
+header.top.stuck{background:var(--washi);border-bottom-color:var(--border)}
+header.top [data-apk]{transition:opacity .2s,transform .2s}
+header.top:not(.scrolled) [data-apk]{opacity:0;transform:translateY(-6px);visibility:hidden;pointer-events:none}
 header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:900;font-style:italic;font-size:22px;letter-spacing:-.02em;text-transform:uppercase}
 .seal{
@@ -67,7 +71,7 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;g
 .seal.lg{width:64px;height:64px;font-size:34px}
 
 /* hero */
-.hero{padding:28px 0 72px}
+.hero{padding:28px 0}
 .hero .wrap{display:grid;gap:40px;align-items:center}
 .hero h1{font-size:clamp(40px,9vw,76px);margin:14px 0 18px}
 .hero h1 em{font-style:inherit;background:var(--ki);padding:0 .12em;border:3px solid var(--border);box-shadow:5px 5px 0 var(--shadow);display:inline-block;transform:rotate(-1.5deg)}
@@ -90,7 +94,9 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;g
 }
 
 /* seções */
-section{padding:64px 0}
+/* cada seção é uma "página" de tela cheia (cabeçalho + seção = 100vh) */
+section{padding:64px 0;min-height:calc(100vh - var(--hh));min-height:calc(100svh - var(--hh));display:flex;flex-direction:column;justify-content:center;scroll-snap-align:start}
+section>.wrap,section>.shots{width:100%}
 .sec-head{display:grid;gap:14px;margin-bottom:36px}
 .sec-head p{max-width:40em;color:#2b2b30}
 
@@ -132,24 +138,71 @@ section{padding:64px 0}
 .privacy li{font-weight:800;padding-left:30px;position:relative}
 .privacy li::before{content:"✓";position:absolute;left:0;top:-2px;font-weight:900;font-size:20px;color:#1d9a55}
 
-/* chamada final */
-.final{text-align:center;padding:72px 0 80px}
-.final .seal{margin:0 auto 18px}
-.final h2{font-size:clamp(30px,6vw,54px)}
-.final h2::after{margin:10px auto 0}
-.final .cta{justify-content:center;margin-top:30px}
 
 footer{border-top:3px solid var(--border);background:var(--card);padding:30px 0;font-size:13px;color:var(--muted)}
 footer .wrap{display:grid;gap:12px}
 footer nav{display:flex;flex-wrap:wrap;gap:6px 22px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:var(--ink)}
 footer a{text-underline-offset:3px}
 
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* últimas páginas: preenchem a tela */
+#como-instalar .steps{gap:34px;margin-top:8px}
+#como-instalar .steps .card{min-height:clamp(150px,20vh,230px);display:flex}
+#como-instalar .steps .in{padding:56px 28px 32px}
+#como-instalar .steps li::before{width:56px;height:56px;font-size:30px;top:-24px;left:22px}
+#como-instalar .steps b{font-size:clamp(20px,2.4vw,26px);margin-bottom:10px}
+#como-instalar .steps p{font-size:17px}
+#como-instalar .note{font-size:15px;margin-top:26px}
+#como-instalar .privacy{margin-top:34px}
+.privacy .in{padding:clamp(18px,3vh,32px) clamp(20px,3vw,36px);gap:clamp(12px,2vh,18px)}
+.privacy h2{font-size:clamp(24px,3.6vw,36px)}
+.privacy .in>p{font-size:clamp(15px,1.6vw,17px);max-width:40em}
+.privacy ul{gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.privacy li{font-size:clamp(15px,1.6vw,17px);padding:12px 14px 12px 46px;background:var(--washi);border:3px solid var(--border);box-shadow:4px 4px 0 var(--shadow)}
+.privacy li::before{left:14px;top:8px;font-size:22px}
+
+/* instalar + privacidade: compacto para caber em uma tela */
+#como-instalar{padding:24px 0}
+#como-instalar .sec-head{gap:6px;margin-bottom:22px}
+#como-instalar h2{font-size:clamp(24px,3.4vw,34px)}
+#como-instalar h2::after{height:6px;width:64px;margin-top:6px}
+#como-instalar .steps{gap:22px;margin-top:0;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+#como-instalar .steps .card{min-height:0;box-shadow:5px 5px 0 var(--shadow)}
+#como-instalar .steps .in{padding:34px 18px 16px}
+#como-instalar .steps li::before{width:38px;height:38px;font-size:20px;top:-16px;left:16px}
+#como-instalar .steps b{font-size:16px;margin-bottom:4px}
+#como-instalar .steps p{font-size:14px;line-height:1.4}
+#como-instalar .note{font-size:13px;margin-top:16px;line-height:1.4}
+#como-instalar .privacy{margin-top:22px;box-shadow:5px 5px 0 var(--shadow)}
+#como-instalar .privacy::before{height:8px}
+#como-instalar .privacy .in{padding:16px 20px 18px;gap:8px}
+#como-instalar .privacy h2{font-size:clamp(20px,2.6vw,26px)}
+#como-instalar .privacy h2::after{display:none}
+#como-instalar .privacy .in>p{font-size:14px;line-height:1.4}
+#como-instalar .privacy ul{gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#como-instalar .privacy li{font-size:13px;padding:8px 10px 8px 36px;box-shadow:3px 3px 0 var(--shadow)}
+#como-instalar .privacy li::before{left:10px;top:5px;font-size:18px}
+
+/* animações suaves */
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(30px) rotate(8deg) scale(.96)}to{opacity:1;transform:rotate(3deg)}}
+@keyframes float{0%,100%{transform:rotate(3deg) translateY(0)}50%{transform:rotate(3deg) translateY(-10px)}}
+.hero .eyebrow,.hero h1,.hero .lead,.hero .cta,.hero .meta,.hero .badges{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+.hero h1{animation-delay:.08s}.hero .lead{animation-delay:.16s}.hero .cta{animation-delay:.24s}
+.hero .meta{animation-delay:.3s}.hero .badges{animation-delay:.36s}
+.hero .phone{animation:pop .9s cubic-bezier(.2,.7,.2,1) .15s both,float 6s ease-in-out 1.2s infinite}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1) var(--d,0s),transform .7s cubic-bezier(.2,.7,.2,1) var(--d,0s)}
+.reveal.in-view{opacity:1;transform:none}
+.card.reveal{transition:opacity .7s cubic-bezier(.2,.7,.2,1) var(--d,0s),transform .7s cubic-bezier(.2,.7,.2,1) var(--d,0s),box-shadow .2s}
+.card.reveal.in-view:hover{transform:translate(-2px,-4px);box-shadow:10px 12px 0 var(--shadow);transition-delay:0s}
+.shots .phone{transition:transform .25s}
+.shots figure:hover .phone{transform:translateY(-6px) rotate(-1deg)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}.reveal{opacity:1!important;transform:none!important}}
 </style>
 </head>
 <body>
 
-<header class="top">
+<header class="top" id="topo">
   <div class="wrap">
     <a class="brand" href="#" aria-label="Zenkaigym"><span class="seal" aria-hidden="true">禅</span>Zenkaigym</a>
     <a class="btn small" href="https://github.com/spardevv/zenkaigym/releases/latest" data-apk>Baixar APK</a>
@@ -241,11 +294,6 @@ footer a{text-underline-offset:3px}
         <li class="card"><div class="in"><b>Abra e configure</b><p>Informe seus dados, escolha o estilo (Shōnen ou Kawaii) e revise as sugestões de treino e dieta.</p></div></li>
       </ol>
       <p class="note">O Zenkaigym ainda não está na Play Store, por isso a instalação é manual. O APK é assinado e o código-fonte é aberto no GitHub.</p>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
       <div class="card privacy"><div class="in">
         <h2>Seus dados são seus</h2>
         <p>O app não tem conta, não pede permissão de internet, não usa anúncios nem rastreamento. Tudo fica salvo só no seu aparelho.</p>
@@ -260,15 +308,7 @@ footer a{text-underline-offset:3px}
     </div>
   </section>
 
-  <section class="final">
-    <div class="wrap">
-      <div class="seal lg" aria-hidden="true">禅</div>
-      <h2>Pronto para o dojo?</h2>
-      <div class="cta">
-        <a class="btn aka" href="https://github.com/spardevv/zenkaigym/releases/latest" data-apk>⬇ Baixar APK <span data-ver></span></a>
-      </div>
-    </div>
-  </section>
+
 </main>
 
 <footer>
@@ -298,6 +338,44 @@ footer a{text-underline-offset:3px}
       vers.forEach(function (s) { s.textContent = v; });
     })
     .catch(function () {});
+})();
+</script>
+<script>
+// Botão "Baixar APK" do topo só aparece depois que a primeira tela (hero) sai de vista.
+(function () {
+  var header = document.getElementById('topo');
+  var hero = document.querySelector('.hero');
+  if (!header || !hero) return;
+  function set(past) { header.classList.toggle('scrolled', past); }
+  function stick() { header.classList.toggle('stuck', window.scrollY > 4); }
+  window.addEventListener('scroll', stick, { passive: true });
+  stick();
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) {
+      set(!e[0].isIntersecting && e[0].boundingClientRect.top < 0);
+    }, { rootMargin: '-70px 0px 0px 0px' }).observe(hero);
+  } else {
+    window.addEventListener('scroll', function () { set(hero.getBoundingClientRect().bottom < 70); }, { passive: true });
+  }
+})();
+</script>
+<script>
+// Revela seções e cartões suavemente ao entrarem na tela.
+(function () {
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var groups = ['.sec-head', '.grid .card', '.shots figure', '.steps .card', '.note', '.privacy'];
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  groups.forEach(function (sel) {
+    document.querySelectorAll(sel).forEach(function (el, i) {
+      el.classList.add('reveal');
+      el.style.setProperty('--d', (i % 3) * 0.1 + 's');
+      io.observe(el);
+    });
+  });
 })();
 </script>
 </body>

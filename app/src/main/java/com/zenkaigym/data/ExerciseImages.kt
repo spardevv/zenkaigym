@@ -48,16 +48,10 @@ object ExerciseImages {
 
     fun diagramCredit(context: Context): DiagramCredit? = data(context).diagram
 
-    /** Poucos bitmaps em memória (o pager recompõe a mesma imagem ao deslizar); evita decodificar o WebP toda vez. */
-    private val cache = object : android.util.LruCache<String, Bitmap>(4 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
-    }
-
     fun load(context: Context, exerciseName: String): Bitmap? {
         val image = imageFor(context, exerciseName) ?: return null
-        cache.get(image.file)?.let { return it }
         return runCatching {
             context.assets.open("$DIR/${image.file}").use { BitmapFactory.decodeStream(it) }
-        }.getOrNull()?.also { cache.put(image.file, it) }
+        }.getOrNull()
     }
 }
