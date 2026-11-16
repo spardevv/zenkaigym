@@ -9,6 +9,12 @@
 <meta property="og:description" content="Treino e dieta com nível, sequências e conquistas. Três estilos, offline, sem login, a decisão é sempre sua.">
 <meta property="og:image" content="img/dojo.png">
 <meta name="theme-color" content="#F3F0E8">
+<script>
+// A página sempre abre no início: o navegador não restaura a rolagem anterior e o loading já bloqueia a rolagem.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+document.documentElement.classList.add('loading');
+</script>
+<noscript><style>#preloader{display:none!important}html.loading{overflow:auto!important}</style></noscript>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23F25A52' stroke='%233A3A40' stroke-width='5'/%3E%3Ctext x='32' y='45' font-size='36' font-weight='900' text-anchor='middle' fill='%2317171A' font-family='sans-serif'%3E禅%3C/text%3E%3C/svg%3E">
 <style>
 :root{
@@ -204,6 +210,30 @@ footer a{text-underline-offset:3px}
 .hud{--c:#2BB8E6}
 .hud .swatch{border-color:#2BB8E6;box-shadow:3px 3px 0 #0B4A66}
 
+/* preloader: tela de carregamento até a página (imagens incluídas) estar pronta */
+html.loading{overflow:hidden}
+#preloader{
+  position:fixed;inset:0;z-index:999;display:grid;place-items:center;align-content:center;gap:22px;
+  background:var(--washi);transition:opacity .5s ease,visibility .5s ease;
+}
+#preloader::before{
+  content:"";position:absolute;inset:0;opacity:.55;pointer-events:none;
+  background:repeating-conic-gradient(from 200deg at 85% 0%, rgba(58,58,64,.07) 0 .35deg, transparent .35deg 3.2deg);
+  -webkit-mask-image:linear-gradient(to bottom,#000 0,transparent 75%);mask-image:linear-gradient(to bottom,#000 0,transparent 75%);
+}
+#preloader.done{opacity:0;visibility:hidden;pointer-events:none}
+#preloader .ring{position:relative;width:104px;height:104px;display:grid;place-items:center}
+#preloader .ring::before{
+  content:"";position:absolute;inset:0;border-radius:50%;border:5px solid var(--border);
+  border-right-color:transparent;border-bottom-color:var(--ki);animation:spin 1s linear infinite;
+}
+#preloader .seal{width:72px;height:72px;font-size:38px;animation:breathe 1.6s ease-in-out infinite}
+#preloader p{position:relative;font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:.16em;font-size:13px;color:var(--muted)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+/* a animação de entrada do topo só começa quando o loading termina */
+html.loading .hero *{animation-play-state:paused!important}
+
 /* animações suaves */
 @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes pop{from{opacity:0;transform:translateY(30px) rotate(8deg) scale(.96)}to{opacity:1;transform:rotate(3deg)}}
@@ -222,6 +252,11 @@ footer a{text-underline-offset:3px}
 </style>
 </head>
 <body>
+
+<div id="preloader" role="status" aria-live="polite" aria-label="Carregando">
+  <div class="ring"><span class="seal" aria-hidden="true">禅</span></div>
+  <p>Carregando…</p>
+</div>
 
 <header class="top" id="topo">
   <div class="wrap">
@@ -447,6 +482,33 @@ footer a{text-underline-offset:3px}
   </div>
 </footer>
 
+<script>
+// Preloader: some quando tudo carregou (com um tempo mínimo, para não piscar) e a página sempre começa no topo,
+// mesmo ao recarregar, voltar pelo histórico ou abrir um link com #âncora.
+(function () {
+  var root = document.documentElement, pre = document.getElementById('preloader');
+  var start = Date.now(), MIN = 600, finished = false;
+  function toTop() {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }
+  function finish() {
+    if (finished) return;
+    finished = true;
+    toTop();
+    root.classList.remove('loading');
+    if (pre) {
+      pre.classList.add('done');
+      setTimeout(function () { pre.remove(); }, 700);
+    }
+  }
+  function ready() { setTimeout(finish, Math.max(0, MIN - (Date.now() - start))); }
+  if (document.readyState === 'complete') ready(); else window.addEventListener('load', ready);
+  setTimeout(finish, 5000); // segurança: nunca prende o visitante se algum recurso demorar
+  window.addEventListener('pageshow', function (e) { if (e.persisted) toTop(); });
+  toTop();
+})();
+</script>
 <script>
 // Aponta o botão direto para o APK da última Release; sem rede ou sem APK, cai na página da Release.
 (function () {
