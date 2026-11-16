@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zenkaigym 禅 — Treino e dieta com visual de mangá</title>
-<meta name="description" content="App Android de treino e dieta com visual de mangá. Sugere metas, ficha e cardápio, e a decisão é sempre sua. 100% offline, sem login, dados só no seu aparelho.">
+<title>Zenkaigym 禅 — Treino e dieta com nível, conquistas e visual de mangá</title>
+<meta name="description" content="App Android de treino e dieta com visual de mangá. Sugere metas, ficha e cardápio, e sua evolução vira jogo: nível, sequências e conquistas. Três estilos, 100% offline, sem login, dados só no seu aparelho.">
 <meta property="og:title" content="Zenkaigym 禅">
-<meta property="og:description" content="Treino e dieta com visual de mangá. Offline, sem login, a decisão é sempre sua.">
-<meta property="og:image" content="img/dojo.webp">
+<meta property="og:description" content="Treino e dieta com nível, sequências e conquistas. Três estilos, offline, sem login, a decisão é sempre sua.">
+<meta property="og:image" content="img/dojo.png">
 <meta name="theme-color" content="#F3F0E8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23F25A52' stroke='%233A3A40' stroke-width='5'/%3E%3Ctext x='32' y='45' font-size='36' font-weight='900' text-anchor='middle' fill='%2317171A' font-family='sans-serif'%3E禅%3C/text%3E%3C/svg%3E">
 <style>
@@ -183,6 +183,27 @@ footer a{text-underline-offset:3px}
 #como-instalar .privacy li{font-size:13px;padding:8px 10px 8px 36px;box-shadow:3px 3px 0 var(--shadow)}
 #como-instalar .privacy li::before{left:10px;top:5px;font-size:18px}
 
+/* evolução (gamificação) e estilos */
+.split{display:grid;gap:40px;align-items:center}
+@media(min-width:860px){.split{grid-template-columns:1.2fr .8fr}}
+.split .phone{width:min(280px,72vw)}
+.xp{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:12px;margin:0 0 28px}
+.xp li{border:3px solid var(--border);background:var(--card);box-shadow:4px 4px 0 var(--shadow);padding:8px 12px;font-weight:700;font-size:14px}
+.xp b{font-weight:900;background:var(--ki);padding:0 .4em;margin-right:6px;border:2px solid var(--border);display:inline-block}
+.mini{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:22px}
+.mini .card{box-shadow:6px 6px 0 var(--shadow)}
+.mini .card::before{height:10px}
+.mini .card .in{padding:14px 16px 18px}
+.mini h3{font-size:17px;margin-bottom:6px}
+.mini p{font-size:14px;color:#2b2b30}
+.tags{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:18px 0 0}
+.tags li{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border:2px solid var(--border);background:var(--card)}
+.styles .card h3{font-size:20px;margin-bottom:6px}
+.swatch{display:flex;gap:0;margin:2px 0 12px;border:3px solid var(--border);width:max-content}
+.swatch i{display:block;width:28px;height:18px}
+.hud{--c:#2BB8E6}
+.hud .swatch{border-color:#2BB8E6;box-shadow:3px 3px 0 #0B4A66}
+
 /* animações suaves */
 @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes pop{from{opacity:0;transform:translateY(30px) rotate(8deg) scale(.96)}to{opacity:1;transform:rotate(3deg)}}
@@ -215,18 +236,18 @@ footer a{text-underline-offset:3px}
       <div>
         <p class="eyebrow">App Android · Treino + Dieta</p>
         <h1>Treine e coma com <em>foco</em>.</h1>
-        <p class="lead">O Zenkaigym sugere metas, ficha de treino e cardápio a partir dos seus dados, com visual de mangá. <strong>A decisão é sempre sua:</strong> ajuste, troque, aceite ou descarte.</p>
+        <p class="lead">O Zenkaigym sugere metas, ficha de treino e cardápio a partir dos seus dados, com visual de mangá. <strong>A decisão é sempre sua:</strong> ajuste, troque, aceite ou descarte. E a sua evolução vira jogo: <strong>nível, sequências e conquistas</strong>, sem pressão.</p>
         <div class="cta">
           <a class="btn aka" href="https://github.com/spardevv/zenkaigym/releases/latest" data-apk>⬇ Baixar APK <span data-ver></span></a>
           <a class="btn" href="#como-instalar">Como instalar</a>
         </div>
         <p class="meta">Android 7.0+ · Gratuito · Sem anúncios</p>
         <ul class="badges">
-          <li>100% offline</li><li>Sem login</li><li>Dados só no aparelho</li>
+          <li>100% offline</li><li>Sem login</li><li>Dados só no aparelho</li><li>Nível e conquistas</li>
         </ul>
       </div>
       <div>
-        <div class="phone"><img src="img/dojo.webp" width="540" height="1134" alt="Tela Dojo do app: treino de hoje com a lista de exercícios e botão Treinar agora"></div>
+        <div class="phone"><img src="img/dojo.png" width="540" height="1134" alt="Tela Dojo do app: treino de hoje com a lista de exercícios e botão Treinar agora"></div>
       </div>
     </div>
   </section>
@@ -263,7 +284,108 @@ footer a{text-underline-offset:3px}
           <p>Um exercício por vez, com diagrama dos músculos, cargas, repetições e descanso. Troque um exercício só no treino do dia.</p>
         </div></article>
       </div>
-      <p class="note">Também: “Comi outra coisa” (as refeições restantes se reajustam para fechar a meta), reponderação automática ao mudar seus dados e temas claro, escuro e Kawaii.</p>
+      <p class="note">Também: “Comi outra coisa” (as refeições restantes se reajustam para fechar a meta), reponderação automática ao mudar seus dados, tema claro ou escuro e três estilos visuais (Shōnen, Kawaii e Isekai).</p>
+    </div>
+  </section>
+
+  <section id="evolucao">
+    <div class="wrap split">
+      <div>
+        <div class="sec-head">
+          <p class="eyebrow">Evolução</p>
+          <h2>Seu progresso vira jogo</h2>
+          <p>Cada treino, série e refeição que você já registra rende XP. Sem punição e sem pressão: é só um jeito leve de enxergar o quanto você avançou.</p>
+        </div>
+        <ul class="xp" aria-label="Como o XP é ganho">
+          <li><b>+100</b>treino concluído</li>
+          <li><b>+5</b>série registrada</li>
+          <li><b>+10</b>refeição feita</li>
+          <li><b>+25</b>recorde de carga</li>
+          <li><b>+15</b>peso registrado</li>
+        </ul>
+        <div class="grid mini">
+          <article class="card feat" style="--c:var(--daidai)"><div class="in">
+            <h3>Nível e patente</h3>
+            <p>Do <b>Novato</b> à <b>Lenda</b>, com barra de XP até o próximo nível. Aparece no topo do Perfil.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--ki)"><div class="in">
+            <h3>Meta da semana</h3>
+            <p>Treinos feitos contra o planejado, os sete dias marcados e a constância da dieta até agora.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--midori)"><div class="in">
+            <h3>Sequências</h3>
+            <p>Semanas seguidas cumprindo a meta de treinos e dias seguidos com todas as refeições feitas.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--sakura)"><div class="in">
+            <h3>14 conquistas</h3>
+            <p>Do primeiro treino a uma tonelada levantada, com barra de progresso em cada uma.</p>
+          </div></article>
+        </div>
+      </div>
+      <div>
+        <div class="phone"><img loading="lazy" src="img/evolucao.png" width="540" height="1134" alt="Tela Evolução: nível 2 Novato com barra de XP, meta da semana, dias treinados e próximas conquistas"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="graficos">
+    <div class="wrap split">
+      <div>
+        <div class="phone"><img loading="lazy" src="img/conquistas.png" width="540" height="1134" alt="Aba Conquistas com a lista de conquistas e barras de progresso"></div>
+      </div>
+      <div>
+        <div class="sec-head">
+          <p class="eyebrow">Veja o que está funcionando</p>
+          <h2>Treino, dieta e peso, em gráficos</h2>
+          <p>A tela Evolução reúne tudo em abas, calculado só com o que você registra. Toque numa barra para ver os detalhes da semana.</p>
+        </div>
+        <div class="grid mini">
+          <article class="card feat" style="--c:var(--ki)"><div class="in">
+            <h3>Treino</h3>
+            <p>Treinos e volume por semana, média e melhor semana, músculos mais treinados nos últimos 30 dias e recordes de carga recentes.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--midori)"><div class="in">
+            <h3>Dieta</h3>
+            <p>Constância por semana e nos últimos 14 dias, sequência atual e a melhor sequência.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--daidai)"><div class="in">
+            <h3>Peso</h3>
+            <p>Variação total, em 30 dias e por semana, um gráfico por data e se você está no rumo do seu objetivo.</p>
+          </div></article>
+        </div>
+        <ul class="tags" aria-label="Exemplos de conquistas">
+          <li>Primeiro passo</li><li>Semana cheia</li><li>Mês de ferro</li><li>Uma tonelada</li><li>Caçador de recordes</li><li>Mesa em dia</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="estilos" class="styles">
+    <div class="wrap">
+      <div>
+        <div class="sec-head">
+          <p class="eyebrow">Visual</p>
+          <h2>Três estilos, o seu jeito</h2>
+          <p>Troque quando quiser em Ajustes, no tema claro ou escuro. O treino e a dieta continuam os mesmos.</p>
+        </div>
+        <div class="grid mini">
+          <article class="card feat" style="--c:var(--aka)"><div class="in">
+            <div class="swatch" aria-hidden="true"><i style="background:#F25A52"></i><i style="background:#F8CC4A"></i><i style="background:#45C0EE"></i><i style="background:#55D48A"></i></div>
+            <h3>Shōnen</h3>
+            <p>Mangá de ação: bordas grossas, cores vivas e linhas de velocidade.</p>
+          </div></article>
+          <article class="card feat" style="--c:var(--sakura)"><div class="in">
+            <div class="swatch" aria-hidden="true"><i style="background:#F7A8C4"></i><i style="background:#D9C3F2"></i><i style="background:#A9D6F5"></i><i style="background:#C4A5E8"></i></div>
+            <h3>Kawaii</h3>
+            <p>Fofo: tons pastel de rosa, lilás e azul-bebê, cantos redondos e brilhos.</p>
+          </div></article>
+          <article class="card feat hud" style="--c:#2BB8E6"><div class="in">
+            <div class="swatch" aria-hidden="true"><i style="background:#070B16"></i><i style="background:#2FD8FF"></i><i style="background:#FF4D6D"></i><i style="background:#3DF2A0"></i></div>
+            <h3>Isekai</h3>
+            <p>Interface de jogo: azul-noite com neon, cantos chanfrados e grade holográfica, como a tela de status de um RPG.</p>
+          </div></article>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -275,7 +397,9 @@ footer a{text-underline-offset:3px}
       </div>
     </div>
     <div class="shots" tabindex="0" aria-label="Galeria de telas (role para o lado)">
-      <figure><div class="phone"><img loading="lazy" src="img/dojo.webp" width="540" height="1134" alt="Tela Dojo"></div><figcaption>Dojo<small>O dia em uma tela</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/dojo.png" width="540" height="1134" alt="Tela Dojo"></div><figcaption>Dojo<small>O dia em uma tela</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/evolucao.png" width="540" height="1134" alt="Tela Evolução com nível, XP e meta da semana"></div><figcaption>Evolução<small>Nível, metas e sequências</small></figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" src="img/conquistas.png" width="540" height="1134" alt="Aba Conquistas com barras de progresso"></div><figcaption>Conquistas<small>14 para desbloquear</small></figcaption></figure>
       <figure><div class="phone"><img loading="lazy" src="img/treino.webp" width="540" height="1134" alt="Tela Treino com dias e horários"></div><figcaption>Treino<small>Dias, horários e ficha</small></figcaption></figure>
       <figure><div class="phone"><img loading="lazy" src="img/dieta.webp" width="540" height="1134" alt="Tela Dieta com meta diária e refeições"></div><figcaption>Dieta<small>Meta, horários e refeições</small></figcaption></figure>
       <figure><div class="phone"><img loading="lazy" src="img/modo.webp" width="540" height="1134" alt="Modo treino com diagrama de músculos e séries"></div><figcaption>Modo treino<small>Um exercício por vez</small></figcaption></figure>
@@ -291,7 +415,7 @@ footer a{text-underline-offset:3px}
       <ol class="steps">
         <li class="card"><div class="in"><b>Baixe o APK</b><p>Toque em “Baixar APK” no celular Android. O arquivo vem da página de Releases do GitHub.</p></div></li>
         <li class="card"><div class="in"><b>Permita a instalação</b><p>Abra o arquivo baixado. Se o Android avisar, permita instalar apps desse navegador ou gerenciador de arquivos.</p></div></li>
-        <li class="card"><div class="in"><b>Abra e configure</b><p>Informe seus dados, escolha o estilo (Shōnen ou Kawaii) e revise as sugestões de treino e dieta.</p></div></li>
+        <li class="card"><div class="in"><b>Abra e configure</b><p>Informe seus dados, escolha o estilo (Shōnen, Kawaii ou Isekai) e revise as sugestões de treino e dieta.</p></div></li>
       </ol>
       <p class="note">O Zenkaigym ainda não está na Play Store, por isso a instalação é manual. O APK é assinado e o código-fonte é aberto no GitHub.</p>
       <div class="card privacy"><div class="in">
@@ -363,7 +487,7 @@ footer a{text-underline-offset:3px}
 // Revela seções e cartões suavemente ao entrarem na tela.
 (function () {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var groups = ['.sec-head', '.grid .card', '.shots figure', '.steps .card', '.note', '.privacy'];
+  var groups = ['.sec-head', '.xp li', '.grid .card', '.split .phone', '.tags li', '.shots figure', '.steps .card', '.note', '.privacy'];
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (e) {
       if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }

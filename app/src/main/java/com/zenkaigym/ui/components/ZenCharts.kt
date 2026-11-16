@@ -46,6 +46,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zenkaigym.domain.Motion
 import com.zenkaigym.ui.theme.Sumi
 import com.zenkaigym.ui.theme.Zen
@@ -164,7 +165,11 @@ fun StatTile(label: String, value: Int, modifier: Modifier = Modifier, format: (
             .border(Zen.look.thinBorder, p.border, Zen.look.smallShape)
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        Text(label.uppercase(), color = if (accent != null) Sumi else p.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        // Até duas linhas (a fonte monoespaçada do Isekai é larga): os rótulos não são cortados e os cartões ficam do mesmo tamanho.
+        Text(
+            label.uppercase(), color = if (accent != null) Sumi else p.muted, style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp, letterSpacing = 0.5.sp, lineHeight = 12.sp, minLines = 2, maxLines = 2
+        )
         Text(format(shown), color = if (accent != null) Sumi else p.ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, maxLines = 1)
     }
 }
