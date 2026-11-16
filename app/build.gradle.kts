@@ -63,7 +63,9 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        // Compilador do Compose compatível com Kotlin 1.9.25 e com o runtime 1.7 do BOM (1.5.1 era de 2023 e
+        // gerava código incompatível: crashes internos do Compose no release ao concluir um exercício).
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
     sourceSets {
         // Esquemas do Room (app/schemas) entram nos testes instrumentados para testar migrações.
