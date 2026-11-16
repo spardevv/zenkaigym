@@ -87,6 +87,7 @@ class ZenRepository(
 
     // ---- Progresso (gráficos do perfil) ----
 
+    val allSets = workoutDao.observeAllSets()
     fun volumePerDay(from: Long) = workoutDao.observeVolumePerDay(from)
     fun finishedWorkoutDays(from: Long) = workoutDao.observeFinishedDays(from)
     fun mealsDonePerDay(from: Long) = dietDao.observeChecksPerDay(from)

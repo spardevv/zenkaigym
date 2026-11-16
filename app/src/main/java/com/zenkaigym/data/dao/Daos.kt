@@ -200,6 +200,10 @@ interface WorkoutDao {
     @Query("SELECT epochDay, SUM(weightKg * reps) AS volume, COUNT(*) AS sets FROM set_log WHERE epochDay >= :from GROUP BY epochDay")
     fun observeVolumePerDay(from: Long): Flow<List<DayVolume>>
 
+    /** Todas as séries já registradas: base das estatísticas de evolução (o banco é pequeno). */
+    @Query("SELECT * FROM set_log")
+    fun observeAllSets(): Flow<List<SetLog>>
+
     @Query("SELECT epochDay FROM workout_log WHERE epochDay >= :from AND finished = 1")
     fun observeFinishedDays(from: Long): Flow<List<Long>>
 

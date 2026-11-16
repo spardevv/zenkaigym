@@ -77,8 +77,9 @@ import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Sumi
 
 @Composable
-fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
+fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpenProgress: () -> Unit = {}) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val progress by viewModel.progressStats.collectAsStateWithLifecycle()
     val weights by viewModel.weights.collectAsStateWithLifecycle()
 
     // O formulário recomeça do perfil salvo sempre que ele muda (ao salvar ou ao registrar um peso novo).
@@ -122,7 +123,12 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
                 .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenButton(tr("Histórico de treinos  →"), onOpenHistory, accent = Ki, fill = true)
+            // Nível do jogador: toque para abrir a evolução completa.
+            progress?.let { LevelCard(it.level, onClick = onOpenProgress) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Evolução  →"), onOpenProgress, Modifier.weight(1f), accent = Daidai, fill = true, small = true)
+                ZenButton(tr("Histórico  →"), onOpenHistory, Modifier.weight(1f), accent = Ki, fill = true, small = true)
+            }
 
             ZenCard(accent = Daidai, entranceIndex = 0) {
                 SectionTitle(tr("Corpo"), accent = Daidai)
@@ -173,99 +179,11 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
 
             profile?.let {
                 WeightCard(it, weights, viewModel::addWeight, viewModel::editWeight, viewModel::removeWeight)
-                ProgressCards(viewModel)
             }
         }
       }
     }
 }
-
-/** Evolução do treino (volume e sessões por semana) e aderência da dieta (refeições feitas por dia). */
-@Composable
-private fun ProgressCards(viewModel: ZenViewModel) {
-    val training by viewModel.trainingProgress.collectAsStateWithLifecycle()
-    val diet by viewModel.dietProgress.collectAsStateWithLifecycle()
-    val clock by viewModel.clock.collectAsStateWithLifecycle()
-
-    ZenCard(accent = Ki, entranceIndex = 2) {
-        SectionTitle(tr("Evolução do treino"), accent = Ki)
-        Spacer(Modifier.height(10.dp))
-        val t = training
-        if (t == null || !t.hasData) {
-            EmptyProgress("体", Ki, tr("Registre suas séries no modo treino para ver o volume de cada semana aqui."))
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile(tr("Treinos · 30 dias"), t.sessionsLast30, Modifier.weight(1f))
-                StatTile(tr("Volume · semana"), t.weeklyVolume.last().roundToInt(), Modifier.weight(1f), format = ::volumeText)
-            }
-            t.volumeChange?.let { change ->
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    if (change >= 0) tr("▲ {0}% sobre a semana passada", change) else tr("▼ {0}% sobre a semana passada", -change),
-                    color = Sumi,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.background(if (change >= 0) Midori else Daidai).padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            ZenBarChart(
-                values = t.weeklyVolume.map { it.toFloat() },
-                color = Ki,
-                describe = { i ->
-                    val back = t.weeklyVolume.size - 1 - i
-                    val week = if (back == 0) tr("Esta semana") else tr("Há {0} sem.", back)
-                    tr("{0} · {1} treinos · {2}", week, t.weeklySessions[i], volumeText(t.weeklyVolume[i].roundToInt()))
-                },
-                startLabel = tr("{0} semanas atrás", t.weeklyVolume.size - 1),
-                endLabel = tr("Agora")
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(tr("Volume = carga × repetições. Toque numa barra para ver a semana."), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-        }
-    }
-
-    ZenCard(accent = Midori, entranceIndex = 3) {
-        SectionTitle(tr("Constância na dieta"), accent = Midori)
-        Spacer(Modifier.height(10.dp))
-        val d = diet
-        if (d == null || !d.hasData) {
-            EmptyProgress("食", Midori, tr("Marque as refeições como feitas no Dojo para acompanhar sua constância."))
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile(tr("Média · 14 dias"), d.averagePercent, Modifier.weight(1f), format = { "$it%" })
-                StatTile(
-                    tr("Sequência"), d.streak, Modifier.weight(1f),
-                    format = { tr("{0} dias", it) },
-                    accent = if (d.streak >= 3) Midori else null
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            ZenBarChart(
-                values = d.daily,
-                color = Midori,
-                maxValue = 1f,
-                describe = { i ->
-                    val day = clock.epochDay - (d.daily.size - 1 - i)
-                    tr("{0} · {1}% das refeições", formatEpochDay(day), (d.daily[i] * 100).roundToInt())
-                },
-                startLabel = formatEpochDay(clock.epochDay - (d.daily.size - 1)),
-                endLabel = tr("Hoje")
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyProgress(kanji: String, accent: Color, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        KanjiBadge(kanji, color = accent, size = 40.dp)
-        Text(text, Modifier.padding(start = 12.dp), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-/** Volume legível: até 999 em kg, depois em toneladas. */
-private fun volumeText(kg: Int): String = if (kg >= 1000) "%.1f t".format(kg / 1000f) else "$kg kg"
 
 @Composable
 private fun Label(text: String) {

@@ -70,6 +70,7 @@ import com.zenkaigym.ui.screens.FoodsScreen
 import com.zenkaigym.ui.screens.HistoryScreen
 import com.zenkaigym.ui.screens.HomeScreen
 import com.zenkaigym.ui.screens.ProfileScreen
+import com.zenkaigym.ui.screens.ProgressScreen
 import com.zenkaigym.ui.screens.SettingsScreen
 import com.zenkaigym.ui.screens.TrainSessionScreen
 import com.zenkaigym.ui.screens.WorkoutScreen
@@ -97,6 +98,7 @@ object Routes {
     const val DIET = "diet"
     const val FOODS = "foods"
     const val HISTORY = "history"
+    const val PROGRESS = "progress"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
 }
@@ -117,16 +119,17 @@ private val TabOrder = listOf(Routes.WORKOUT, Routes.DIET, Routes.HOME, Routes.P
 
 /** 1 = entra pela direita, -1 = pela esquerda. "Meus alimentos" se comporta como uma subtela à direita da Dieta. */
 private fun navDirection(from: String?, to: String?): Int = when {
-    to == Routes.FOODS || to == Routes.HISTORY -> 1
+    to == Routes.FOODS || to == Routes.HISTORY || to == Routes.PROGRESS -> 1
     from == Routes.FOODS && to == Routes.DIET -> -1
     from == Routes.HISTORY && to == Routes.PROFILE -> -1
+    from == Routes.PROGRESS && to == Routes.PROFILE -> -1
     else -> Motion.tabDirection(TabOrder, from?.let(::parentTab), to?.let(::parentTab))
 }
 
 /** Subtelas pertencem à aba de onde são abertas: Alimentos à Dieta, Histórico ao Perfil. */
 private fun parentTab(route: String): String = when (route) {
     Routes.FOODS -> Routes.DIET
-    Routes.HISTORY -> Routes.PROFILE
+    Routes.HISTORY, Routes.PROGRESS -> Routes.PROFILE
     else -> route
 }
 
@@ -157,7 +160,7 @@ fun AppNav(viewModel: ZenViewModel) {
 
     fun go(route: String) {
         // "Meus alimentos" é uma subtela da Dieta: ao trocar de aba ela sai da pilha, e a Dieta volta limpa.
-        navController.currentDestination?.route?.takeIf { it == Routes.FOODS || it == Routes.HISTORY }?.let {
+        navController.currentDestination?.route?.takeIf { it == Routes.FOODS || it == Routes.HISTORY || it == Routes.PROGRESS }?.let {
             navController.popBackStack(it, inclusive = true)
         }
         navController.navigate(route) {
@@ -193,9 +196,14 @@ fun AppNav(viewModel: ZenViewModel) {
                     composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
                     composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
                     composable(Routes.PROFILE) {
-                        ProfileScreen(viewModel, onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } })
+                        ProfileScreen(
+                            viewModel,
+                            onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                            onOpenProgress = { navController.navigate(Routes.PROGRESS) { launchSingleTop = true } }
+                        )
                     }
                     composable(Routes.HISTORY) { HistoryScreen(viewModel, onBack = { navController.popBackStack() }) }
+                    composable(Routes.PROGRESS) { ProgressScreen(viewModel, onBack = { navController.popBackStack() }) }
                     composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
                 }
             }

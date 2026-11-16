@@ -1,6 +1,15 @@
 package com.zenkaigym.ui
 
 import com.zenkaigym.domain.tr
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
+import com.zenkaigym.domain.windowsByDay
+import com.zenkaigym.domain.ProgressStats
+import com.zenkaigym.domain.ProgressInput
+import com.zenkaigym.domain.Progress
+import com.zenkaigym.data.entity.Goal
+import com.zenkaigym.data.entity.MealSlot
+import com.zenkaigym.data.entity.WeightEntry
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zenkaigym.data.AppFlags
@@ -326,6 +335,28 @@ class ZenViewModel(
             Stats.diet(done.associate { it.epochDay to it.count }, slots.size, day)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ---- Evolução (nível, sequências, recordes e conquistas) ----
+
+    private class StatsData(val sets: List<SetLog>, val logs: List<WorkoutLog>, val checks: List<MealCheck>, val weights: List<WeightEntry>)
+    private class StatsMeta(val exercises: List<Exercise>, val profile: UserProfile?, val availability: List<Availability>, val slots: List<MealSlot>)
+
+    /** Tudo o que a tela de evolução e o nível do perfil mostram; recalculado quando algum registro muda. */
+    val progressStats: StateFlow<ProgressStats?> = combine(
+        combine(repo.allSets, repo.workoutLogsFrom(0L), repo.checksFrom(0L), repo.weights) { s, l, c, w -> StatsData(s, l, c, w) },
+        combine(exercises, profile, availability, mealSlots) { e, p, a, m -> StatsMeta(e, p, a, m) },
+        combine(today, _weekStart) { day, start -> day to start }
+    ) { data, meta, (day, start) ->
+        run {
+            Progress.compute(
+                ProgressInput(
+                    sets = data.sets, exercises = meta.exercises, workoutLogs = data.logs, checks = data.checks,
+                    mealsPerDay = meta.slots.size, weights = data.weights, goal = meta.profile?.goal ?: Goal.MAINTAIN,
+                    plannedPerWeek = meta.availability.windowsByDay().size, today = day, weekStart = start
+                )
+            )
+        }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // ---- Apagar todos os dados ----
 
