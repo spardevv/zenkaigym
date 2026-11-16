@@ -159,19 +159,24 @@ fun ZenButton(
         ) {
             val ink = if (enabled && (accent == p.card || accent == p.bg)) p.ink else Sumi
             val iconSize = if (small) 15.dp else 18.dp
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (leading != null) {
-                    ZenIcon(leading, size = iconSize, color = ink)
-                    Spacer(Modifier.width(6.dp))
-                }
-                FitLabel(
-                    text.uppercase(), ink,
-                    baseSp = if (small) 12f else 14f, letterSpacing = if (small) 0.5.sp else 1.sp,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (trailing != null) {
-                    Spacer(Modifier.width(6.dp))
-                    ZenIcon(trailing, size = iconSize, color = ink)
+            val label = text.uppercase()
+            val baseSp = if (small) 12f else 14f
+            val spacing = if (small) 0.5.sp else 1.sp
+            if (leading == null && trailing == null) {
+                FitLabel(label, ink, baseSp, spacing)
+            } else {
+                // Com ícone, o rótulo usa weight: o ícone é medido primeiro e o texto encolhe no que sobra.
+                // O weight só vale em largura limitada; sem ícone, o rótulo vai direto (ex.: faixa com rolagem horizontal).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (leading != null) {
+                        ZenIcon(leading, size = iconSize, color = ink)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    FitLabel(label, ink, baseSp, spacing, Modifier.weight(1f, fill = false))
+                    if (trailing != null) {
+                        Spacer(Modifier.width(6.dp))
+                        ZenIcon(trailing, size = iconSize, color = ink)
+                    }
                 }
             }
         }
@@ -225,16 +230,18 @@ fun ZenChip(
             .padding(horizontal = if (compact) 0.dp else 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // [mark] é um ícone pequeno antes do rótulo (ex.: refeição feita, dia do lixo).
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (mark != null) {
-                ZenIcon(mark, size = if (compact) 10.dp else 14.dp, color = content)
-                Spacer(Modifier.width(if (compact) 2.dp else 5.dp))
+        val baseSp = if (compact) 12f else 14f
+        val spacing = if (compact) 0.sp else 1.sp
+        if (mark == null) {
+            FitLabel(text, content, baseSp, spacing)
+        } else {
+            // [mark] é um ícone pequeno antes do rótulo (aba, refeição feita, dia do lixo). Vem primeiro e o texto
+            // recebe o resto; sem weight, para funcionar também em faixas com rolagem horizontal (largura ilimitada).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ZenIcon(mark, size = if (compact) 10.dp else 16.dp, color = content)
+                Spacer(Modifier.width(if (compact) 2.dp else 6.dp))
+                FitLabel(text, content, baseSp, spacing)
             }
-            FitLabel(
-                text, content, baseSp = if (compact) 12f else 14f, letterSpacing = if (compact) 0.sp else 1.sp,
-                modifier = Modifier.weight(1f, fill = false)
-            )
         }
     }
 }

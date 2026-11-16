@@ -1,5 +1,14 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.zenkaigym.ui.components.IconText
 import com.zenkaigym.ui.components.ZenIcon
 import com.zenkaigym.ui.components.ZenIcons
@@ -77,8 +86,64 @@ import com.zenkaigym.util.todayDayOfWeek
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private enum class ProgressTab(val pt: String) {
-    SUMMARY("Resumo"), TRAINING("Treino"), DIET("Dieta"), WEIGHT("Peso"), ACHIEVEMENTS("Conquistas")
+private enum class ProgressTab(val pt: String, val icon: ImageVector) {
+    SUMMARY("Resumo", ZenIcons.Summary),
+    TRAINING("Treino", ZenIcons.Workout),
+    DIET("Dieta", ZenIcons.Diet),
+    WEIGHT("Peso", ZenIcons.Weight),
+    ACHIEVEMENTS("Conquistas", ZenIcons.Trophy)
+}
+
+/** Cada aba usa a cor do assunto, a mesma das telas de Treino, Dieta e Conquistas. */
+@Composable
+private fun ProgressTab.accent(): Color = when (this) {
+    ProgressTab.SUMMARY -> Daidai
+    ProgressTab.TRAINING -> Ki
+    ProgressTab.DIET -> Midori
+    ProgressTab.WEIGHT -> Ao
+    ProgressTab.ACHIEVEMENTS -> Sakura
+}
+
+/**
+ * Faixa de abas com rolagem horizontal: a aba escolhida sempre fica à vista (ao abrir pelo botão
+ * "Ver conquistas", por exemplo) e um esmaecido na borda mostra que há mais abas para o lado.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ProgressTabs(selected: Int, onSelect: (Int) -> Unit, gutter: Dp) {
+    val scroll = rememberScrollState()
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal = gutter),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            ProgressTab.entries.forEachIndexed { i, t ->
+                val requester = remember { BringIntoViewRequester() }
+                LaunchedEffect(selected) { if (i == selected) requester.bringIntoView() }
+                ZenChip(
+                    tr(t.pt), i == selected, { onSelect(i) }, Modifier.bringIntoViewRequester(requester),
+                    accent = t.accent(), mark = t.icon
+                )
+            }
+        }
+        // Esmaecidos nas bordas. A camada acompanha o tamanho da faixa (matchParentSize): um fillMaxHeight solto
+        // aqui ocuparia a tela toda e deixaria o conteúdo da aba com altura zero.
+        val bg = Zen.p.bg
+        Box(Modifier.matchParentSize()) {
+            if (scroll.canScrollBackward) {
+                Box(
+                    Modifier.align(Alignment.CenterStart).fillMaxHeight().width(gutter + 14.dp)
+                        .background(Brush.horizontalGradient(listOf(bg, Color.Transparent)))
+                )
+            }
+            if (scroll.canScrollForward) {
+                Box(
+                    Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(gutter + 22.dp)
+                        .background(Brush.horizontalGradient(listOf(Color.Transparent, bg)))
+                )
+            }
+        }
+    }
 }
 
 private val AchievementColors = listOf(Ki, Aka, Ao, Midori, Daidai, Sakura)
@@ -102,14 +167,7 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                 tr("Evolução"), "進", accent = Daidai, subtitle = tr("Treino, dieta, peso e conquistas"),
                 back = { ZenButton(tr("Voltar ao perfil"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
             )
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = gutter),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                ProgressTab.entries.forEachIndexed { i, t ->
-                    ZenChip(tr(t.pt), i == tabIndex, { tabIndex = i }, accent = Daidai)
-                }
-            }
+            ProgressTabs(tabIndex, { tabIndex = it }, gutter)
             Spacer(Modifier.height(10.dp))
             val scroll = rememberScrollState()
             LaunchedEffect(tab) { scroll.scrollTo(0) }

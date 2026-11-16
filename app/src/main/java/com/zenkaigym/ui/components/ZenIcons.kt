@@ -52,6 +52,11 @@ object ZenIcons {
     val TrendUp = fill("TrendUp", "M12 6 L19 17 H5 Z")
     val TrendDown = fill("TrendDown", "M12 18 L19 7 H5 Z")
 
+    // Abas da Evolução: resumo (painéis), balança e troféu.
+    val Summary = stroke("Summary", "M4 4 h6.5 v7 H4 Z M13.5 4 H20 v4 h-6.5 Z M13.5 11 H20 v9 h-6.5 Z M4 14 h6.5 v6 H4 Z")
+    val Weight = stroke("Weight", "M12 4 V20 M7 20 H17 M4 7 H20 M4 7 L2 13 H6 Z M20 7 L18 13 H22 Z")
+    val Trophy = stroke("Trophy", "M8 4 H16 V10 a4 4 0 0 1 -8 0 Z M8 6 H4.5 V8 a3 3 0 0 0 3.7 2.9 M16 6 H19.5 V8 a3 3 0 0 1 -3.7 2.9 M12 14 V20 M8 20 H16")
+
     // Abas: haltere, tigela com hashi, portal torii, pessoa e controles deslizantes.
     val Workout = stroke("Workout", "M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5")
     val Diet = stroke("Diet", "M3.5 12 H20.5 A8.5 8.5 0 0 1 3.5 12 Z M8 8.5 L18.5 3 M12 9 L20.5 6")
