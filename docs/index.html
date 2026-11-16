@@ -194,7 +194,21 @@ footer a{text-underline-offset:3px}
 /* evolução (gamificação) e estilos */
 .split{display:grid;gap:40px;align-items:center}
 @media(min-width:860px){.split{grid-template-columns:1.2fr .8fr}}
-.split .phone{width:min(280px,72vw)}
+.split .phone{width:min(280px,36vh,72vw)}
+/* seções divididas: o texto fica na coluna larga (mesmo quando o celular vem antes) e cabe numa tela só */
+.wrap.split{max-width:1240px}
+@media(min-width:860px){
+  .split{gap:clamp(32px,5vw,72px)}
+  .split.phone-first{grid-template-columns:.7fr 1.3fr}
+  .split .phone{justify-self:center}
+}
+.split h2{font-size:clamp(26px,3.6vw,42px)}
+.split .sec-head{gap:10px;margin-bottom:clamp(16px,3vh,28px)}
+.split .grid{gap:clamp(14px,2.4vh,22px)}
+@media(max-width:859px){.split .phone{margin-inline:auto}}
+@media(min-width:860px) and (max-height:900px){
+  section{padding:clamp(24px,4vh,48px) 0}
+}
 .xp{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:12px;margin:0 0 28px}
 .xp li{border:3px solid var(--border);background:var(--card);box-shadow:4px 4px 0 var(--shadow);padding:8px 12px;font-weight:700;font-size:14px}
 .xp b{font-weight:900;background:var(--ki);padding:0 .4em;margin-right:6px;border:2px solid var(--border);display:inline-block}
@@ -366,7 +380,7 @@ html.loading .hero *{animation-play-state:paused!important}
   </section>
 
   <section id="graficos">
-    <div class="wrap split">
+    <div class="wrap split phone-first">
       <div>
         <div class="phone"><img loading="lazy" src="img/conquistas.webp" width="540" height="1200" alt="Aba Conquistas com a lista de conquistas e barras de progresso"></div>
       </div>
