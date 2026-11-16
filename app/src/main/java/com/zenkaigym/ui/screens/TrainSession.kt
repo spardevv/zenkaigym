@@ -192,7 +192,8 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     // Recalcula ao trocar um exercício: o novo ganha a carga da última vez em que foi feito.
     LaunchedEffect(items.map { it.exercise.id }) {
         items.forEach { entry ->
-            val history = viewModel.history(entry.exercise.id)
+            // Falha ao ler o histórico não pode derrubar o treino: segue sem sugestão de carga.
+            val history = runCatching { viewModel.history(entry.exercise.id) }.getOrNull() ?: return@forEach
             // A dica só aparece quando dá para subir a carga; os campos continuam com o valor anterior.
             val suggested = Progression.nextWeight(history.last, entry.item.reps)
             val lastTop = history.last.maxOfOrNull { it.weightKg }
@@ -285,9 +286,9 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
             contentPadding = PaddingValues(horizontal = 16.dp),
             pageSpacing = 12.dp,
             verticalAlignment = Alignment.Top,
-            key = { items[it].item.id }
+            key = { items.getOrNull(it)?.item?.id ?: -(it + 1L) }
         ) { index ->
-            val entry = items[index]
+            val entry = items.getOrNull(index) ?: return@HorizontalPager
             val id = entry.exercise.id
             val scroll = rememberScrollState()
             Box(Modifier.fillMaxSize()) {

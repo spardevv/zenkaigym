@@ -13,6 +13,12 @@ import com.zenkaigym.domain.RuleBasedEngine
 class ZenApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Se o app cair com o modo treino aberto, ele não reabre direto nele (evita crash em loop a cada abertura).
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching { appFlags.trainingDay = -1L }
+            previous?.uncaughtException(thread, error)
+        }
         I18n.select(appFlags.language)
         ReminderScheduler.createChannel(this)
     }
