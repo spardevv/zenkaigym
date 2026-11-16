@@ -76,6 +76,20 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;g
 }
 .seal svg{width:62%;height:62%;transform:rotate(-35deg)}
 .seal.lg{width:64px;height:64px;font-size:34px}
+/* marca no cabeçalho: leva ao topo, então reage ao passar o mouse, ao focar e ao tocar */
+.brand .seal{transition:background .25s,transform .35s cubic-bezier(.3,1.6,.5,1),box-shadow .25s}
+.brand .seal svg{transition:transform .5s cubic-bezier(.3,1.5,.5,1)}
+.brand-name{position:relative;display:inline-block;transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
+.brand-name::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:4px;background:var(--aka);transform:scaleX(0);transform-origin:left;transition:transform .3s ease}
+.brand:focus-visible{outline:3px solid var(--border);outline-offset:6px}
+.brand:active .seal{transform:scale(.9)}
+.brand:active .brand-name{transform:translateX(1px) scale(.98)}
+@media(hover:hover){
+  .brand:hover .seal,.brand:focus-visible .seal{background:var(--ki);transform:translateY(-2px) scale(1.08);box-shadow:3px 3px 0 var(--shadow)}
+  .brand:hover .seal svg,.brand:focus-visible .seal svg{transform:rotate(145deg)}
+  .brand:hover .brand-name,.brand:focus-visible .brand-name{transform:translateX(3px)}
+  .brand:hover .brand-name::after,.brand:focus-visible .brand-name::after{transform:scaleX(1)}
+}
 
 /* hero */
 .hero{padding:28px 0}
@@ -276,7 +290,7 @@ html.loading .hero *{animation-play-state:paused!important}
 
 <header class="top" id="topo">
   <div class="wrap">
-    <a class="brand" href="#" aria-label="Zenkaigym"><span class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5"/></svg></span>Zenkaigym</a>
+    <a class="brand" href="#" aria-label="Zenkaigym"><span class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 H14 M6.6 6.5 h2.6 v11 h-2.6 Z M14.8 6.5 h2.6 v11 h-2.6 Z M3 9.5 V14.5 M21 9.5 V14.5"/></svg></span><span class="brand-name">Zenkaigym</span></a>
     <a class="btn small" href="https://github.com/spardevv/zenkaigym/releases/latest" data-apk>Baixar APK</a>
   </div>
 </header>
