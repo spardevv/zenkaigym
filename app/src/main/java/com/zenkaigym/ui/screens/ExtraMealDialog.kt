@@ -61,7 +61,37 @@ fun AddExtraDialog(
     var error by remember { mutableStateOf<String?>(null) }
     val options = remember(foods, category, type) { DietPlanner.alternatives(foods, category, type) }
 
-    ZenDialog(tr("Comi outra coisa · {0}", mealName), onDismiss, accent = Ao) {
+    // Os botões de ação ficam fixos no rodapé (fora da rolagem) e mudam conforme o passo em que a janela está.
+    val picked = chosen
+    val freeForm = !fromList
+    ZenDialog(
+        tr("Comi outra coisa · {0}", mealName), onDismiss, accent = Ao,
+        footerReserve = if (freeForm && error != null) 126 else 90,
+        footer = {
+            when {
+                fromList && picked != null -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenButton(tr("Anotar"), { onFood(picked, grams) }, Modifier.weight(1f), accent = Ao, fill = true)
+                    ZenButton(tr("Voltar"), { chosen = null }, accent = Zen.p.card)
+                }
+                fromList -> ZenButton(tr("Fechar"), onDismiss, accent = Zen.p.card, fill = true, small = true)
+                else -> {
+                    error?.let {
+                        Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ZenButton(tr("Anotar"), {
+                            when (val r = ExtraValidator.validate(name, kcal, protein)) {
+                                is ExtraValidation.Invalid -> error = r.message
+                                is ExtraValidation.Valid -> onFree(r.name, r.kcal, r.protein)
+                            }
+                        }, Modifier.weight(1f), accent = Ao, fill = true)
+                        ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+                    }
+                }
+            }
+        }
+    ) {
         Text(tr("Anote o que você comeu. As próximas refeições de hoje se ajustam; o cardápio não muda."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -87,11 +117,6 @@ fun AddExtraDialog(
                 tr("{0} kcal · {1} g proteína", (food.kcalPer100 * grams / 100).roundToInt(), (food.proteinPer100 * grams / 100).roundToInt()),
                 color = Zen.p.muted
             )
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Anotar"), { onFood(food, grams) }, Modifier.weight(1f), accent = Ao, fill = true)
-                ZenButton(tr("Voltar"), { chosen = null }, accent = Zen.p.card)
-            }
         } else if (fromList) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 FoodCategory.entries.forEach {
@@ -106,28 +131,12 @@ fun AddExtraDialog(
                     grams = DietPlanner.defaultGrams(f)
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            ZenButton(tr("Fechar"), onDismiss, accent = Zen.p.card, fill = true, small = true)
         } else {
             ZenField(tr("Prato"), name, { name = it }, placeholder = tr("ex.: Pizza, 2 fatias"), imeAction = ImeAction.Next)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ZenField(tr("Kcal (estimado)"), kcal, { kcal = it }, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
                 ZenField(tr("Proteína (g)"), protein, { protein = it }, Modifier.weight(1f), KeyboardType.Number, placeholder = "0")
-            }
-            error?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Anotar"), {
-                    when (val r = ExtraValidator.validate(name, kcal, protein)) {
-                        is ExtraValidation.Invalid -> error = r.message
-                        is ExtraValidation.Valid -> onFree(r.name, r.kcal, r.protein)
-                    }
-                }, Modifier.weight(1f), accent = Ao, fill = true)
-                ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
         }
     }

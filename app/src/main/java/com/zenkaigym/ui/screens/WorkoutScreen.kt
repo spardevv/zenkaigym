@@ -204,7 +204,14 @@ private fun ExerciseItemDialog(day: WorkoutDayFull, entry: WorkoutItemFull, exer
         exercises.filter { it.group == group && it.id !in inDay }
     }
 
-    ZenDialog(tr(entry.exercise.name), onClose, accent = Ki) {
+    ZenDialog(tr(entry.exercise.name), onClose, accent = Ki, footerReserve = 120, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+        }
+        Spacer(Modifier.height(8.dp))
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
+    }) {
         Stepper(
             tr("{0} séries", entry.item.sets),
             onMinus = { viewModel.setWorkoutSets(entry.item.id, entry.item.sets - 1) },
@@ -223,13 +230,6 @@ private fun ExerciseItemDialog(day: WorkoutDayFull, entry: WorkoutItemFull, exer
                 onClose()
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
-        }
-        Spacer(Modifier.height(8.dp))
-        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
     }
 
     if (removing) {
@@ -258,7 +258,12 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
     val options = remember(exercises, group, inDay) { exercises.filter { it.group == group && it.id !in inDay } }
     val groups = MuscleGroup.entries
 
-    ZenDialog(tr("Adicionar · {0}", tr(day.day.name)), onClose, accent = Ki) {
+    ZenDialog(tr("Adicionar · {0}", tr(day.day.name)), onClose, accent = Ki, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+        }
+    }) {
         // A categoria escolhida é trazida para a vista, para não ficar escondida no fim da faixa.
         val chipsState = rememberLazyListState()
         LaunchedEffect(group) { chipsState.animateScrollToItem(groups.indexOf(group).coerceAtLeast(0)) }
@@ -272,11 +277,6 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
                 viewModel.addWorkoutItem(day.day.id, ex)
                 onClose()
             }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
         }
     }
 
@@ -293,19 +293,19 @@ private fun AddExerciseDialog(day: WorkoutDayFull, exercises: List<Exercise>, vi
 internal fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ZenDialog(tr("Novo exercício · {0}", group.label), onDismiss, accent = Ki) {
-        ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Supino na máquina"))
+    ZenDialog(tr("Novo exercício · {0}", group.label), onDismiss, accent = Ki, footerReserve = if (error != null) 126 else 90, footer = {
         error?.let {
-            Spacer(Modifier.height(8.dp))
             Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ZenButton(tr("Salvar"), {
                 if (name.isBlank()) error = tr("Informe o nome do exercício.") else onSave(name.trim())
             }, Modifier.weight(1f), accent = Ki, fill = true)
             ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
+    }) {
+        ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Supino na máquina"))
     }
 }
 
@@ -317,7 +317,9 @@ private fun MyExercisesDialog(exercises: List<Exercise>, viewModel: ZenViewModel
     var renaming by remember { mutableStateOf<Exercise?>(null) }
     var deleting by remember { mutableStateOf<Exercise?>(null) }
 
-    ZenDialog(tr("Meus exercícios"), onClose, accent = Ki) {
+    ZenDialog(tr("Meus exercícios"), onClose, accent = Ki, footer = {
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true)
+    }) {
         if (mine.isEmpty()) {
             Text(tr("Você ainda não criou nenhum exercício. Crie um ao trocar ou adicionar exercícios na ficha."), color = Zen.p.muted)
         }
@@ -332,30 +334,28 @@ private fun MyExercisesDialog(exercises: List<Exercise>, viewModel: ZenViewModel
                 MiniButton("✕", { deleting = exercise }, color = Aka)
             }
         }
-        Spacer(Modifier.height(12.dp))
-        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true)
     }
 
     renaming?.let { exercise ->
         var name by remember(exercise.id) { mutableStateOf(exercise.name) }
-        ZenDialog(tr("Renomear exercício"), { renaming = null }, accent = Ki) {
-            ZenField(tr("Nome"), name, { name = it })
-            Spacer(Modifier.height(12.dp))
+        ZenDialog(tr("Renomear exercício"), { renaming = null }, accent = Ki, footer = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ZenButton(tr("Salvar"), { renaming = null; viewModel.renameExercise(exercise.id, name) }, Modifier.weight(1f), accent = Ki, enabled = name.isNotBlank(), fill = true)
                 ZenButton(tr("Cancelar"), { renaming = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
+        }) {
+            ZenField(tr("Nome"), name, { name = it })
         }
     }
 
     deleting?.let { exercise ->
-        ZenDialog(tr("Excluir exercício?"), { deleting = null }, accent = Aka) {
-            Text(tr("{0} e todo o histórico de cargas dele serão apagados. Isso não pode ser desfeito.", exercise.name), color = Zen.p.muted)
-            Spacer(Modifier.height(12.dp))
+        ZenDialog(tr("Excluir exercício?"), { deleting = null }, accent = Aka, footer = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ZenButton(tr("Excluir"), { deleting = null; viewModel.deleteExercise(exercise.id) }, Modifier.weight(1f), accent = Aka, fill = true)
                 ZenButton(tr("Cancelar"), { deleting = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
+        }) {
+            Text(tr("{0} e todo o histórico de cargas dele serão apagados. Isso não pode ser desfeito.", exercise.name), color = Zen.p.muted)
         }
     }
 }

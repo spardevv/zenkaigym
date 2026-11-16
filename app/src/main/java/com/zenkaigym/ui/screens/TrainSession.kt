@@ -370,7 +370,12 @@ private fun SwapExerciseDialog(
         WorkoutSwaps.options(entry.exercise, exercises, inDay).filter { !swapped || it.id != original?.id }
     }
 
-    ZenDialog(tr("Trocar · {0}", tr(entry.exercise.name)), onDismiss, accent = accent) {
+    ZenDialog(tr("Trocar · {0}", tr(entry.exercise.name)), onDismiss, accent = accent, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Fechar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+        }
+    }) {
         Text(tr("Vale só para o treino de hoje; a ficha continua igual."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
         if (swapped && original != null) {
@@ -383,11 +388,6 @@ private fun SwapExerciseDialog(
         Spacer(Modifier.height(4.dp))
         if (options.isEmpty()) Text(tr("Nenhuma outra opção neste grupo."), color = Zen.p.muted)
         options.forEach { alt -> PickRow(tr(alt.name), group.label, null, accent) { onSwap(alt) } }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Fechar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
-        }
     }
 
     if (registering) NewExerciseDialog(group, onDismiss = { registering = false }) { onCreate(it) }

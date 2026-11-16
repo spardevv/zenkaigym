@@ -120,13 +120,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
 
     confirm?.let { action ->
         val reset = action == FoodsAction.RESET
-        ZenDialog(if (reset) tr("Refazer sugestão?") else tr("Remover tudo?"), { confirm = null }, accent = if (reset) Sakura else Aka) {
-            Text(
-                if (reset) tr("Todos os seus alimentos serão apagados e trocados pela lista sugerida. A dieta será remontada.")
-                else tr("Todos os alimentos serão apagados e as dietas perdem seus itens. Você pode cadastrar de novo ou refazer a sugestão."),
-                color = Zen.p.muted
-            )
-            Spacer(Modifier.height(14.dp))
+        ZenDialog(if (reset) tr("Refazer sugestão?") else tr("Remover tudo?"), { confirm = null }, accent = if (reset) Sakura else Aka, footer = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ZenButton(if (reset) tr("Refazer") else tr("Remover"), {
                     if (reset) viewModel.resetFoods() else viewModel.deleteAllFoods()
@@ -134,6 +128,12 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                 }, Modifier.weight(1f), accent = if (reset) Sakura else Aka, fill = true)
                 ZenButton(tr("Cancelar"), { confirm = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
             }
+        }) {
+            Text(
+                if (reset) tr("Todos os seus alimentos serão apagados e trocados pela lista sugerida. A dieta será remontada.")
+                else tr("Todos os alimentos serão apagados e as dietas perdem seus itens. Você pode cadastrar de novo ou refazer a sugestão."),
+                color = Zen.p.muted
+            )
         }
     }
 

@@ -384,7 +384,15 @@ internal fun WeekSetupDialog(
     val total = chosen.sumOf { it.kcal }
     val comp = CheatRules.compensationPerDay(goal, types, chosen)
 
-    ZenDialog(tr("Cardápio da semana"), onDismiss, accent = Midori) {
+    ZenDialog(tr("Cardápio da semana"), onDismiss, accent = Midori, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(if (manual) tr("Criar em branco") else tr("Montar cardápio"), {
+                val cheat = if (useCheat && chosen.isNotEmpty()) CheatDay(cheatDay, chosen) else null
+                onCreate(manual, cheat)
+            }, Modifier.weight(1f), accent = Midori, fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+        }
+    }) {
         Text(tr("COMO MONTAR"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -448,14 +456,6 @@ internal fun WeekSetupDialog(
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(if (manual) tr("Criar em branco") else tr("Montar cardápio"), {
-                val cheat = if (useCheat && chosen.isNotEmpty()) CheatDay(cheatDay, chosen) else null
-                onCreate(manual, cheat)
-            }, Modifier.weight(1f), accent = Midori, fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
-        }
     }
 }
 
@@ -513,7 +513,14 @@ private fun FoodItemDialog(meal: MealFull, entry: MealItemFull, foods: List<Food
         DietPlanner.alternatives(foods, food.category, meal.meal.type, excludeId = food.id)
     }
 
-    ZenDialog(tr(food.name), onClose, accent = food.category.accent()) {
+    ZenDialog(tr(food.name), onClose, accent = food.category.accent(), footerReserve = 120, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+        }
+        Spacer(Modifier.height(8.dp))
+        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
+    }) {
         val step = Portions.stepGrams(food)
         Stepper(
             Portions.text(food, grams),
@@ -537,13 +544,6 @@ private fun FoodItemDialog(meal: MealFull, entry: MealItemFull, foods: List<Food
                 onClose()
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("+ Cadastrar outro"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Remover"), { removing = true }, Modifier.weight(1f), accent = Aka, fill = true, small = true)
-        }
-        Spacer(Modifier.height(8.dp))
-        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true, small = true)
     }
 
     if (removing) {
@@ -575,7 +575,12 @@ private fun AddFoodDialog(meal: MealFull, foods: List<Food>, viewModel: ZenViewM
     var registering by remember { mutableStateOf(false) }
     val options = remember(foods, category, meal.meal.type) { DietPlanner.alternatives(foods, category, meal.meal.type) }
 
-    ZenDialog(tr("Adicionar · {0}", tr(meal.meal.name)), onClose, accent = category.accent()) {
+    ZenDialog(tr("Adicionar · {0}", tr(meal.meal.name)), onClose, accent = category.accent(), footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
+            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+        }
+    }) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             FoodCategory.entries.forEach {
                 ZenChip(it.shortLabel(), category == it, { category = it }, Modifier.weight(1f), accent = it.accent(), compact = true)
@@ -588,11 +593,6 @@ private fun AddFoodDialog(meal: MealFull, foods: List<Food>, viewModel: ZenViewM
                 viewModel.addFoodToMeal(meal.meal.id, food)
                 onClose()
             }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("+ Cadastrar novo"), { registering = true }, Modifier.weight(1f), accent = Ao, fill = true, small = true)
-            ZenButton(tr("Fechar"), onClose, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
         }
     }
 

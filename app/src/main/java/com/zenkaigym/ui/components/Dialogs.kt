@@ -70,12 +70,14 @@ fun ZenDialog(
     title: String,
     onDismiss: () -> Unit,
     accent: Color = Aka,
+    footerReserve: Int = 90,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     // Usa quase toda a altura disponível, para só rolar quando o conteúdo realmente não cabe.
+    // [footerReserve] (dp) é a altura que o rodapé ocupa; rodapés com mais de uma linha informam um valor maior.
     val layout = currentWindowLayout
-    val maxBody = (layout.heightDp - layout.dialogChrome - if (footer != null) 80 else 0).coerceAtLeast(120).dp
+    val maxBody = (layout.heightDp - layout.dialogChrome - if (footer != null) footerReserve else 0).coerceAtLeast(120).dp
     val scroll = rememberScrollState()
     // Entrada: a janela "salta" de um pouco menor, com leve quique, em vez de surgir de uma vez.
     val enter = remember { Animatable(0f) }
@@ -166,30 +168,30 @@ fun ZenTimePickerDialog(
         timeSelectorSelectedContentColor = Sumi,
         timeSelectorUnselectedContentColor = p.ink
     )
-    ZenDialog(title, onDismiss) {
+    ZenDialog(title, onDismiss, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("OK"), { onConfirm(TimeOfDay(state.hour, state.minute)) }, Modifier.weight(1f), fill = true)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = p.card, fill = true)
+        }
+    }) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             if (keyboard) TimeInput(state, colors = colors) else TimePicker(state, colors = colors)
         }
         Spacer(Modifier.height(8.dp))
         ZenChip(if (keyboard) tr("Relógio") else tr("Teclado"), false, { keyboard = !keyboard }, accent = Ao)
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("OK"), { onConfirm(TimeOfDay(state.hour, state.minute)) }, Modifier.weight(1f), fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = p.card, fill = true)
-        }
     }
 }
 
 /** Confirmação de uma ação destrutiva: ação principal primeiro, "Cancelar" ao lado, com a mesma largura. */
 @Composable
 fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ZenDialog(title, onDismiss, accent = Aka) {
-        Text(message, color = Zen.p.muted)
-        Spacer(Modifier.height(12.dp))
+    ZenDialog(title, onDismiss, accent = Aka, footer = {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ZenButton(confirmLabel, onConfirm, Modifier.weight(1f), accent = Aka, fill = true)
             ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
         }
+    }) {
+        Text(message, color = Zen.p.muted)
     }
 }
 
@@ -249,7 +251,36 @@ fun FoodFormDialog(
     var unitGrams by remember { mutableStateOf(initial?.unitGrams?.fmt() ?: "") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    ZenDialog(if (initial == null) tr("Novo alimento") else tr("Editar alimento"), onDismiss, accent = category.accent()) {
+    // Salvar/Cancelar/Excluir (e o erro de validação) ficam fixos no rodapé, sempre à vista.
+    ZenDialog(
+        if (initial == null) tr("Novo alimento") else tr("Editar alimento"), onDismiss, accent = category.accent(),
+        footerReserve = 90 + (if (onDelete != null) 50 else 0) + (if (error != null) 36 else 0),
+        footer = {
+            error?.let {
+                Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(8.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Salvar"), {
+                    val unit = Portions.parseUnit(unitLabel, unitGrams)
+                    when (val r = FoodValidator.validate(name, kcal, protein, carbs, fat)) {
+                        is FoodValidation.Invalid -> error = r.message
+                        is FoodValidation.Valid -> when (unit) {
+                            is Portions.UnitInput.Invalid -> error = unit.message
+                            is Portions.UnitInput.Valid -> onSave(
+                                Food(initial?.id ?: 0L, r.name, category, r.kcal, r.protein, r.carbs, r.fat, unit.label, unit.grams)
+                            )
+                        }
+                    }
+                }, modifier = Modifier.weight(1f), accent = category.accent(), fill = true)
+                ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
+            }
+            if (onDelete != null) {
+                Spacer(Modifier.height(6.dp))
+                ZenButton(tr("Excluir alimento"), onDelete, accent = Aka, small = true)
+            }
+        }
+    ) {
         ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Peito de frango"))
         if (fixedCategory == null) {
             Spacer(Modifier.height(10.dp))
@@ -275,30 +306,6 @@ fun FoodFormDialog(
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ZenField(tr("Unidade"), unitLabel, { unitLabel = it }, Modifier.weight(1f), placeholder = tr("ex.: ovo, fatia"))
             ZenField(tr("Peso (g)"), unitGrams, { unitGrams = it }, Modifier.weight(1f), KeyboardType.Decimal, placeholder = tr("ex.: 50"))
-        }
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = Aka, style = MaterialTheme.typography.labelLarge)
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("Salvar"), {
-                val unit = Portions.parseUnit(unitLabel, unitGrams)
-                when (val r = FoodValidator.validate(name, kcal, protein, carbs, fat)) {
-                    is FoodValidation.Invalid -> error = r.message
-                    is FoodValidation.Valid -> when (unit) {
-                        is Portions.UnitInput.Invalid -> error = unit.message
-                        is Portions.UnitInput.Valid -> onSave(
-                            Food(initial?.id ?: 0L, r.name, category, r.kcal, r.protein, r.carbs, r.fat, unit.label, unit.grams)
-                        )
-                    }
-                }
-            }, modifier = Modifier.weight(1f), accent = category.accent(), fill = true)
-            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true)
-        }
-        if (onDelete != null) {
-            Spacer(Modifier.height(6.dp))
-            ZenButton(tr("Excluir alimento"), onDelete, accent = Aka, small = true)
         }
     }
 }

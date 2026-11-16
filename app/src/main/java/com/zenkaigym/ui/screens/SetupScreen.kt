@@ -12,8 +12,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import com.zenkaigym.ui.components.LocalMotionEnabled
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -105,13 +108,13 @@ fun SetupScreen(viewModel: ZenViewModel) {
     }
 
     ZenPage {
+      // Só o conteúdo rola; os botões de navegação das etapas ficam fixos no rodapé, sempre à vista.
+      Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
         Column(
             Modifier
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .imePadding()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(currentWindowLayout.gutter),
+                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = currentWindowLayout.gutter, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ZenHeader(
@@ -152,7 +155,10 @@ fun SetupScreen(viewModel: ZenViewModel) {
                     }
                 }
             }
+        }
 
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Zen.p.border))
+        Column(Modifier.fillMaxWidth().background(Zen.p.bg).padding(horizontal = currentWindowLayout.gutter, vertical = 10.dp)) {
             when (step) {
                 0 -> ZenButton(tr("Continuar"), {
                     when (val r = ProfileValidator.validate(height, weight, age)) {
@@ -188,6 +194,7 @@ fun SetupScreen(viewModel: ZenViewModel) {
                 else -> ZenButton(tr("Voltar"), { step = 2 }, accent = Zen.p.card, small = true)
             }
         }
+      }
         Box(Modifier.statusBarsPadding()) { FeedbackHost(busy, null, Modifier.align(Alignment.TopCenter)) }
     }
 }
