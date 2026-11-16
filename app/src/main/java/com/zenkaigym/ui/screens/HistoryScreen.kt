@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -74,17 +76,17 @@ fun HistoryScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
 @Composable
 private fun ExerciseList(exercises: List<Exercise>, onBack: () -> Unit, onSelect: (Exercise) -> Unit) {
     val listState = rememberLazyListState()
+    Column(Modifier.fillMaxSize()) {
+    ZenFixedHeader(
+        tr("Histórico"), "歴", accent = Ki, subtitle = tr("Progressão por exercício"),
+        back = { ZenButton(tr("←  Voltar ao perfil"), onBack, accent = Zen.p.card, small = true) }
+    )
+    Box(Modifier.weight(1f)) {
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(currentWindowLayout.gutter),
+        contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item(key = "header") {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                ZenButton(tr("←  Voltar ao perfil"), onBack, accent = Zen.p.card, small = true)
-                ZenHeader(tr("Histórico"), "歴", accent = Ki, subtitle = tr("Progressão por exercício"))
-            }
-        }
         if (exercises.isEmpty()) {
             item(key = "empty") {
                 ZenCard(entranceIndex = 1) {
@@ -111,6 +113,8 @@ private fun ExerciseList(exercises: List<Exercise>, onBack: () -> Unit, onSelect
         }
     }
     ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+    }
+    }
 }
 
 @Composable
@@ -122,17 +126,17 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
 
     fun value(v: Double) = if (byLoad) "${kgLabel(v)} kg" else tr("{0} reps", v.toInt())
 
+    Column(Modifier.fillMaxSize()) {
+    ZenFixedHeader(
+        tr(exercise.name), "歴", accent = Ki, subtitle = exercise.group.label,
+        back = { ZenButton(tr("←  Voltar à lista"), onBack, accent = Zen.p.card, small = true) }
+    )
+    Box(Modifier.weight(1f)) {
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(currentWindowLayout.gutter),
+        contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item(key = "header") {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                ZenButton(tr("←  Voltar à lista"), onBack, accent = Zen.p.card, small = true)
-                ZenHeader(tr(exercise.name), "歴", accent = Ki, subtitle = exercise.group.label)
-            }
-        }
         if (progress.sessions.isNotEmpty()) {
             item(key = "stats") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -174,6 +178,8 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
         }
     }
     ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+    }
+    }
 }
 
 private fun kgLabel(kg: Double): String = if (kg % 1.0 == 0.0) kg.toLong().toString() else kg.toString()

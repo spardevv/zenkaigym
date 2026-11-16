@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -110,24 +111,24 @@ fun SetupScreen(viewModel: ZenViewModel) {
     ZenPage {
       // Só o conteúdo rola; os botões de navegação das etapas ficam fixos no rodapé, sempre à vista.
       Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+        // Cabeçalho fixo no topo, fora da rolagem.
+        ZenFixedHeader(
+            when (step) {
+                0 -> tr("Vamos começar")
+                1 -> tr("Seu treino")
+                2 -> tr("Treino sugerido")
+                else -> tr("Sua dieta")
+            },
+            when (step) { 0 -> "始"; 1 -> "鍛"; 2 -> "道"; else -> "食" },
+            subtitle = tr("Etapa {0} de {1}", step + 1, STEPS)
+        )
         Column(
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = currentWindowLayout.gutter, bottom = 8.dp),
+                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader(
-                when (step) {
-                    0 -> tr("Vamos começar")
-                    1 -> tr("Seu treino")
-                    2 -> tr("Treino sugerido")
-                    else -> tr("Sua dieta")
-                },
-                when (step) { 0 -> "始"; 1 -> "鍛"; 2 -> "道"; else -> "食" },
-                subtitle = tr("Etapa {0} de {1}", step + 1, STEPS)
-            )
-
             AnimatedContent(
                 targetState = step,
                 transitionSpec = {

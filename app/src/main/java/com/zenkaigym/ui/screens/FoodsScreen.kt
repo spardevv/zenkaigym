@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,16 +64,20 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val grouped = remember(foods) { FoodCategory.entries.map { cat -> cat to foods.filter { it.category == cat } }.filter { it.second.isNotEmpty() } }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(
+            tr("Alimentos"), "米", accent = Midori, subtitle = tr("Valores por 100 g · a dieta usa estes"),
+            back = { ZenButton(tr("←  Voltar à dieta"), onBack, accent = Zen.p.card, small = true) }
+        )
+        Box(Modifier.weight(1f)) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(currentWindowLayout.gutter),
+            contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "header") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ZenButton(tr("←  Voltar à dieta"), onBack, accent = Zen.p.card, small = true)
-                    ZenHeader(tr("Alimentos"), "米", accent = Midori, subtitle = tr("Valores por 100 g · a dieta usa estes"))
                     ZenButton(tr("+ Novo alimento"), { creating = true }, accent = Ao, fill = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ZenButton(tr("Refazer sugestão"), { confirm = FoodsAction.RESET }, Modifier.weight(1f), accent = Sakura, fill = true, small = true)
@@ -116,6 +122,8 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+        }
+      }
     }
 
     confirm?.let { action ->

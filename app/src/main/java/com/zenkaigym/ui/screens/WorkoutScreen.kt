@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.ui.components.MiniButton
 import com.zenkaigym.data.ExerciseCatalog
 import androidx.compose.foundation.layout.width
@@ -94,13 +96,15 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
     var managing by remember { mutableStateOf(false) }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha"))
+        Box(Modifier.weight(1f)) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(currentWindowLayout.gutter),
+            contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "header") { ZenHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha")) }
             item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
             item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
             item(key = "mine") { ZenButton(tr("Meus exercícios"), { managing = true }, accent = Zen.p.card, small = true) }
@@ -114,6 +118,8 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+        }
+      }
     }
 
     val items = shown?.days?.flatMap { d -> d.items.map { d to it } }.orEmpty()

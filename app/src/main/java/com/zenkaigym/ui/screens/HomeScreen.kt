@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
@@ -102,11 +103,13 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     var addingExtra by remember { mutableStateOf<MealFull?>(null) }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(tr("Dojo"), "道", subtitle = tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
+            Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            DojoHeader(tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
             if (profile == null) {
                 ZenCard(accent = Aka) {
                     Text(tr("COMECE SUA JORNADA"), style = MaterialTheme.typography.headlineSmall)
@@ -160,6 +163,7 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 }
             }
         }
+      }
     }
 
     addingExtra?.let { meal ->
@@ -171,18 +175,6 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
             onFree = { name, kcal, protein -> viewModel.addFreeExtra(meal.meal.type, name, kcal, protein); addingExtra = null },
             onDismiss = { addingExtra = null }
         )
-    }
-}
-
-/** Cabeçalho enxuto: título, dia e o selo, numa linha só (o antigo ocupava quase 120 dp). */
-@Composable
-private fun DojoHeader(subtitle: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(tr("Dojo").uppercase(), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
-            Text(subtitle, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-        }
-        KanjiBadge("道", color = Aka, size = 44.dp)
     }
 }
 

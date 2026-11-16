@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxSize
+import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.ui.components.ZenDialog
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
@@ -113,12 +115,13 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
     }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
+            Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))
-
             ZenButton(tr("Histórico de treinos  →"), onOpenHistory, accent = Ki, fill = true)
 
             ZenCard(accent = Daidai, entranceIndex = 0) {
@@ -173,6 +176,7 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}) {
                 ProgressCards(viewModel)
             }
         }
+      }
     }
 }
 

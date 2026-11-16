@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxSize
+import com.zenkaigym.ui.components.ZenFixedHeader
 import com.zenkaigym.notify.ReminderScheduler
 import androidx.core.content.ContextCompat
 import android.os.Build
@@ -104,12 +106,13 @@ fun SettingsScreen(viewModel: ZenViewModel) {
     }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, estilo, treino, semana, idioma e informações"))
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
+            Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ZenHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, estilo, treino, semana, idioma e informações"))
-
             ZenCard(accent = Ao, entranceIndex = 0) {
                 SectionTitle(tr("Aparência"), accent = Ao)
                 Spacer(Modifier.height(10.dp))
@@ -279,6 +282,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 ZenButton(tr("Apagar todos os dados"), { confirming = true }, accent = Aka, fill = true)
             }
         }
+      }
     }
 
     pendingImport?.let { uri ->

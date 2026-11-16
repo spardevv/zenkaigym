@@ -1,5 +1,7 @@
 package com.zenkaigym.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import com.zenkaigym.ui.components.ZenFixedHeader
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
@@ -108,18 +110,16 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
     var shopping by remember { mutableStateOf(false) }
 
     ZenPage {
+      Column(Modifier.fillMaxSize()) {
+        ZenFixedHeader(tr("Dieta"), "食", accent = Midori, subtitle = tr("Meta, horários e refeições"))
+        Box(Modifier.weight(1f)) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(currentWindowLayout.gutter),
+            contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "header") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ZenHeader(tr("Dieta"), "食", accent = Midori, subtitle = tr("Meta, horários e refeições"))
-                    ZenButton(tr("Meus alimentos  →"), onOpenFoods, accent = Ao, fill = true, small = true)
-                }
-            }
+            item(key = "foods") { ZenButton(tr("Meus alimentos  →"), onOpenFoods, accent = Ao, fill = true, small = true) }
             profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
             item(key = "schedule") { ScheduleCard(slots, viewModel) }
             item(key = "plan") {
@@ -140,6 +140,8 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
+        }
+      }
     }
 
     if (shopping) {

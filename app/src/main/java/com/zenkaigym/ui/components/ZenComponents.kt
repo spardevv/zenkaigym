@@ -284,10 +284,33 @@ fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subti
             Box(Modifier.width(72.dp).height(6.dp).clip(Zen.look.smallShape).background(accent))
             if (subtitle != null) {
                 Spacer(Modifier.height(6.dp))
-                Text(subtitle, color = p.muted, style = MaterialTheme.typography.bodyMedium)
+                Text(subtitle, color = p.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         KanjiBadge(kanji, color = accent, size = 56.dp)
+    }
+}
+
+/**
+ * Cabeçalho fixo da página (título, subtítulo e selo), sempre no topo e fora da rolagem: o conteúdo da tela
+ * rola abaixo dele. [back], quando informado, é o botão "voltar" das telas internas e fica junto do cabeçalho.
+ */
+@Composable
+fun ZenFixedHeader(
+    title: String,
+    kanji: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    accent: Color = Aka,
+    back: (@Composable () -> Unit)? = null
+) {
+    val gutter = currentWindowLayout.gutter
+    Column(modifier.fillMaxWidth().padding(start = gutter, end = gutter, top = gutter, bottom = 10.dp)) {
+        if (back != null) {
+            back()
+            Spacer(Modifier.height(10.dp))
+        }
+        ZenHeader(title, kanji, subtitle = subtitle, accent = accent)
     }
 }
 
