@@ -62,7 +62,7 @@ fun FeedbackHost(busy: String?, message: String?, modifier: Modifier = Modifier)
     ) {
         Column(
             Modifier
-                .zenShadow(4.dp, p.shadow, Zen.look.corner / 2)
+                .zenShadow(4.dp, p.shadow, Zen.look.smallShape)
                 .clip(Zen.look.smallShape)
                 .background(p.card)
                 .border(Zen.look.border, p.border, Zen.look.smallShape)

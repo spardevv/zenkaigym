@@ -7,6 +7,7 @@ class AppStyleTest {
     @Test
     fun fromName_defaultsToShonen() {
         assertEquals(AppStyle.KAWAII, AppStyle.fromName("KAWAII"))
+        assertEquals(AppStyle.ISEKAI, AppStyle.fromName("ISEKAI"))
         assertEquals(AppStyle.SHONEN, AppStyle.fromName(null))
         assertEquals(AppStyle.SHONEN, AppStyle.fromName("outro"))
     }

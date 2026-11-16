@@ -10,30 +10,35 @@ val Stone = Color(0xFF7A7A7A)     // cinza
 val Ink2 = Color(0xFF202226)
 
 /** Conjunto de acentos em uso; definido pelo ZenkaigymTheme conforme o estilo e o modo claro/escuro. */
-enum class AccentSet { SHONEN_LIGHT, SHONEN_DARK, KAWAII_LIGHT, KAWAII_DARK }
+enum class AccentSet { SHONEN_LIGHT, SHONEN_DARK, KAWAII_LIGHT, KAWAII_DARK, ISEKAI_LIGHT, ISEKAI_DARK }
 
 internal var accentSet by mutableStateOf(AccentSet.SHONEN_LIGHT)
 
-private fun pick(shonenLight: Long, shonenDark: Long, kawaiiLight: Long, kawaiiDark: Long): Color = Color(
+private fun pick(
+    shonenLight: Long, shonenDark: Long, kawaiiLight: Long, kawaiiDark: Long, isekaiLight: Long, isekaiDark: Long
+): Color = Color(
     when (accentSet) {
         AccentSet.SHONEN_LIGHT -> shonenLight
         AccentSet.SHONEN_DARK -> shonenDark
         AccentSet.KAWAII_LIGHT -> kawaiiLight
         AccentSet.KAWAII_DARK -> kawaiiDark
+        AccentSet.ISEKAI_LIGHT -> isekaiLight
+        AccentSet.ISEKAI_DARK -> isekaiDark
     }
 )
 
-/** Tinta usada sobre os acentos (texto de botões e selos): quase preta no Shōnen, ameixa no Kawaii. Nunca #000. */
-val Sumi: Color get() = pick(0xFF17171A, 0xFF17171A, 0xFF4A3552, 0xFF3A2748)
+/** Tinta usada sobre os acentos (texto de botões e selos): quase preta no Shōnen, ameixa no Kawaii, azul-noite no Isekai. Nunca #000. */
+val Sumi: Color get() = pick(0xFF17171A, 0xFF17171A, 0xFF4A3552, 0xFF3A2748, 0xFF06101E, 0xFF06101E)
 
 // Acentos. Shōnen: levemente saturados no claro, pastéis no escuro.
 // Kawaii: rosa, lilás, roxo e azul-bebê em tons pastel (um pouco mais claros no escuro).
-val Aka: Color get() = pick(0xFFF25A52, 0xFFFF8F8F, 0xFFF7A8C4, 0xFFF9B8D0)       // vermelho · rosa
-val Ki: Color get() = pick(0xFFF8CC4A, 0xFFFFDB80, 0xFFD9C3F2, 0xFFE2D0F7)        // amarelo · lilás
-val Ao: Color get() = pick(0xFF45C0EE, 0xFF84D4F0, 0xFFA9D6F5, 0xFFB8DEF8)        // azul · azul-bebê
-val Daidai: Color get() = pick(0xFFF59A40, 0xFFFFA860, 0xFFF9C6D9, 0xFFFAD0E0)    // laranja · rosa-pêssego
-val Sakura: Color get() = pick(0xFFE888B0, 0xFFF2A6C4, 0xFFC4A5E8, 0xFFCDB2EE)    // rosa · roxo pastel
-val Midori: Color get() = pick(0xFF55D48A, 0xFF88E2AE, 0xFFA8E3E8, 0xFFB5E8EC)    // verde · azul-menta
+// Isekai: neons de interface de jogo — ciano de "sistema", rosa-carmim de dano, ouro, verde de HP e violeta de mana.
+val Aka: Color get() = pick(0xFFF25A52, 0xFFFF8F8F, 0xFFF7A8C4, 0xFFF9B8D0, 0xFFE0264A, 0xFFFF4D6D)       // vermelho · rosa · carmim
+val Ki: Color get() = pick(0xFFF8CC4A, 0xFFFFDB80, 0xFFD9C3F2, 0xFFE2D0F7, 0xFFF2A900, 0xFFFFC857)        // amarelo · lilás · ouro
+val Ao: Color get() = pick(0xFF45C0EE, 0xFF84D4F0, 0xFFA9D6F5, 0xFFB8DEF8, 0xFF0891D1, 0xFF2FD8FF)        // azul · azul-bebê · ciano
+val Daidai: Color get() = pick(0xFFF59A40, 0xFFFFA860, 0xFFF9C6D9, 0xFFFAD0E0, 0xFFE56A12, 0xFFFF9248)    // laranja · rosa-pêssego
+val Sakura: Color get() = pick(0xFFE888B0, 0xFFF2A6C4, 0xFFC4A5E8, 0xFFCDB2EE, 0xFF7C4DDB, 0xFFB388FF)    // rosa · roxo pastel · violeta
+val Midori: Color get() = pick(0xFF55D48A, 0xFF88E2AE, 0xFFA8E3E8, 0xFFB5E8EC, 0xFF12B76A, 0xFF3DF2A0)    // verde · azul-menta · verde HP
 
 /** Cores semânticas do tema (claro = papel de mangá, escuro = sumi). */
 data class ZenPalette(
@@ -81,4 +86,23 @@ val KawaiiDarkPalette = ZenPalette(
     muted = Color(0xFFC7B6D6),
     border = Color(0xFFB79AD6),
     shadow = Color(0xFF1C1626)
+)
+
+// Isekai escuro (o visual de referência): azul-noite, painéis de vidro escuro, linhas ciano e sombra de "holograma".
+val IsekaiDarkPalette = ZenPalette(
+    bg = Color(0xFF070B16),
+    card = Color(0xFF0F1830),
+    ink = Color(0xFFE6F1FF),
+    muted = Color(0xFF8CA3C7),
+    border = Color(0xFF2BB8E6),
+    shadow = Color(0xFF0B4A66)
+)
+// Isekai claro: tela "de gelo" (azul-gelo, painéis brancos, tinta azul-marinho e linhas azuis).
+val IsekaiLightPalette = ZenPalette(
+    bg = Color(0xFFE9F1FA),
+    card = Color(0xFFFFFFFF),
+    ink = Color(0xFF0B1B33),
+    muted = Color(0xFF4F6A8F),
+    border = Color(0xFF1B84C4),
+    shadow = Color(0xFFA9CCEA)
 )

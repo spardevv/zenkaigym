@@ -44,10 +44,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -84,13 +90,16 @@ fun ZenCard(
         modifier
             .zenEntrance(entranceIndex)
             .padding(end = look.shadow, bottom = look.shadow)
-            .zenShadow(look.shadow, p.shadow, look.corner)
+            .zenShadow(look.shadow, p.shadow, look.shape)
             .clip(look.shape)
             .background(p.card)
             .border(look.border, p.border, look.shape)
     ) {
         if (accent != null) {
-            if (look.kawaii) {
+            if (look.isekai) {
+                // Isekai: filete fino de neon no topo do painel, como o cabeçalho de uma janela de status.
+                Box(Modifier.fillMaxWidth().height(3.dp).background(accent))
+            } else if (look.kawaii) {
                 // Kawaii: faixa de cor mais fina e sem linha dura embaixo.
                 Box(Modifier.fillMaxWidth().height(8.dp).background(accent))
             } else {
@@ -128,7 +137,7 @@ fun ZenButton(
     Box(
         modifier
             .padding(end = 4.dp, bottom = 4.dp)
-            .zenShadow(4.dp, p.shadow, look.corner)
+            .zenShadow(4.dp, p.shadow, look.shape)
     ) {
         Box(
             Modifier
@@ -245,12 +254,14 @@ fun ZenField(
 @Composable
 fun KanjiBadge(kanji: String, modifier: Modifier = Modifier, color: Color = Aka, size: Dp = 46.dp) {
     val p = Zen.p
+    // Isekai: selo octogonal (chanfrado) no lugar do círculo.
+    val badgeShape: Shape = if (Zen.look.isekai) CutCornerShape(size * 0.28f) else CircleShape
     Box(
         modifier
             .size(size)
-            .clip(CircleShape)
+            .clip(badgeShape)
             .background(color)
-            .border(Zen.look.border, p.border, CircleShape),
+            .border(Zen.look.border, p.border, badgeShape),
         contentAlignment = Alignment.Center
     ) {
         Text(kanji, color = Sumi, fontWeight = FontWeight.Black, fontSize = (size.value * 0.5f).sp)
@@ -284,6 +295,7 @@ fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subti
 fun SectionTitle(text: String, modifier: Modifier = Modifier, accent: Color = Aka) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         if (Zen.look.kawaii) Box(Modifier.size(14.dp).clip(CircleShape).background(accent))
+        else if (Zen.look.isekai) Box(Modifier.size(11.dp).rotate(45f).background(accent)) // losango, como um marcador de menu de RPG
         else Box(Modifier.width(8.dp).height(22.dp).background(accent))
         Spacer(Modifier.width(8.dp))
         Text(text.uppercase(), style = MaterialTheme.typography.headlineSmall)
@@ -368,18 +380,67 @@ fun DrawScope.drawSparkle(c: Offset, r: Float, color: Color) {
     drawPath(path, color)
 }
 
-/** Sombra deslocada do estilo: retângulo sólido no Shōnen; no Kawaii, arredondada com a curva do cartão. */
-fun Modifier.zenShadow(offset: Dp, color: Color, corner: Dp): Modifier = drawBehind {
+/**
+ * Isekai: grade holográfica de interface de jogo — linhas finas de neon que somem para baixo,
+ * um brilho no topo, um feixe diagonal e cantos de mira.
+ */
+@Composable
+fun HudGrid(modifier: Modifier = Modifier) {
+    val line = Ao.copy(alpha = 0.10f)
+    val glow = Ao.copy(alpha = 0.18f)
+    val beam = Ao.copy(alpha = 0.35f)
+    val bg = Zen.p.bg
+    Canvas(modifier.fillMaxSize()) {
+        val step = 28.dp.toPx()
+        var x = 0f
+        while (x <= size.width) {
+            drawLine(line, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
+            x += step
+        }
+        var y = 0f
+        while (y <= size.height) {
+            drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+            y += step
+        }
+        // Brilho vindo do topo e desvanecimento da grade para o fundo da página.
+        drawRect(Brush.verticalGradient(listOf(glow, Color.Transparent), startY = 0f, endY = size.height * 0.7f))
+        drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = size.height * 0.35f, endY = size.height))
+        // Feixe diagonal e cantos de mira (estilo "janela de status").
+        drawLine(beam, Offset(size.width * 0.62f, 0f), Offset(size.width, size.width * 0.38f), strokeWidth = 2f)
+        drawLine(beam.copy(alpha = 0.18f), Offset(size.width * 0.70f, 0f), Offset(size.width, size.width * 0.30f), strokeWidth = 1f)
+        val m = 10.dp.toPx()
+        val b = 16.dp.toPx()
+        drawLine(beam, Offset(m, m), Offset(m + b, m), strokeWidth = 2f)
+        drawLine(beam, Offset(m, m), Offset(m, m + b), strokeWidth = 2f)
+        drawLine(beam, Offset(size.width - m, m), Offset(size.width - m - b, m), strokeWidth = 2f)
+        drawLine(beam, Offset(size.width - m, m), Offset(size.width - m, m + b), strokeWidth = 2f)
+    }
+}
+
+/**
+ * Sombra deslocada do estilo, no contorno do próprio [shape]: retângulo sólido no Shōnen, arredondada no
+ * Kawaii e chanfrada (um "eco" de holograma) no Isekai.
+ */
+fun Modifier.zenShadow(offset: Dp, color: Color, shape: Shape): Modifier = drawBehind {
     val o = offset.toPx()
-    if (corner == 0.dp) drawRect(color, topLeft = Offset(o, o), size = size)
-    else drawRoundRect(color, topLeft = Offset(o, o), size = size, cornerRadius = CornerRadius(corner.toPx()))
+    val path = Path().apply {
+        when (val outline = shape.createOutline(size, layoutDirection, this@drawBehind)) {
+            is Outline.Rectangle -> addRect(outline.rect)
+            is Outline.Rounded -> addRoundRect(outline.roundRect)
+            is Outline.Generic -> addPath(outline.path)
+        }
+    }
+    translate(o, o) { drawPath(path, color) }
 }
 
 @Composable
 fun ZenPage(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().background(Zen.p.bg)) {
-        if (Zen.look.kawaii) Sparkles(Modifier.height(260.dp).fillMaxWidth())
-        else SpeedLines(Modifier.height(260.dp).fillMaxWidth())
+        when {
+            Zen.look.kawaii -> Sparkles(Modifier.height(260.dp).fillMaxWidth())
+            Zen.look.isekai -> HudGrid(Modifier.height(320.dp).fillMaxWidth())
+            else -> SpeedLines(Modifier.height(260.dp).fillMaxWidth())
+        }
         // Em telas largas (tablet, dobrável, paisagem) o conteúdo fica numa coluna centralizada.
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = currentWindowLayout.contentMaxWidth).fillMaxSize()) { content() }
     }

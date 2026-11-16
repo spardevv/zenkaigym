@@ -135,8 +135,11 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    if (style == AppStyle.SHONEN) tr("Mangá de ação: bordas grossas, cores vivas e linhas de velocidade.")
-                    else tr("Fofo: tons pastel de rosa, lilás, roxo e azul-bebê, cantos redondos e brilhos."),
+                    when (style) {
+                        AppStyle.SHONEN -> tr("Mangá de ação: bordas grossas, cores vivas e linhas de velocidade.")
+                        AppStyle.KAWAII -> tr("Fofo: tons pastel de rosa, lilás, roxo e azul-bebê, cantos redondos e brilhos.")
+                        AppStyle.ISEKAI -> tr("Interface de jogo: azul-noite com neon, cantos chanfrados e grade holográfica.")
+                    },
                     color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                 )
             }

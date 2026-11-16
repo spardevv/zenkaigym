@@ -589,7 +589,7 @@ private fun ToolButton(
     Box(
         modifier
             .padding(end = 3.dp, bottom = 3.dp)
-            .zenShadow(3.dp, p.shadow, look.corner / 2)
+            .zenShadow(3.dp, p.shadow, look.smallShape)
             .pressScale(interaction)
             .heightIn(min = 52.dp)
             .clip(look.smallShape)
@@ -642,7 +642,7 @@ private fun TrainHeader(dayName: String, onClose: () -> Unit) {
         Row(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(tr("MODO TREINO"), color = p.muted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Text(dayName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.kawaii) FontStyle.Normal else FontStyle.Italic)
+                Text(dayName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.upright) FontStyle.Normal else FontStyle.Italic)
             }
             KanjiBadge(if (Zen.look.kawaii) "♡" else "体", color = Ki, size = 40.dp)
             Spacer(Modifier.width(10.dp))
@@ -692,7 +692,7 @@ private fun PowerGauge(done: Int, total: Int) {
             ) { Text(tr(it).uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black) }
             Text(tr("{0} de {1} séries", done, total), color = p.muted, style = MaterialTheme.typography.labelLarge)
         }
-        Text("$percent%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.kawaii) FontStyle.Normal else FontStyle.Italic)
+        Text("$percent%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.upright) FontStyle.Normal else FontStyle.Italic)
     }
 }
 
