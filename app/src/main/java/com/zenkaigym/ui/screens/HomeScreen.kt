@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -24,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.data.entity.DietPlanFull
@@ -68,7 +71,11 @@ import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.WEEK_DAYS_SHORT
 import com.zenkaigym.util.todayDayOfWeek
 
-/** Dojo: só o essencial do dia — o treino de hoje e a próxima refeição, com um toque para marcar. */
+/**
+ * Dojo: resumo do dia numa tela só, sem rolagem — o treino de hoje e a próxima refeição, cada um com
+ * o essencial e um toque para marcar. A rolagem existe apenas como rede de segurança (letra muito grande
+ * ou celular deitado) e nunca aparece quando o conteúdo cabe.
+ */
 @Composable
 fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -96,10 +103,10 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
 
     ZenPage {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(currentWindowLayout.gutter),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ZenHeader(tr("Dojo"), "道", subtitle = tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
+            DojoHeader(tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
             if (profile == null) {
                 ZenCard(accent = Aka) {
                     Text(tr("COMECE SUA JORNADA"), style = MaterialTheme.typography.headlineSmall)
@@ -167,6 +174,18 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     }
 }
 
+/** Cabeçalho enxuto: título, dia e o selo, numa linha só (o antigo ocupava quase 120 dp). */
+@Composable
+private fun DojoHeader(subtitle: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(tr("Dojo").uppercase(), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+            Text(subtitle, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+        }
+        KanjiBadge("道", color = Aka, size = 44.dp)
+    }
+}
+
 @Composable
 private fun TodayWorkout(
     workout: WorkoutPlanFull?,
@@ -179,63 +198,69 @@ private fun TodayWorkout(
     onSkip: (Boolean) -> Unit,
     withSwaps: (WorkoutDayFull) -> WorkoutDayFull
 ) {
+    val compactHeight = currentWindowLayout.heightDp < 700
     ZenCard(accent = Aka, entranceIndex = 0) {
-        SectionTitle(tr("Treino de hoje"), accent = Aka)
-        Spacer(Modifier.height(10.dp))
         val today = assignment.session?.let(withSwaps)
         when {
             workout == null -> {
+                SectionTitle(tr("Treino de hoje"), accent = Aka)
+                Spacer(Modifier.height(8.dp))
                 Text(tr("Você ainda não tem uma ficha ativa."))
-                Spacer(Modifier.height(10.dp))
-                ZenButton(tr("Ver treino"), { onNavigate(Routes.WORKOUT) }, accent = Aka, fill = true)
+                Spacer(Modifier.height(8.dp))
+                ZenButton(tr("Ver treino"), { onNavigate(Routes.WORKOUT) }, accent = Aka, fill = true, small = true)
             }
-            today == null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                KanjiBadge("休", color = Aka)
-                Column(Modifier.padding(start = 12.dp)) {
-                    Text(tr("DESCANSO"), style = MaterialTheme.typography.titleMedium)
-                    Text(tr("Hoje o corpo cresce. Hidrate-se e durma bem."), color = Zen.p.muted)
+            today == null -> {
+                SectionTitle(tr("Treino de hoje"), accent = Aka)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    KanjiBadge("休", color = Aka, size = 40.dp)
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text(tr("DESCANSO"), style = MaterialTheme.typography.titleMedium)
+                        Text(tr("Hoje o corpo cresce. Hidrate-se e durma bem."), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
             else -> {
-                Text(tr(today.day.name).uppercase(), style = MaterialTheme.typography.titleMedium)
-                if (assignment.moved) {
-                    Text(
-                        tr("Remarcado de {0}", WEEK_DAYS_SHORT[today.day.dayOfWeek - 1]),
-                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
-                    )
+                val items = today.items.sortedBy { it.item.position }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionTitle(tr("Treino de hoje"), Modifier.weight(1f), accent = Aka)
+                    if (window != null) {
+                        Text("${window.format()} · ${window.durationLabel()}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                    }
                 }
-                if (window != null) {
-                    Text("${window.format()} · ${window.durationLabel()}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-                }
-                Spacer(Modifier.height(8.dp))
-                today.items.sortedBy { it.item.position }.forEach {
-                    Row(Modifier.padding(vertical = 2.dp)) {
-                        Text(tr(it.exercise.name), Modifier.weight(1f))
+                Spacer(Modifier.height(6.dp))
+                Text(tr(today.day.name).uppercase(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Resumo: quantos exercícios e séries (e de que dia foi remarcado, se for o caso).
+                val summary = tr("{0} exercícios · {1} séries", items.size, items.sumOf { it.item.sets }) +
+                    if (assignment.moved) " · " + tr("Remarcado de {0}", WEEK_DAYS_SHORT[today.day.dayOfWeek - 1]) else ""
+                Text(summary, color = Zen.p.muted, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!compactHeight) {
+                    // Só os primeiros nomes: o treino completo fica na aba Treino e no modo treino.
+                    val names = items.filter { it.exercise.kind != ExerciseKind.CARDIO }.take(3).map { tr(it.exercise.name) }
+                    val more = items.size - names.size
+                    if (names.isNotEmpty()) {
                         Text(
-                            if (it.exercise.kind == ExerciseKind.CARDIO) it.item.reps else tr("{0}×{1}", it.item.sets, it.item.reps),
-                            color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                            names.joinToString(" · ") + if (more > 0) "  +$more" else "",
+                            style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
                 if (assignment.dropped.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
                     Text(
                         tr("Não cabe nesta semana: {0}.", assignment.dropped.joinToString(", ") { tr(it.day.name) }),
-                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
                 Spacer(Modifier.height(10.dp))
                 when {
                     done -> ZenButton(tr("TREINO FEITO ✓"), onTrain, accent = Midori, fill = true)
-                    skipped -> {
-                        Text(tr("NÃO REALIZADO ✕"), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-                        Spacer(Modifier.height(6.dp))
-                        ZenButton(tr("Desfazer"), { onSkip(false) }, accent = Zen.p.card, fill = true, small = true)
+                    skipped -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(tr("NÃO REALIZADO ✕"), Modifier.weight(1f), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                        ZenButton(tr("Desfazer"), { onSkip(false) }, accent = Zen.p.card, small = true)
                     }
-                    else -> {
-                        ZenButton(tr("Treinar agora"), onTrain, accent = Aka, fill = true)
-                        Spacer(Modifier.height(6.dp))
-                        ZenButton(tr("Não realizado"), { onSkip(true) }, accent = Zen.p.card, fill = true, small = true)
+                    else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ZenButton(tr("Treinar agora"), onTrain, Modifier.weight(1.6f), accent = Aka, fill = true)
+                        ZenButton(tr("Não realizado"), { onSkip(true) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
                     }
                 }
             }
@@ -265,10 +290,10 @@ private fun NextMeal(
     ZenCard(accent = Aka, entranceIndex = 1) {
         if (diet == null) {
             SectionTitle(tr("Próxima refeição"), accent = Aka)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(tr("Você ainda não tem uma dieta ativa."))
-            Spacer(Modifier.height(10.dp))
-            ZenButton(tr("Ver dieta"), { onNavigate(Routes.DIET) }, accent = Aka, fill = true)
+            Spacer(Modifier.height(8.dp))
+            ZenButton(tr("Ver dieta"), { onNavigate(Routes.DIET) }, accent = Aka, fill = true, small = true)
             return@ZenCard
         }
         val meals = diet.meals.filter { it.meal.dayOfWeek == today || it.meal.dayOfWeek == 0 }.sortedBy { MealSchedule.timeOf(it.meal.type, slots).totalMinutes }
@@ -285,7 +310,7 @@ private fun NextMeal(
 
         if (meals.isEmpty()) {
             SectionTitle(tr("Próxima refeição"), accent = Aka)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(tr("A dieta ativa está sem refeições."), color = Zen.p.muted)
             return@ZenCard
         }
@@ -307,21 +332,14 @@ private fun NextMeal(
         val adjustment = remember(meals, done, extras, skipped, recorded, goal, dayDelta) {
             DayAdjust.compute(meals, done, extras, skipped, recorded, goal, dayDelta)
         }
-        if (adjustment != DayAdjustment.NONE) {
-            Spacer(Modifier.height(6.dp))
+        // Ajuste do dia e saldo da semana juntos, numa linha só.
+        if (adjustment != DayAdjustment.NONE || weekSurplus != 0) {
             Text(
-                tr("Próximas refeições ajustadas ao que você comeu: {0} kcal (hoje).", signed(adjustment.deltaKcal)),
-                color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                tr("Hoje {0} kcal · semana {1} kcal", signed(adjustment.deltaKcal), signed(weekSurplus)),
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         }
-        if (weekSurplus != 0) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                tr("Saldo da semana até ontem: {0} kcal.", signed(weekSurplus)),
-                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
-            )
-        }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         HorizontalPager(pager, Modifier.fillMaxWidth(), pageSpacing = 16.dp, verticalAlignment = Alignment.Top) { index ->
             val meal = meals[index]
             val isDone = meal.meal.type in done
@@ -336,70 +354,65 @@ private fun NextMeal(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         if (tag != null) Text(tag, color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-                        Text(tr(meal.meal.name).uppercase(), style = MaterialTheme.typography.titleMedium)
+                        Text(tr(meal.meal.name).uppercase(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Text(MealSchedule.timeOf(meal.meal.type, slots).format(), style = MaterialTheme.typography.headlineSmall)
                 }
-                Spacer(Modifier.height(8.dp))
-                val cheatKcal = meal.meal.cheatKcal
-                if (cheatKcal != null) {
-                    Text(tr("Refeição livre · cerca de {0} kcal", cheatKcal), color = Zen.p.muted)
-                }
+                Spacer(Modifier.height(4.dp))
                 val mealExtras = extras.filter { it.type == meal.meal.type }
                 // Com um prato extra e sem ✓, o extra tomou o lugar da refeição: o planejado fica esmaecido.
                 val replaced = (mealExtras.isNotEmpty() && !isDone) || isSkipped
-                meal.items.forEach {
-                    val adjusted = adjustment.grams[it.item.id]
-                    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(tr(it.food.name), Modifier.weight(1f), color = if (replaced) Zen.p.muted else Zen.p.ink)
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(Portions.text(it.food, adjusted ?: it.item.grams), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-                            if (adjusted != null) {
-                                Text(tr("ajustado · era {0}", Portions.text(it.food, it.item.grams)), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
+                val cheatKcal = meal.meal.cheatKcal
+                if (cheatKcal != null) {
+                    Text(tr("Refeição livre · cerca de {0} kcal", cheatKcal), color = Zen.p.muted)
+                } else {
+                    // Resumo do prato: os primeiros alimentos e o total de calorias já com o ajuste do dia.
+                    val names = meal.items.take(3).map { tr(it.food.name) }
+                    val more = meal.items.size - names.size
+                    Text(
+                        names.joinToString(" · ") + if (more > 0) "  +$more" else "",
+                        color = if (replaced) Zen.p.muted else Zen.p.ink,
+                        style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        tr("{0} kcal", DayAdjust.adjustedKcal(meal, adjustment).roundToInt()),
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                    )
                 }
                 if (mealExtras.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(tr("COMIDO FORA DO CARDÁPIO"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-                    mealExtras.forEach { extra ->
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onRemoveExtra(extra.id) }.padding(vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("+ " + tr(extra.name) + (extra.grams?.let { " · $it g" } ?: ""), Modifier.weight(1f))
-                            Text(tr("{0} kcal", extra.kcal), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-                            Text("  ✕", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-                        }
+                    // Pratos de fora: o primeiro fica à mostra (toque para remover) e o resto vira contagem.
+                    val first = mealExtras.first()
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Button) { onRemoveExtra(first.id) },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "+ " + tr(first.name) + if (mealExtras.size > 1) "  · " + tr("mais {0}", mealExtras.size - 1) else "",
+                            Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(tr("{0} kcal", mealExtras.sumOf { it.kcal }) + "  ✕", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 if (isDone) ZenButton(tr("Desfazer"), { onDone(meal.meal.type, false, null) }, accent = Zen.p.card, fill = true, small = true)
                 else if (isSkipped) ZenButton(tr("Desfazer"), { onSkip(meal.meal.type, false) }, accent = Zen.p.card, fill = true, small = true)
                 else {
                     // Grava as calorias que a refeição tem agora (com o ajuste do dia) para o saldo da semana.
-                    ZenButton(
-                        tr("Feito  ✓"), { onDone(meal.meal.type, true, DayAdjust.adjustedKcal(meal, adjustment).roundToInt()) },
-                        accent = Midori, fill = true
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    ZenButton(tr("Não realizei"), { onSkip(meal.meal.type, true) }, accent = Zen.p.card, fill = true, small = true)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ZenButton(
+                            tr("Feito  ✓"), { onDone(meal.meal.type, true, DayAdjust.adjustedKcal(meal, adjustment).roundToInt()) },
+                            Modifier.weight(1.6f), accent = Midori, fill = true
+                        )
+                        ZenButton(tr("Não realizei"), { onSkip(meal.meal.type, true) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+                    }
                 }
-                Spacer(Modifier.height(6.dp))
                 ZenButton(tr("+ Comi outra coisa"), { onAddExtra(meal) }, accent = Ao, fill = true, small = true)
             }
         }
-        if (meals.size > 1) {
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("◀  deslize para ver as outras refeições  ▶"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-            }
-        }
 
-        // Linha do dia: verde = feita; toque para ir até aquela refeição.
+        // Linha do dia: verde = feita; toque para ir até aquela refeição (também serve de guia ao deslizar).
         val scope = rememberCoroutineScope()
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(8.dp))
         Text(tr("HOJE · {0}/{1}", done.count { t -> meals.any { it.meal.type == t } }, meals.size), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
