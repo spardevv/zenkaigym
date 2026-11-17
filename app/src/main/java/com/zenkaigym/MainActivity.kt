@@ -6,6 +6,12 @@ import kotlinx.coroutines.CoroutineScope
 import com.zenkaigym.notify.ReminderScheduler
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import com.zenkaigym.domain.tr
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,11 +62,24 @@ class MainActivity : ComponentActivity() {
                 val ready by viewModel.ready.collectAsStateWithLifecycle()
                 val showIntro by viewModel.showIntro.collectAsStateWithLifecycle()
                 val showSetup by viewModel.showSetup.collectAsStateWithLifecycle()
-                when {
-                    !ready -> LoadingScreen()
-                    showIntro -> IntroScreen(onFinish = viewModel::finishIntro)
-                    showSetup -> SetupScreen(viewModel)
-                    else -> AppNav(viewModel)
+                val importing by viewModel.importing.collectAsStateWithLifecycle()
+                // Durante a importação o botão voltar não fecha o app: a tela fica até os dados chegarem.
+                BackHandler(enabled = importing) { }
+                Box(Modifier.fillMaxSize()) {
+                    when {
+                        !ready -> LoadingScreen()
+                        showIntro -> IntroScreen(onFinish = viewModel::finishIntro)
+                        showSetup -> SetupScreen(viewModel)
+                        else -> AppNav(viewModel)
+                    }
+                    // Por cima das telas (que continuam montadas e recebem os dados novos), engolindo os toques.
+                    if (importing) {
+                        Box(
+                            Modifier.fillMaxSize().pointerInput(Unit) {
+                                awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
+                            }
+                        ) { LoadingScreen(tr("Importando seus dados…")) }
+                    }
                 }
             }
         }

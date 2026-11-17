@@ -8,7 +8,6 @@ import android.os.Build
 import android.content.pm.PackageManager
 import android.Manifest
 import com.zenkaigym.domain.tr
-import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -289,21 +288,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
         ImportDialog(
             onConfirm = {
                 pendingImport = null
-                scope.launch {
-                    val result = withContext(Dispatchers.IO) { runCatching { Backup.import(context, app.database, uri) }.getOrDefault(Backup.ImportResult.INVALID) }
-                    when (result) {
-                        Backup.ImportResult.OK -> {
-                            Toast.makeText(context, tr("Dados importados! Reiniciando…"), Toast.LENGTH_LONG).show()
-                            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                            if (launch != null) context.startActivity(Intent.makeRestartActivityTask(launch.component))
-                            Runtime.getRuntime().exit(0)
-                        }
-                        Backup.ImportResult.TOO_NEW ->
-                            Toast.makeText(context, tr("Esse backup é de uma versão mais nova do app. Atualize o Zenkaigym."), Toast.LENGTH_LONG).show()
-                        Backup.ImportResult.INVALID ->
-                            Toast.makeText(context, tr("Esse arquivo não é um backup do Zenkaigym."), Toast.LENGTH_LONG).show()
-                    }
-                }
+                viewModel.importData(context, uri)
             },
             onDismiss = { pendingImport = null }
         )
@@ -324,7 +309,7 @@ private fun ImportDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             }
         }
     ) {
-        Text(tr("Tudo o que está neste aparelho será substituído pelo conteúdo do backup. O app vai reiniciar."), color = Zen.p.muted)
+        Text(tr("Tudo o que está neste aparelho será substituído pelo conteúdo do backup."), color = Zen.p.muted)
     }
 }
 

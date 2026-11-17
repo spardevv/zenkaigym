@@ -12,7 +12,10 @@ import com.zenkaigym.data.dao.ProfileDao
 import com.zenkaigym.data.dao.WorkoutDao
 import com.zenkaigym.data.entity.Availability
 import com.zenkaigym.data.entity.DietPlan
+import com.zenkaigym.data.entity.Equipment
 import com.zenkaigym.data.entity.Exercise
+import com.zenkaigym.data.entity.ExerciseKind
+import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.Food
 import com.zenkaigym.data.entity.Meal
 import com.zenkaigym.data.entity.MealCheck
@@ -156,9 +159,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        fun create(context: Context): AppDatabase =
-            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "zenkaigym.db")
+        fun create(context: Context): AppDatabase = open(context, "zenkaigym.db")
+
+        /** Abre (ou cria) o banco [name] com todas as migrações; usado também para ler um backup antes de importar. */
+        fun open(context: Context, name: String): AppDatabase =
+            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addCallback(object : Callback() {
+                    // Antes de qualquer leitura: um valor fora dos enums derrubaria o app a cada abertura.
+                    override fun onOpen(db: SupportSQLiteDatabase) = repairCatalog(db)
+                })
                 .build()
+
+        private fun sqlList(names: List<String>) = names.joinToString(",") { "'$it'" }
+
+        /**
+         * Exercícios com grupo, tipo ou equipamento que o app não conhece (ex.: um backup montado à mão)
+         * voltam aos valores do catálogo; os próprios do usuário recebem tipo e equipamento padrão.
+         * Só mexe no banco quando há algo quebrado.
+         */
+        fun repairCatalog(db: SupportSQLiteDatabase) {
+            val kinds = sqlList(ExerciseKind.entries.map { it.name })
+            val groups = sqlList(MuscleGroup.entries.map { it.name })
+            val equipment = sqlList(Equipment.entries.map { it.name })
+            val broken = db.query(
+                "SELECT COUNT(*) FROM exercise WHERE kind NOT IN ($kinds) OR `group` NOT IN ($groups) OR equipment NOT IN ($equipment)"
+            ).use { it.moveToFirst(); it.getInt(0) }
+            if (broken == 0) return
+            ExerciseCatalog.entries.forEach {
+                db.execSQL(
+                    "UPDATE exercise SET `group` = ?, kind = ?, equipment = ? WHERE name = ?",
+                    arrayOf<Any>(it.group.name, it.kind.name, it.equipment.name, it.name)
+                )
+            }
+            db.execSQL("UPDATE exercise SET kind = 'ISOLATION' WHERE kind NOT IN ($kinds)")
+            db.execSQL("UPDATE exercise SET equipment = 'GYM' WHERE equipment NOT IN ($equipment)")
+        }
     }
 }

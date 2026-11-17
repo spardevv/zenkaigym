@@ -1,8 +1,12 @@
 package com.zenkaigym.data.repo
 
 import com.zenkaigym.domain.tr
+import android.content.Context
+import android.net.Uri
+import android.util.Log
 import androidx.room.withTransaction
 import com.zenkaigym.data.AppDatabase
+import com.zenkaigym.data.Backup
 import com.zenkaigym.data.ExerciseCatalog
 import com.zenkaigym.data.FoodExamples
 import com.zenkaigym.data.entity.Availability
@@ -91,6 +95,22 @@ class ZenRepository(
     fun volumePerDay(from: Long) = workoutDao.observeVolumePerDay(from)
     fun finishedWorkoutDays(from: Long) = workoutDao.observeFinishedDays(from)
     fun mealsDonePerDay(from: Long) = dietDao.observeChecksPerDay(from)
+
+    /**
+     * Troca os dados atuais pelos do backup em [source], com o banco aberto (sem reiniciar o app).
+     * Depois completa o catálogo de exercícios e a agenda, caso o backup seja de uma versão antiga.
+     */
+    suspend fun importBackup(context: Context, source: Uri): Backup.ImportResult {
+        val result = withContext(Dispatchers.IO) {
+            runCatching { Backup.import(context, db, source) }
+                .onFailure { Log.e("ZenRepository", "Falha ao importar backup", it) }
+                .getOrDefault(Backup.ImportResult.INVALID)
+        }
+        if (result == Backup.ImportResult.OK) ensureSeed()
+        return result
+    }
+
+    suspend fun hasProfile(): Boolean = profileDao.getProfile() != null
 
     /** Apaga tudo o que o usuário registrou e recria só os dados iniciais (exercícios, agenda e alimentos). */
     suspend fun wipeAll() {

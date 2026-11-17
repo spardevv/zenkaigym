@@ -41,7 +41,12 @@ import com.zenkaigym.domain.ThemeMode
 import com.zenkaigym.domain.WeekStart
 import com.zenkaigym.domain.WorkoutWeek
 import com.zenkaigym.util.Clock
+import com.zenkaigym.data.Backup
+import com.zenkaigym.notify.ReminderScheduler
+import android.content.Context
+import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -370,6 +375,42 @@ class ZenViewModel(
         toast(tr("Todos os dados foram apagados."))
     }
 
+    // ---- Importar backup ----
+
+    private val _importing = MutableStateFlow(false)
+    /** Importação em andamento: o app mostra a tela "Importando…" no lugar das telas normais. */
+    val importing: StateFlow<Boolean> = _importing
+
+    /** Troca os dados pelos do backup em [uri] sem reiniciar o app; as telas se atualizam sozinhas ao terminar. */
+    fun importData(context: Context, uri: Uri) {
+        if (_importing.value) return
+        val app = context.applicationContext
+        _importing.value = true
+        launchSafe {
+            val started = System.currentTimeMillis()
+            try {
+                val result = repo.importBackup(app, uri)
+                val remaining = MIN_IMPORT_MS - (System.currentTimeMillis() - started)
+                if (remaining > 0) delay(remaining)
+                when (result) {
+                    Backup.ImportResult.OK -> {
+                        stopTraining() // a ficha do modo treino aberto pode não existir mais
+                        flags.foodsSeeded = true
+                        val hasProfile = repo.hasProfile()
+                        flags.setupDone = hasProfile
+                        _showSetup.value = !hasProfile
+                        withContext(Dispatchers.IO) { runCatching { ReminderScheduler.rescheduleAll(app) } }
+                        toast(tr("Dados importados!"))
+                    }
+                    Backup.ImportResult.TOO_NEW -> toast(tr("Esse backup é de uma versão mais nova do app. Atualize o Zenkaigym."))
+                    Backup.ImportResult.INVALID -> toast(tr("Esse arquivo não é um backup do Zenkaigym."))
+                }
+            } finally {
+                _importing.value = false
+            }
+        }
+    }
+
     /** Meta sugerida a partir do perfil e dos dias de treino salvos. */
     val suggestedTarget: StateFlow<NutritionTarget?> =
         combine(repo.profile, repo.availability) { profile, availability ->
@@ -649,5 +690,7 @@ class ZenViewModel(
     private companion object {
         const val MIN_LOADING_MS = 600L
         const val MIN_BUSY_MS = 450L
+        /** A tela "Importando…" fica visível ao menos este tempo, para não piscar em backups pequenos. */
+        const val MIN_IMPORT_MS = 1_200L
     }
 }

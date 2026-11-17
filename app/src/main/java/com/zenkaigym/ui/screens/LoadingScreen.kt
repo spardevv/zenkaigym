@@ -31,9 +31,9 @@ import com.zenkaigym.ui.components.ZenPage
 import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.ui.theme.Zen
 
-/** Mostrada só na abertura a frio, enquanto o banco e as telas principais carregam. */
+/** Mostrada na abertura a frio, enquanto o banco e as telas principais carregam, e durante a importação de um backup. */
 @Composable
-fun LoadingScreen() {
+fun LoadingScreen(label: String = tr("Preparando o dojo…")) {
     val p = Zen.p
     val transition = rememberInfiniteTransition(label = "loading")
     val pulse by transition.animateFloat(1f, 1.08f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulse")
@@ -59,7 +59,7 @@ fun LoadingScreen() {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Text(tr("Preparando o dojo…"), color = p.muted, style = MaterialTheme.typography.labelSmall)
+            Text(label, color = p.muted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
