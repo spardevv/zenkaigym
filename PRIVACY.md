@@ -1,17 +1,20 @@
 # Política de Privacidade — Zenkaigym
 
-Última atualização: 23/10/2026
+Última atualização: 24/11/2026
 
-O Zenkaigym é um app de treino e dieta que funciona totalmente offline.
+O Zenkaigym é um app de treino e dieta que funciona offline. A única exceção é o botão "Verificar atualização" (veja "Verificação de atualização").
 
 ## Dados que o app usa
 Perfil (idade, sexo, altura, peso, objetivo), pesos registrados, fichas e cargas de treino, cardápios, alimentos cadastrados, horários e preferências.
 
 ## Onde ficam
-Somente no seu aparelho. O app não tem conta, não pede permissão de internet, não usa anúncios, não usa ferramentas de análise nem rastreamento, e não envia nada para servidores do desenvolvedor nem de terceiros.
+Somente no seu aparelho. O app não tem conta, não usa anúncios, não usa ferramentas de análise nem rastreamento, e não envia nada para servidores do desenvolvedor nem de terceiros.
 
 ## Lembretes
 Se você ligar os lembretes em Ajustes, o app pede permissão para mostrar notificações e agenda alarmes locais nos horários da sua agenda de refeições e de treino. Eles funcionam sem internet e nenhum dado é enviado. Para reagendar depois de reiniciar o aparelho, o app usa a permissão de início do sistema.
+
+## Verificação de atualização
+O app tem a permissão de internet apenas para o botão "Verificar atualização" (em Ajustes). Ao tocar nele, o app consulta a página pública de versões do projeto no GitHub (api.github.com) para saber se há uma versão nova. Nenhum dado seu é enviado, e o app nunca acessa a internet por conta própria.
 
 ## Backup
 Os dados são excluídos do backup na nuvem do Android (Google Drive). Só a transferência direta entre aparelhos, feita pelo próprio sistema ao configurar um celular novo, pode copiar os dados.

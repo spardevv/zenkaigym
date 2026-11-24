@@ -81,6 +81,43 @@ class WeekPlanningTest {
         assertEquals(2L, assign(monday + 2, WorkoutLog(monday + 2, finished = false)).session?.day?.id)
     }
 
+    // ---- Troca manual do treino de hoje ----
+
+    private fun assignWith(today: Long, override: WorkoutWeek.Override?, vararg logs: WorkoutLog) =
+        WorkoutWeek.assign(sessions, today, WeekStart.MONDAY, logs.toList(), override)
+
+    @Test
+    fun trocaDeHoje_rotacionaASequenciaDaSemana() {
+        // Segunda: escolhe a sessão 3 (sexta). Quarta vira a 1 e sexta a 2.
+        val o = WorkoutWeek.Override(monday, 3L)
+        assertEquals(3L, assignWith(monday, o).session?.day?.id)
+        assertEquals(1L, assignWith(monday + 2, o).session?.day?.id)
+        assertEquals(2L, assignWith(monday + 4, o).session?.day?.id)
+    }
+
+    @Test
+    fun trocaDeHoje_naoMexeNosDiasQueJaPassaram() {
+        // Troca feita na quarta (sessão 3): segunda continua como foi e sexta fica com a 2.
+        val o = WorkoutWeek.Override(monday + 2, 3L)
+        assertEquals(1L, assignWith(monday, o).session?.day?.id)
+        assertEquals(3L, assignWith(monday + 2, o).session?.day?.id)
+        assertEquals(2L, assignWith(monday + 4, o).session?.day?.id)
+    }
+
+    @Test
+    fun trocaDeHoje_comSessaoInexistente_eIgnorada() {
+        assertEquals(2L, assignWith(monday + 2, WorkoutWeek.Override(monday + 2, 99L)).session?.day?.id)
+    }
+
+    @Test
+    fun trocaDeHoje_juntoComNaoRealizado() {
+        // Segunda não realizada; quarta escolhe a 3. Fila na quarta: 1,2,3 -> 3,1,2; sexta fica com a 1.
+        val o = WorkoutWeek.Override(monday + 2, 3L)
+        val logs = arrayOf(WorkoutLog(monday, finished = false))
+        assertEquals(3L, assignWith(monday + 2, o, *logs).session?.day?.id)
+        assertEquals(1L, assignWith(monday + 4, o, *logs, WorkoutLog(monday + 2, finished = true)).session?.day?.id)
+    }
+
     // ---- Dieta ----
 
     private val rice = Food(1, "Arroz", FoodCategory.CARB, 100.0, 2.0, 20.0, 0.0)

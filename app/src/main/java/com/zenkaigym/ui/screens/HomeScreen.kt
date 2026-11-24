@@ -103,6 +103,8 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val foods by viewModel.foods.collectAsStateWithLifecycle()
     val dow = todayDayOfWeek()
     var addingExtra by remember { mutableStateOf<MealFull?>(null) }
+    var changingWorkout by remember { mutableStateOf(false) }
+    val swapped by viewModel.workoutSwapped.collectAsStateWithLifecycle()
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
@@ -138,7 +140,8 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 val todayCard: @Composable () -> Unit = {
                     TodayWorkout(
                         workout, assignment, window, onNavigate, workoutDone, workoutSkipped,
-                        onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped
+                        onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped,
+                        onChange = { changingWorkout = true }
                     ) { day ->
                         // O treino de hoje já aparece com as trocas feitas só para hoje.
                         WorkoutSwaps.apply(day, swaps, exercises)
@@ -168,6 +171,29 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
       }
     }
 
+    if (changingWorkout && workout != null && assignment.session != null) {
+        val plan = workout!!
+        ChangeWorkoutDialog(
+            plan = plan,
+            current = assignment.session!!.day.id,
+            swapped = swapped,
+            preview = { dayId ->
+                // Como ficam os próximos dias de treino da semana se hoje for esta sessão.
+                val override = WorkoutWeek.Override(clock.epochDay, dayId)
+                plan.days
+                    .map { weekStart.weekStartOf(clock.epochDay) + weekStart.position(it.day.dayOfWeek) }
+                    .distinct().sorted().filter { it > clock.epochDay }
+                    .map { date ->
+                        val s = WorkoutWeek.assign(plan.days, date, weekStart, weekLogs, override).session
+                        WEEK_DAYS_SHORT[dayOfWeekFromEpochDay(date) - 1] + ": " + (s?.let { tr(it.day.name) } ?: "—")
+                    }
+            },
+            onConfirm = { viewModel.chooseTodayWorkout(it); changingWorkout = false },
+            onRestore = { viewModel.clearTodayWorkoutSwap(); changingWorkout = false },
+            onDismiss = { changingWorkout = false }
+        )
+    }
+
     addingExtra?.let { meal ->
         AddExtraDialog(
             mealName = tr(meal.meal.name),
@@ -190,6 +216,7 @@ private fun TodayWorkout(
     skipped: Boolean,
     onTrain: () -> Unit,
     onSkip: (Boolean) -> Unit,
+    onChange: () -> Unit,
     withSwaps: (WorkoutDayFull) -> WorkoutDayFull
 ) {
     val compactHeight = currentWindowLayout.heightDp < 700
@@ -259,6 +286,10 @@ private fun TodayWorkout(
                         ZenButton(tr("Treinar agora"), onTrain, Modifier.weight(1.6f), accent = Aka, fill = true)
                         ZenButton(tr("Não realizado"), { onSkip(true) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
                     }
+                }
+                if (!done) {
+                    Spacer(Modifier.height(8.dp))
+                    ZenButton(tr("Trocar treino de hoje"), onChange, accent = Zen.p.card, fill = true, small = true, trailing = ZenIcons.Swap)
                 }
             }
         }

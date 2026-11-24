@@ -5,6 +5,9 @@
     <!-- Aviso de fim do descanso no modo treino. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Só para o botão "Verificar atualização" (consulta a última versão no GitHub, ao toque). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Lembretes opcionais de refeição e treino (notificações locais). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

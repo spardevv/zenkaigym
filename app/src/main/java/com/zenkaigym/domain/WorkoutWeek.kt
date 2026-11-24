@@ -31,7 +31,19 @@ object WorkoutWeek {
     fun priority(day: WorkoutDayFull): Int =
         day.items.filter { it.exercise.group in big }.sumOf { it.item.sets }
 
-    fun assign(sessions: List<WorkoutDayFull>, today: Long, weekStart: WeekStart, logs: List<WorkoutLog>): Assignment {
+    /**
+     * Troca manual: a partir do dia [fromEpochDay] a sequência da ficha passa a começar em [dayId]; as sessões
+     * que vinham antes dela vão para o fim da fila, mantendo a ordem do plano. Vale só para a semana em que foi feita.
+     */
+    data class Override(val fromEpochDay: Long, val dayId: Long)
+
+    fun assign(
+        sessions: List<WorkoutDayFull>,
+        today: Long,
+        weekStart: WeekStart,
+        logs: List<WorkoutLog>,
+        override: Override? = null
+    ): Assignment {
         if (sessions.isEmpty()) return Assignment.REST
         val start = weekStart.weekStartOf(today)
         val ordered = sessions.sortedBy { weekStart.position(it.day.dayOfWeek) }
@@ -41,6 +53,10 @@ object WorkoutWeek {
         val marked = logs.associateBy { it.epochDay }
         val queue = ArrayDeque(ordered)
         for (date in dates) {
+            if (override != null && date == override.fromEpochDay) {
+                val at = queue.indexOfFirst { it.day.id == override.dayId }
+                if (at > 0) repeat(at) { queue.addLast(queue.removeFirst()) }
+            }
             if (date >= today || queue.isEmpty()) break
             // Só o "não realizado" devolve a sessão à fila; feito, ou esquecido sem marcar, ela se foi.
             if (marked[date]?.finished == false) continue

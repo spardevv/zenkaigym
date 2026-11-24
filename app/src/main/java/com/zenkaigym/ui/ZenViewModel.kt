@@ -317,6 +317,12 @@ class ZenViewModel(
 
     // ---- Semana corrente (reorganiza o treino e o saldo da dieta) ----
 
+    private class SwapState(val week: Long, val override: WorkoutWeek.Override)
+
+    private val _swap = MutableStateFlow(
+        if (flags.swapWeek >= 0 && flags.swapDayId >= 0) SwapState(flags.swapWeek, WorkoutWeek.Override(flags.swapFrom, flags.swapDayId)) else null
+    )
+
     private val weekFrom = combine(today, _weekStart) { day, start -> start.weekStartOf(day) }.distinctUntilChanged()
 
     /** Treinos marcados (feitos ou não realizados) desde o início da semana. */
@@ -325,9 +331,41 @@ class ZenViewModel(
 
     /** Qual sessão da ficha cai hoje, já reorganizada pelos treinos não realizados da semana. */
     val todayWorkout: StateFlow<WorkoutWeek.Assignment> =
-        combine(activeWorkout, clock, _weekStart, weekWorkoutLogs) { plan, now, start, logs ->
-            WorkoutWeek.assign(plan?.days.orEmpty(), now.epochDay, start, logs)
+        combine(activeWorkout, clock, _weekStart, weekWorkoutLogs, _swap) { plan, now, start, logs, swap ->
+            // A troca manual só vale na semana em que foi feita.
+            val override = swap?.takeIf { it.week == start.weekStartOf(now.epochDay) }?.override
+            WorkoutWeek.assign(plan?.days.orEmpty(), now.epochDay, start, logs, override)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutWeek.Assignment.REST)
+
+    /** Há troca manual do treino de hoje valendo nesta semana. */
+    val workoutSwapped: StateFlow<Boolean> = combine(_swap, clock, _weekStart) { swap, now, start ->
+        swap != null && swap.week == start.weekStartOf(now.epochDay)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Escolhe outra sessão da ficha para hoje; o resto da semana segue a sequência a partir dela. */
+    fun chooseTodayWorkout(dayId: Long) {
+        if (trainingActive.value) return
+        val now = clock.value.epochDay
+        val week = _weekStart.value.weekStartOf(now)
+        val swap = SwapState(week, WorkoutWeek.Override(now, dayId))
+        flags.swapWeek = week
+        flags.swapFrom = now
+        flags.swapDayId = dayId
+        _swap.value = swap
+        toast(tr("Treino de hoje trocado! A semana foi reorganizada."))
+    }
+
+    fun clearTodayWorkoutSwap() {
+        if (trainingActive.value) return
+        clearSwap()
+    }
+
+    private fun clearSwap() {
+        flags.swapWeek = -1L
+        flags.swapFrom = -1L
+        flags.swapDayId = -1L
+        _swap.value = null
+    }
 
     val weekChecks: StateFlow<List<MealCheck>> = weekFrom.flatMapLatest { repo.checksFrom(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -538,6 +576,7 @@ class ZenViewModel(
     fun ensureWorkoutSuggestion() = launchSafe { repo.ensureWorkoutSuggestion() }
     fun acceptWorkout(planId: Long) = launchSafe {
         repo.acceptWorkout(planId)
+        clearSwap()
         toast(tr("Ficha de treino ativada!"))
     }
     fun discardWorkout() = launchSafe { repo.discardWorkoutProposal() }

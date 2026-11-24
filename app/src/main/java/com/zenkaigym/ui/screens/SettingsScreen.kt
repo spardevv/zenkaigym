@@ -248,6 +248,8 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 }
             }
 
+            UpdateCard(entranceIndex = 4)
+
             ZenCard(accent = Ao, entranceIndex = 4) {
                 SectionTitle(tr("Aviso de saúde"), accent = Ao)
                 Spacer(Modifier.height(6.dp))

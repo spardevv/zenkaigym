@@ -50,6 +50,17 @@ class AppFlags(context: Context) {
         get() = prefs.getLong("training_day", -1L)
         set(value) = prefs.edit().putLong("training_day", value).apply()
 
+    /** Troca manual do treino de hoje: semana (epochDay do início), dia a partir do qual vale e sessão escolhida. -1 = nenhuma. */
+    var swapWeek: Long
+        get() = prefs.getLong("swap_week", -1L)
+        set(value) = prefs.edit().putLong("swap_week", value).apply()
+    var swapFrom: Long
+        get() = prefs.getLong("swap_from", -1L)
+        set(value) = prefs.edit().putLong("swap_from", value).apply()
+    var swapDayId: Long
+        get() = prefs.getLong("swap_day_id", -1L)
+        set(value) = prefs.edit().putLong("swap_day_id", value).apply()
+
     /** Manter a tela acesa no modo treino. */
     var keepScreenOn: Boolean
         get() = prefs.getBoolean("keep_screen_on", true)
