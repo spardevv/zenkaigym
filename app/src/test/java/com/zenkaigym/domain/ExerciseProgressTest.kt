@@ -49,5 +49,37 @@ class ExerciseProgressTest {
         val empty = ExerciseProgress.from(emptyList())
         assertEquals(0.0, empty.best, 0.0)
         assertNull(empty.bestDay)
+        assertEquals(0.0, empty.bestOneRepMax, 0.0)
+    }
+
+    @Test
+    fun aquecimentoFicaDeForaDoHistorico() {
+        val warm = SetLog(epochDay = 10, exerciseId = 1, setIndex = -1, reps = 10, weightKg = 100.0, warmup = true)
+        val progress = ExerciseProgress.from(listOf(warm, log(10, 1, 8, 60.0)))
+        assertEquals(1, progress.sessions.single().sets.size)
+        assertEquals(60.0, progress.best, 0.0)
+    }
+
+    @Test
+    fun umRmEstimadoPorSessaoEMelhorDeTodas() {
+        val progress = ExerciseProgress.from(listOf(log(10, 1, 10, 60.0), log(10, 2, 5, 70.0), log(20, 1, 3, 80.0)))
+        // Dia 10: 10 × 60 = 80 e 5 × 70 = 81,7 → 81,7. Dia 20: 3 × 80 = 88.
+        assertEquals(81.667, progress.oneRepMaxTrend[0], 0.001)
+        assertEquals(88.0, progress.oneRepMaxTrend[1], 0.001)
+        assertEquals(88.0, progress.bestOneRepMax, 0.001)
+    }
+
+    @Test
+    fun notasRirECardioSomadosNaSessao() {
+        val logs = listOf(
+            SetLog(epochDay = 10, exerciseId = 1, setIndex = 1, reps = 15, weightKg = 0.0, distanceKm = 2.5, kcal = 120, note = " ritmo leve "),
+            SetLog(epochDay = 10, exerciseId = 1, setIndex = 2, reps = 15, weightKg = 0.0, distanceKm = 2.0, kcal = 110, rir = 2, note = "  ")
+        )
+        val session = ExerciseProgress.from(logs).sessions.single()
+        assertEquals(listOf("ritmo leve"), session.notes)
+        assertEquals(4.5, session.distanceKm!!, 0.001)
+        assertEquals(230, session.kcal)
+        assertEquals(2, session.sets[1].rir)
+        assertNull(ExerciseProgress.from(listOf(log(10, 1, 8, 60.0))).sessions.single().kcal)
     }
 }

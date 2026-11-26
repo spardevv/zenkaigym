@@ -76,6 +76,21 @@ class AppFlags(context: Context) {
         get() = prefs.getBoolean("reminders_enabled", false)
         set(value) = prefs.edit().putBoolean("reminders_enabled", value).apply()
 
+    /** Lembretes de beber água ligados (independentes dos de refeição e treino). */
+    var waterReminders: Boolean
+        get() = prefs.getBoolean("water_reminders", false)
+        set(value) = prefs.edit().putBoolean("water_reminders", value).apply()
+
+    /** Último nível já comemorado com a cena de subida; -1 = ainda sem referência (não comemora o nível inicial). */
+    var lastLevelSeen: Int
+        get() = prefs.getInt("last_level_seen", -1)
+        set(value) = prefs.edit().putInt("last_level_seen", value).apply()
+
+    /** O pedido de permissão de notificações para o descanso já foi feito uma vez no modo treino. */
+    var restPermissionAsked: Boolean
+        get() = prefs.getBoolean("rest_permission_asked", false)
+        set(value) = prefs.edit().putBoolean("rest_permission_asked", value).apply()
+
     /** Configuração inicial (tema + perfil) já concluída. */
     var setupDone: Boolean
         get() = prefs.getBoolean("setup_done", false)

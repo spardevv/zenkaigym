@@ -8,6 +8,8 @@ import com.zenkaigym.data.repo.ZenRepository
 import com.zenkaigym.domain.I18n
 import com.zenkaigym.domain.IntroGate
 import com.zenkaigym.notify.ReminderScheduler
+import com.zenkaigym.notify.RestTimer
+import com.zenkaigym.widget.DojoWidget
 import com.zenkaigym.domain.RuleBasedEngine
 
 class ZenApp : Application() {
@@ -21,6 +23,8 @@ class ZenApp : Application() {
         }
         I18n.select(appFlags.language)
         ReminderScheduler.createChannel(this)
+        RestTimer.init(this)
+        DojoWidget.watch(this)
     }
 
     val database: AppDatabase by lazy { AppDatabase.create(this) }

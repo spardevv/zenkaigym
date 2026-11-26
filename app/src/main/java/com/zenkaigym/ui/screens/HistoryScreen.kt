@@ -35,6 +35,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.domain.DoneSet
 import com.zenkaigym.domain.ExerciseProgress
+import com.zenkaigym.domain.SessionSummary
+import com.zenkaigym.domain.Cardio
+import com.zenkaigym.ui.theme.Aka
 import com.zenkaigym.domain.tr
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.KanjiBadge
@@ -169,12 +172,49 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
                     )
                 }
             }
+            // Força estimada: junta carga e repetições num número só, então dá para comparar 5 × 100 kg com 10 × 85 kg.
+            if (byLoad) item(key = "one-rep-max") {
+                val recent = progress.sessions.takeLast(CHART_SESSIONS)
+                val values = progress.oneRepMaxTrend.takeLast(CHART_SESSIONS)
+                ZenCard(accent = Aka, entranceIndex = 2) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SectionTitle(tr("1RM estimado"), Modifier.weight(1f), accent = Aka)
+                        Text(tr("melhor: {0} kg", kgLabel(roundKg(progress.bestOneRepMax))), style = MaterialTheme.typography.labelLarge)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    ZenBarChart(
+                        values = values.map { it.toFloat() },
+                        color = Aka,
+                        describe = { i -> tr("{0} kg em {1}", kgLabel(roundKg(values[i])), formatEpochDay(recent[i].epochDay)) },
+                        startLabel = formatEpochDay(recent.first().epochDay),
+                        endLabel = formatEpochDay(recent.last().epochDay)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        tr("Carga máxima para 1 repetição, estimada pela fórmula de Epley (carga × (1 + reps ÷ 30)). Não é um teste: só mostra a tendência de força."),
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
             item(key = "sessions-title") { SectionTitle(tr("Últimas sessões"), accent = Midori) }
             items(progress.sessions.asReversed(), key = { it.epochDay }) { session ->
                 ZenCard(entranceIndex = -1) {
-                    Text(formatEpochDay(session.epochDay), style = MaterialTheme.typography.titleMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(formatEpochDay(session.epochDay), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                        if (session.oneRepMax > 0) {
+                            Text(tr("1RM ≈ {0} kg", kgLabel(roundKg(session.oneRepMax))), color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                     Spacer(Modifier.height(2.dp))
                     Text(setsLabel(session.sets), color = Zen.p.muted)
+                    cardioLabel(session)?.let {
+                        Spacer(Modifier.height(2.dp))
+                        Text(it, color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                    }
+                    session.notes.forEach { note ->
+                        Spacer(Modifier.height(2.dp))
+                        Text("✎ $note", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }
@@ -186,5 +226,22 @@ private fun ExerciseDetail(exercise: Exercise, viewModel: ZenViewModel, onBack: 
 
 private fun kgLabel(kg: Double): String = if (kg % 1.0 == 0.0) kg.toLong().toString() else kg.toString()
 
+/** Uma casa decimal basta para o 1RM estimado. */
+private fun roundKg(kg: Double): Double = Math.round(kg * 10) / 10.0
+
+/** "10 × 40 kg (RIR 2)  ·  8 × 42.5 kg". */
 private fun setsLabel(sets: List<DoneSet>): String =
-    sets.joinToString("  ·  ") { if (it.weightKg > 0) "${it.reps} × ${kgLabel(it.weightKg)} kg" else tr("{0} reps", it.reps) }
+    sets.joinToString("  ·  ") {
+        val base = if (it.weightKg > 0) "${it.reps} × ${kgLabel(it.weightKg)} kg" else tr("{0} reps", it.reps)
+        base + (it.rir?.let { r -> " (RIR $r)" } ?: "")
+    }
+
+/** Cardio: distância, ritmo e calorias somadas da sessão (os minutos ficam nas "reps"). */
+private fun cardioLabel(session: SessionSummary): String? {
+    if (session.distanceKm == null && session.kcal == null) return null
+    return listOfNotNull(
+        session.distanceKm?.let { tr("{0} km", kgLabel(roundKg(it))) },
+        Cardio.paceLabel(session.totalReps, session.distanceKm),
+        session.kcal?.let { tr("≈ {0} kcal", it) }
+    ).joinToString(" · ")
+}

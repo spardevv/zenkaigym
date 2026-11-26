@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cartão do widget: papel com borda grossa de tinta, como os quadros de mangá do app. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_paper" />
+    <stroke android:width="3dp" android:color="@color/widget_border" />
+    <corners android:radius="14dp" />
+</shape>

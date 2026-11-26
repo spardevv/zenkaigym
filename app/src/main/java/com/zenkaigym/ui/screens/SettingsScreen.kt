@@ -74,6 +74,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
     val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
+    val waterReminders by viewModel.waterReminders.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     var confirming by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -99,6 +100,16 @@ fun SettingsScreen(viewModel: ZenViewModel) {
         val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         if (on && needsPermission) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    fun changeWaterReminders(on: Boolean) {
+        viewModel.setWaterReminders(on)
+        scope.launch(Dispatchers.IO) { ReminderScheduler.rescheduleAll(context) }
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (on && needsPermission) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) viewModel.exportCsv(context, uri)
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) pendingImport = uri
@@ -192,6 +203,18 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     tr("Avisos nos horários da sua agenda de refeições e de treino. Funciona sem internet, direto no aparelho."),
                     color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
                 )
+                Spacer(Modifier.height(12.dp))
+                Text(tr("ÁGUA"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZenChip(tr("Ligados"), waterReminders, { if (!waterReminders) changeWaterReminders(true) }, Modifier.weight(1f), accent = Ao)
+                    ZenChip(tr("Desligados"), !waterReminders, { if (waterReminders) changeWaterReminders(false) }, Modifier.weight(1f), accent = Ao)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    tr("Um copo às 10h, 13h, 16h e 19h. Não avisa quando a meta do dia já foi batida."),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
             }
 
             ZenCard(accent = Midori, entranceIndex = 2) {
@@ -246,6 +269,17 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     ZenButton(tr("Exportar dados"), { exportLauncher.launch(Backup.suggestedName()) }, Modifier.weight(1f), accent = Ao, fill = true)
                     ZenButton(tr("Importar dados"), { importLauncher.launch(arrayOf("*/*")) }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
                 }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    tr("Planilhas (CSV): séries, peso, refeições e água num arquivo .zip, para abrir no Excel ou no Google Planilhas. Serve para analisar; para restaurar, use o backup acima."),
+                    color = Zen.p.muted
+                )
+                Spacer(Modifier.height(8.dp))
+                ZenButton(
+                    tr("Exportar planilhas (CSV)"),
+                    { csvLauncher.launch("zenkaigym-planilhas-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip") },
+                    Modifier.fillMaxWidth(), accent = Midori, fill = true
+                )
             }
 
             UpdateCard(entranceIndex = 4)

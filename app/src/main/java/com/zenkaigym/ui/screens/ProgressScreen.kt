@@ -58,6 +58,8 @@ import com.zenkaigym.domain.Achievement
 import com.zenkaigym.domain.LevelInfo
 import com.zenkaigym.domain.ProgressStats
 import com.zenkaigym.domain.XpRules
+import com.zenkaigym.ui.share.WeekShare
+import androidx.compose.ui.platform.LocalContext
 import com.zenkaigym.domain.tr
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.KanjiBadge
@@ -226,14 +228,22 @@ internal fun LevelCard(level: LevelInfo, modifier: Modifier = Modifier, onClick:
 
 @Composable
 private fun SummaryTab(s: ProgressStats, onSeeAchievements: () -> Unit) {
+    val context = LocalContext.current
     LevelCard(s.level)
     WeekCard(s)
+    ChallengesCard(s)
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatTile(tr("Semanas na meta"), s.weekStreak, Modifier.weight(1f), accent = if (s.weekStreak >= 2) Ki else null)
         StatTile(tr("Dias de dieta"), s.dietStreak, Modifier.weight(1f), accent = if (s.dietStreak >= 3) Midori else null)
         StatTile(tr("Recordes"), s.records, Modifier.weight(1f))
     }
+    ShieldsCard(s)
+
+    ZenButton(
+        tr("Compartilhar resumo da semana"), { WeekShare.share(context, s) },
+        Modifier.fillMaxWidth(), accent = Daidai, fill = true, leading = ZenIcons.ArrowRight
+    )
 
     val next = s.achievements.filter { !it.unlocked }.sortedByDescending { it.fraction }.take(3)
     ZenCard(accent = Sakura, entranceIndex = 2) {
@@ -258,9 +268,65 @@ private fun SummaryTab(s: ProgressStats, onSeeAchievements: () -> Unit) {
         tr(
             "XP: treino +{0} · série +{1} · refeição +{2} · recorde +{3} · peso +{4}",
             XpRules.SESSION, XpRules.SET, XpRules.MEAL, XpRules.RECORD, XpRules.WEIGHT
-        ),
+        ) + " · " + tr("desafio +{0}", XpRules.CHALLENGE),
         color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
     )
+}
+
+/** Três desafios da semana com barra de progresso; renovam no início de cada semana. */
+@Composable
+private fun ChallengesCard(s: ProgressStats) {
+    val done = s.challenges.count { it.completed }
+    ZenCard(accent = Aka, entranceIndex = 2) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(tr("Desafios da semana"), Modifier.weight(1f), accent = Aka)
+            Text("$done / ${s.challenges.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.height(10.dp))
+        s.challenges.forEachIndexed { i, c ->
+            if (i > 0) Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                KanjiBadge(c.kanji, color = if (c.completed) Midori else Aka, size = 34.dp)
+                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(tr(c.title, c.target), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (c.completed) ZenIcon(ZenIcons.Check, size = 16.dp, color = Midori)
+                        else Text("${c.progress} / ${c.target}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    ZenProgressBar(c.fraction, if (c.completed) Midori else Aka, height = 8.dp)
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            tr("Cada desafio cumprido vale +{0} XP. Novos desafios toda semana · {1} cumpridos no total.", XpRules.CHALLENGE, s.challengesCompleted),
+            color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+/** Escudos de sequência: quantos estão guardados e como se ganha. */
+@Composable
+private fun ShieldsCard(s: ProgressStats) {
+    ZenCard(accent = Ao, entranceIndex = 3) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            KanjiBadge("盾", color = Ao, size = 40.dp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(tr("ESCUDOS DE SEQUÊNCIA"), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    tr("Treino: {0} · Dieta: {1}", s.weekShields, s.dietShields) +
+                        if (s.shieldsUsed > 0) " · " + tr("já salvaram {0}×", s.shieldsUsed) else "",
+                    color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            tr("4 semanas seguidas na meta de treino valem um escudo (guarda 1); 7 dias seguidos com todas as refeições valem outro (guarda 2). Um período perdido gasta o escudo e a sequência continua."),
+            color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+        )
+    }
 }
 
 /** Meta da semana: treinos feitos x planejados, os sete dias e a dieta até agora. */
@@ -382,6 +448,23 @@ private fun TrainingTab(s: ProgressStats) {
         )
         Spacer(Modifier.height(4.dp))
         Text(tr("Volume = carga × repetições. Toque numa barra para ver a semana."), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+    }
+
+    if (s.cardioMinutes > 0) {
+        ZenCard(accent = Midori, entranceIndex = 3) {
+            SectionTitle(tr("Cardio"), accent = Midori)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatTile(tr("Min. na semana"), s.thisWeek.cardioMinutes, Modifier.weight(1f))
+                StatTile(tr("kcal na semana"), s.thisWeek.cardioKcal, Modifier.weight(1f))
+                StatTile(tr("Min. no total"), s.cardioMinutes, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                tr("Calorias estimadas pela intensidade de cada atividade e pelo seu peso. Distância e ritmo ficam no Histórico."),
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+            )
+        }
     }
 
     ZenCard(accent = Ao, entranceIndex = 3) {

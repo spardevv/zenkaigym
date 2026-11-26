@@ -4,7 +4,9 @@ import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.MealCheck
 import com.zenkaigym.data.entity.MuscleGroup
+import com.zenkaigym.data.entity.ExerciseKind
 import com.zenkaigym.data.entity.SetLog
+import com.zenkaigym.data.entity.WaterLog
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutLog
 import kotlin.math.abs
@@ -48,9 +50,10 @@ object XpRules {
     const val MEAL = 10
     const val RECORD = 25
     const val WEIGHT = 15
+    const val CHALLENGE = Challenges.XP
 
-    fun total(sessions: Int, sets: Int, meals: Int, records: Int, weights: Int): Int =
-        sessions * SESSION + sets * SET + meals * MEAL + records * RECORD + weights * WEIGHT
+    fun total(sessions: Int, sets: Int, meals: Int, records: Int, weights: Int, challenges: Int = 0): Int =
+        sessions * SESSION + sets * SET + meals * MEAL + records * RECORD + weights * WEIGHT + challenges * CHALLENGE
 }
 
 object Levels {
@@ -140,7 +143,22 @@ data class ProgressStats(
     val hasDietData: Boolean,
     // Peso e conquistas.
     val weight: WeightSummary?,
-    val achievements: List<Achievement>
+    val achievements: List<Achievement>,
+    // Escudos de sequência: guardados agora e quantas vezes já salvaram uma sequência.
+    val weekShields: Int = 0,
+    val dietShields: Int = 0,
+    val shieldsUsed: Int = 0,
+    // Desafios da semana atual e total cumprido desde o início.
+    val challenges: List<Challenge> = emptyList(),
+    val challengesCompleted: Int = 0,
+    /** O que foi feito na semana atual (cartão para compartilhar). */
+    val thisWeek: WeekActivity = WeekActivity(),
+    /** Primeiro dia (epochDay) da semana atual. */
+    val weekFirstDay: Long = 0,
+    // Cardio e água no total.
+    val cardioMinutes: Int = 0,
+    val cardioKcal: Int = 0,
+    val waterGoalDays: Int = 0
 ) {
     val unlockedCount: Int get() = achievements.count { it.unlocked }
     val hasTrainingData: Boolean get() = totalSessions > 0
@@ -157,13 +175,20 @@ class ProgressInput(
     val goal: Goal,
     val plannedPerWeek: Int,
     val today: Long,
-    val weekStart: WeekStart
+    val weekStart: WeekStart,
+    /** Água bebida por dia e a meta atual (para os dias de meta batida). */
+    val water: List<WaterLog> = emptyList(),
+    val waterGoalMl: Int = Water.goalMl(null)
 )
 
 /** Regras puras de nível, sequências, recordes e conquistas (sem banco, para testar). */
 object Progress {
     const val WEEKS = 8
     const val GROUP_DAYS = 30
+    const val WEEK_SHIELD_EVERY = 4
+    const val MAX_WEEK_SHIELDS = 1
+    const val DIET_SHIELD_EVERY = 7
+    const val MAX_DIET_SHIELDS = 2
 
     fun compute(input: ProgressInput): ProgressStats {
         val today = input.today
@@ -190,31 +215,11 @@ object Progress {
         val perWeekCounts = sessionDays.groupingBy { start.weekStartOf(it) }.eachCount()
         val planned = input.plannedPerWeek
         val firstWeek = sessionDays.minOrNull()?.let { start.weekStartOf(it) } ?: currentWeek
-        var perfectWeeks = 0
-        var bestStreak = 0
-        var run = 0
-        var w = firstWeek
-        while (w <= currentWeek) {
-            val met = planned > 0 && (perWeekCounts[w] ?: 0) >= planned
-            if (met) {
-                perfectWeeks++
-                run++
-                bestStreak = maxOf(bestStreak, run)
-            } else if (w != currentWeek) {
-                run = 0
-            }
-            w += 7
-        }
-        // Sequência atual: a semana em andamento só conta se já cumpriu a meta; senão parte da anterior.
-        var weekStreak = 0
-        if (planned > 0) {
-            var week = currentWeek
-            if ((perWeekCounts[week] ?: 0) < planned) week -= 7
-            while (week >= firstWeek && (perWeekCounts[week] ?: 0) >= planned) {
-                weekStreak++
-                week -= 7
-            }
-        }
+        val weeks = generateSequence(firstWeek) { it + 7 }.takeWhile { it <= currentWeek }.toList()
+        val weekMet = weeks.map { planned > 0 && (perWeekCounts[it] ?: 0) >= planned }
+        val perfectWeeks = weekMet.count { it }
+        // Sequência de semanas na meta, com escudo a cada 4 semanas cumpridas (a semana em andamento só soma se já cumpriu).
+        val weekRun = if (planned > 0) Shields.streak(weekMet, WEEK_SHIELD_EVERY, MAX_WEEK_SHIELDS) else StreakResult(0, 0, 0, 0)
 
         // Músculos mais treinados (séries nos últimos 30 dias; cardio fica de fora).
         val groups = input.sets
@@ -238,10 +243,46 @@ object Progress {
             if (days <= 0) 0f else (0 until days).map { fraction(weekFirst + it) }.average().toFloat()
         }
         val weekDiet = dietWeekly.last()
-        val bestDietStreak = longestRun(donePerDay.keys.filter { fraction(it) >= 1f }.sorted())
+        // Dias com todas as refeições, com escudo a cada 7 dias cumpridos (hoje só soma se já completou).
+        val firstDietDay = donePerDay.keys.minOrNull()
+        val dietRun = if (firstDietDay == null || input.mealsPerDay <= 0) StreakResult(0, 0, 0, 0)
+        else Shields.streak((firstDietDay..today).map { fraction(it) >= 1f }, DIET_SHIELD_EVERY, MAX_DIET_SHIELDS)
+
+        // Cardio (minutos ficam em reps) e água.
+        val kindOf = input.exercises.associate { it.id to it.kind }
+        val cardioSets = input.sets.filter { kindOf[it.exerciseId] == ExerciseKind.CARDIO || groupOf[it.exerciseId] == MuscleGroup.CARDIO }
+        val waterGoalDays = input.water.filter { it.ml >= input.waterGoalMl }.map { it.epochDay }.toSet()
+        val fullDietDays = donePerDay.keys.filter { fraction(it) >= 1f }.toSet()
+
+        // Desafios: cada semana desde a primeira atividade tem os seus; os cumpridos valem XP uma vez.
+        fun activity(weekFirst: Long): WeekActivity {
+            val range = weekFirst..(weekFirst + 6)
+            val weekSets = input.sets.filter { it.epochDay in range }
+            val weekCardio = cardioSets.filter { it.epochDay in range }
+            return WeekActivity(
+                sessions = sessionDays.count { it in range },
+                sets = weekSets.size,
+                volumeKg = weekSets.sumOf { it.weightKg * it.reps },
+                mealsDone = input.checks.count { !it.skipped && it.epochDay in range },
+                fullDietDays = fullDietDays.count { it in range },
+                weighIns = input.weights.count { it.epochDay in range },
+                waterGoalDays = waterGoalDays.count { it in range },
+                cardioMinutes = weekCardio.sumOf { it.reps },
+                cardioKcal = weekCardio.sumOf { it.kcal ?: 0 },
+                records = records.count { it.epochDay in range }
+            )
+        }
+        val firstActivity = listOfNotNull(
+            sessionDays.minOrNull(), firstDietDay, input.weights.minOfOrNull { it.epochDay }, input.water.minOfOrNull { it.epochDay }
+        ).minOrNull()?.coerceAtMost(today) ?: today
+        val activityWeeks = generateSequence(start.weekStartOf(firstActivity)) { it + 7 }.takeWhile { it <= currentWeek }.toList()
+        val mealsPerDay = input.mealsPerDay
+        val challengesByWeek = activityWeeks.associateWith { Challenges.forWeek(it, planned, mealsPerDay, activity(it)) }
+        val challengesCompleted = challengesByWeek.values.sumOf { list -> list.count { it.completed } }
+        val thisWeek = activity(currentWeek)
 
         val weight = weightSummary(input.weights, input.goal, today)
-        val xp = XpRules.total(sessionDays.size, input.sets.size, mealsDone, records.size, input.weights.size)
+        val xp = XpRules.total(sessionDays.size, input.sets.size, mealsDone, records.size, input.weights.size, challengesCompleted)
 
         val partial = ProgressStats(
             level = Levels.of(xp),
@@ -258,19 +299,29 @@ object Progress {
             volumePerWeek = volumePerWeek,
             bestWeekSessions = perWeekCounts.values.maxOrNull() ?: 0,
             avgSessionsPerWeek = averagePerWeek(sessionsPerWeek, firstWeek, currentWeek),
-            weekStreak = weekStreak,
-            bestWeekStreak = bestStreak,
+            weekStreak = weekRun.current,
+            bestWeekStreak = weekRun.best,
             perfectWeeks = perfectWeeks,
             groups = groups,
             dietDaily = diet.daily,
             dietWeekly = dietWeekly,
             dietAveragePercent = diet.averagePercent,
-            dietStreak = diet.streak,
-            bestDietStreak = bestDietStreak,
+            dietStreak = dietRun.current,
+            bestDietStreak = dietRun.best,
             mealsDone = mealsDone,
             hasDietData = diet.hasData || dietWeekly.any { it > 0f },
             weight = weight,
-            achievements = emptyList()
+            achievements = emptyList(),
+            weekShields = weekRun.shields,
+            dietShields = dietRun.shields,
+            shieldsUsed = weekRun.shieldsUsed + dietRun.shieldsUsed,
+            challenges = challengesByWeek[currentWeek] ?: Challenges.forWeek(currentWeek, planned, mealsPerDay, thisWeek),
+            challengesCompleted = challengesCompleted,
+            thisWeek = thisWeek,
+            weekFirstDay = currentWeek,
+            cardioMinutes = cardioSets.sumOf { it.reps },
+            cardioKcal = cardioSets.sumOf { it.kcal ?: 0 },
+            waterGoalDays = waterGoalDays.size
         )
         return partial.copy(achievements = achievements(partial, input.goal, input.weights.size))
     }
@@ -361,6 +412,9 @@ object Progress {
             count("diet_7", "食", "Mesa em dia", "Faça todas as refeições por 7 dias seguidos.", s.bestDietStreak, 7),
             count("diet_30", "膳", "Chef disciplinado", "Faça todas as refeições por 30 dias seguidos.", s.bestDietStreak, 30),
             count("weight_5", "秤", "Na balança", "Registre seu peso 5 vezes.", weightEntries, 5),
+            count("challenges_10", "挑", "Desafiante", "Cumpra 10 desafios semanais.", s.challengesCompleted, 10),
+            count("cardio_300", "走", "Fôlego de aço", "Faça 300 minutos de cardio.", s.cardioMinutes, 300),
+            count("water_7", "水", "Bem hidratado", "Bata a meta de água em 7 dias.", s.waterGoalDays, 7),
             Achievement(
                 "weight_goal", "的", "Rumo à meta", "Varie 2 kg na direção do seu objetivo (ou fique estável, se o objetivo é manter).",
                 towardsTenths, 20, "%.1f / 2 kg".format(towardsTenths / 10.0)

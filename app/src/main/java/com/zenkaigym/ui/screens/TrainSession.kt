@@ -103,6 +103,16 @@ import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutDayFull
 import com.zenkaigym.data.entity.WorkoutItemFull
 import com.zenkaigym.domain.Progression
+import com.zenkaigym.domain.LoadAdvice
+import com.zenkaigym.domain.Cardio
+import com.zenkaigym.notify.RestTimer
+import com.zenkaigym.ui.components.ZenChip
+import com.zenkaigym.ui.components.ZenField
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.zenkaigym.domain.tr
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.KanjiBadge
@@ -139,22 +149,42 @@ private val CellHeight = 42.dp
 private val SideCell = 40.dp
 
 /** Texto de carga sem zeros inúteis: 22.0 -> "22", 22.5 -> "22.5". */
-private fun kgText(kg: Double): String = if (kg % 1.0 == 0.0) kg.toLong().toString() else kg.toString()
+private fun kgText(kg: Double): String = Progression.kgText(kg)
 
-private data class SetDraftState(val weight: String, val reps: String)
+/**
+ * Rascunho de uma série: carga e repetições (no cardio, minutos e [km]), além do esforço ([rir]) e da [note].
+ * Séries com índice negativo são aquecimentos.
+ */
+private data class SetDraftState(val weight: String, val reps: String, val rir: Int? = null, val note: String = "", val km: String = "")
 
-/** Guarda os rascunhos digitados para sobreviver à rotação da tela: [id do exercício, série, carga, reps] em sequência. */
+/** Guarda os rascunhos digitados para sobreviver à rotação da tela: [id, série, carga, reps, rir, nota, km] em sequência. */
 private val DraftsSaver = listSaver<SnapshotStateMap<Pair<Long, Int>, SetDraftState>, String>(
-    save = { map -> map.flatMap { (k, v) -> listOf(k.first.toString(), k.second.toString(), v.weight, v.reps) } },
+    save = { map ->
+        map.flatMap { (k, v) -> listOf(k.first.toString(), k.second.toString(), v.weight, v.reps, v.rir?.toString().orEmpty(), v.note, v.km) }
+    },
     restore = { list ->
         mutableStateMapOf<Pair<Long, Int>, SetDraftState>().also { map ->
-            list.chunked(4).forEach { map[it[0].toLong() to it[1].toInt()] = SetDraftState(it[2], it[3]) }
+            list.chunked(7).forEach { map[it[0].toLong() to it[1].toInt()] = SetDraftState(it[2], it[3], it[4].toIntOrNull(), it[5], it[6]) }
         }
     }
 )
 
 /** Série registrada como texto dos campos (carga zero = campo vazio). */
-private fun SetLog.asDraft() = SetDraftState(if (weightKg > 0) kgText(weightKg) else "", reps.toString())
+private fun SetLog.asDraft() = SetDraftState(
+    if (weightKg > 0) kgText(weightKg) else "", reps.toString(), rir, note.orEmpty(), distanceKm?.let(::kgText).orEmpty()
+)
+
+/** Texto decimal digitado ("2,5" ou "2.5") como número; null se vazio ou inválido. */
+private fun String.decimal(): Double? = trim().replace(',', '.').toDoubleOrNull()
+
+/** Dica de carga exibida no painel: etiqueta, texto e cor. */
+private data class Hint(val tag: String, val text: String, val color: Color)
+
+private fun LoadAdvice.hint(): Hint = when (this) {
+    is LoadAdvice.AddWeight -> Hint(tr("Suba!"), tr("Última vez: {0} kg · hoje: {1} kg", kgText(fromKg), kgText(toKg)), Ki)
+    is LoadAdvice.AddReps -> Hint(tr("Mais reps!"), tr("Fique em {0} kg e busque {1} reps por série", kgText(kg), targetReps), Midori)
+    is LoadAdvice.Deload -> Hint(tr("Deload"), tr("3 sessões sem evoluir: tente {0} kg nesta semana e volte a subir", kgText(toKg)), Ao)
+}
 
 /** Kanji e cor de cada grupo muscular: dão identidade a cada painel do treino. */
 private fun MuscleGroup.kanji(): String = when (this) {
@@ -188,20 +218,29 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     val originals = remember(day) { day.items.associate { it.item.id to it.exercise } }
     // Rascunho por (exercício, série): começa com os mesmos kg e reps do treino anterior e é editável.
     val drafts = rememberSaveable(day, saver = DraftsSaver) { mutableStateMapOf<Pair<Long, Int>, SetDraftState>() }
-    val hints = remember(day) { mutableStateMapOf<Long, String>() }
+    val advice = remember(day) { mutableStateMapOf<Long, LoadAdvice>() }
     var swapping by remember { mutableStateOf<WorkoutItemFull?>(null) }
+    var editing by remember { mutableStateOf<Pair<WorkoutItemFull, Int>?>(null) }
+
+    // Notificação do descanso: pede a permissão uma vez, ao abrir o modo treino pela primeira vez.
+    val context = LocalContext.current
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        val missing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (missing && viewModel.shouldAskRestPermission()) {
+            viewModel.markRestPermissionAsked()
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // Recalcula ao trocar um exercício: o novo ganha a carga da última vez em que foi feito.
     LaunchedEffect(items.map { it.exercise.id }) {
         items.forEach { entry ->
             // Falha ao ler o histórico não pode derrubar o treino: segue sem sugestão de carga.
             val history = runCatching { viewModel.history(entry.exercise.id) }.getOrNull() ?: return@forEach
-            // A dica só aparece quando dá para subir a carga; os campos continuam com o valor anterior.
-            val suggested = Progression.nextWeight(history.last, entry.item.reps)
-            val lastTop = history.last.maxOfOrNull { it.weightKg }
-            if (suggested != null && lastTop != null && suggested > lastTop) {
-                hints[entry.exercise.id] = tr("Última vez: {0} kg · hoje: {1} kg", kgText(lastTop), kgText(suggested))
-            }
+            // Conselho de carga (subir, mais repetições ou deload); os campos continuam com o valor anterior.
+            Progression.advise(history.sessions, entry.item.reps, entry.exercise.kind)?.let { advice[entry.exercise.id] = it }
             for (i in 1..entry.item.sets) {
                 val key = entry.exercise.id to i
                 if (key in drafts) continue
@@ -258,14 +297,16 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     /** Registra a série com o rascunho atual e já inicia o descanso. Devolve false se faltam repetições. */
     fun logDraft(exerciseId: Long, setIndex: Int, draft: SetDraftState): Boolean {
         val reps = draft.reps.trim().toIntOrNull()?.takeIf { it > 0 } ?: return false
-        val kg = draft.weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0
-        viewModel.logSet(exerciseId, setIndex, reps, kg)
+        val kg = draft.weight.decimal() ?: 0.0
+        val exercise = items.firstOrNull { it.exercise.id == exerciseId }?.exercise ?: return false
+        val warmup = setIndex < 0
+        viewModel.logSet(exercise, setIndex, reps, kg, draft.rir, draft.note, warmup, draft.km.decimal())
         // A última série pendente fecha o treino: nada de descanso depois dela.
         val isLast = pending.size == 1 && pending.first() == (exerciseId to setIndex)
-        // Cardio não tem descanso entre séries; a prancha pede um intervalo curto.
-        val kind = items.firstOrNull { it.exercise.id == exerciseId }?.exercise?.kind
+        // Cardio e aquecimento não têm descanso marcado; a prancha pede um intervalo curto.
+        val kind = exercise.kind
         when {
-            isLast || kind == ExerciseKind.CARDIO -> Unit
+            isLast || warmup || kind == ExerciseKind.CARDIO -> Unit
             kind == ExerciseKind.HOLD -> viewModel.startRest(45)
             else -> viewModel.startRest(restPreset.takeIf { it > 0 } ?: Progression.restSeconds(reps))
         }
@@ -293,14 +334,19 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
             val entry = items.getOrNull(index) ?: return@HorizontalPager
             val id = entry.exercise.id
             val scroll = rememberScrollState()
+            // Aquecimentos à vista: os registrados hoje e os adicionados agora (rascunhos com índice negativo).
+            val warmups = (loggedKeys.filter { it.first == id && it.second < 0 }.map { -it.second } +
+                drafts.keys.filter { it.first == id && it.second < 0 }.map { -it.second }).distinct().sorted()
             Box(Modifier.fillMaxSize()) {
                 Column(Modifier.verticalScroll(scroll).padding(top = 12.dp, bottom = 12.dp)) {
                     ExercisePanel(
                         entry = entry,
                         entranceIndex = 1,
-                        hint = hints[id],
+                        hint = advice[id]?.hint(),
                         swappedFrom = originals[entry.item.id]?.takeIf { it.id != id },
+                        warmups = warmups,
                         draftOf = { i -> loggedByKey[id to i]?.asDraft() ?: drafts[id to i] ?: SetDraftState("", "") },
+                        loggedOf = { loggedByKey[id to it] },
                         isLogged = { (id to it) in loggedKeys },
                         onDraft = { i, d -> drafts[id to i] = d },
                         onToggle = { i, d, wasLogged ->
@@ -310,6 +356,14 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
                                 viewModel.unlogSet(id, i)
                             } else logDraft(id, i, d)
                         },
+                        onAddWarmup = {
+                            // 50% e depois 70% da carga da 1ª série de trabalho, arredondado para anilhas.
+                            val n = (warmups.maxOrNull() ?: 0) + 1
+                            val working = (loggedByKey[id to 1]?.weightKg ?: drafts[id to 1]?.weight?.decimal()) ?: 0.0
+                            val w = Progression.warmup(n, working)
+                            drafts[id to -n] = SetDraftState(if (w.weightKg > 0) kgText(w.weightKg) else "", w.reps.toString())
+                        },
+                        onDetails = { editing = entry to it },
                         onSwap = { swapping = entry }
                     )
                 }
@@ -334,6 +388,27 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
                 }
             },
             onClose = onClose
+        )
+    }
+
+    editing?.let { (entry, setIndex) ->
+        val id = entry.exercise.id
+        val logged = loggedByKey[id to setIndex]
+        val draft = logged?.asDraft() ?: drafts[id to setIndex] ?: SetDraftState("", "")
+        SetDetailsDialog(
+            title = if (setIndex < 0) tr("Aquecimento {0}", -setIndex) else tr("Série {0}", setIndex),
+            exerciseName = tr(entry.exercise.name),
+            accent = entry.exercise.group.color(),
+            initialRir = draft.rir,
+            initialNote = draft.note,
+            showRir = setIndex > 0 && entry.exercise.kind != ExerciseKind.CARDIO,
+            onRemove = if (setIndex < 0 && logged == null) ({ drafts.remove(id to setIndex); editing = null }) else null,
+            onSave = { rir, note ->
+                if (logged != null) viewModel.updateSetDetails(id, setIndex, rir, note)
+                else drafts[id to setIndex] = draft.copy(rir = rir, note = note)
+                editing = null
+            },
+            onDismiss = { editing = null }
         )
     }
 
@@ -479,20 +554,14 @@ private fun TrainFooter(
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
     val manualRest = restPreset.takeIf { it > 0 } ?: 90
-    val context = LocalContext.current
 
-    // Relógio do descanso: atualiza o visor e vibra ao terminar.
+    // Relógio do descanso: só atualiza o visor. O fim (vibração e aviso) fica com o RestTimer,
+    // que continua contando com o app em segundo plano.
     val now by produceState(System.currentTimeMillis(), rest) {
         while (rest != null) {
             value = System.currentTimeMillis()
             delay(200)
         }
-    }
-    LaunchedEffect(rest) {
-        val r = rest ?: return@LaunchedEffect
-        delay((r.endsAt - System.currentTimeMillis()).coerceAtLeast(0))
-        vibrateRestOver(context)
-        viewModel.stopRest()
     }
 
     Column(Modifier.background(p.card)) {
@@ -514,6 +583,16 @@ private fun TrainFooter(
                     active = r != null,
                     enabled = restEnabled
                 )
+                // Durante o descanso: mais tempo sem precisar pular e recomeçar.
+                if (r != null) {
+                    ToolButton(
+                        top = tr("MAIS"),
+                        main = tr("+{0} s", RestTimer.ADD_SECONDS),
+                        onClick = { viewModel.addRest() },
+                        modifier = Modifier.weight(0.8f),
+                        accent = Ao
+                    )
+                }
                 // Ação principal do treino: vermelho sólido e mais larga, para achar sem procurar.
                 ToolButton(
                     top = tr("PRÓXIMA SÉRIE"),
@@ -640,18 +719,6 @@ private fun ToolButton(
     }
 }
 
-/** Vibração curta dupla avisando que o descanso acabou. */
-private fun vibrateRestOver(context: Context) {
-    val vibrator = if (Build.VERSION.SDK_INT >= 31) {
-        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-    } else {
-        context.getSystemService(Vibrator::class.java)
-    } ?: return
-    val pattern = longArrayOf(0, 220, 120, 220)
-    if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
-    else @Suppress("DEPRECATION") vibrator.vibrate(pattern, -1)
-}
-
 /** Cabeçalho do modo treino: faixa vermelha, título grande e botão de sair. */
 @Composable
 private fun TrainHeader(dayName: String, onClose: () -> Unit) {
@@ -719,12 +786,16 @@ private fun PowerGauge(done: Int, total: Int) {
 private fun ExercisePanel(
     entry: WorkoutItemFull,
     entranceIndex: Int,
-    hint: String?,
+    hint: Hint?,
     swappedFrom: Exercise?,
+    warmups: List<Int>,
     draftOf: (Int) -> SetDraftState,
+    loggedOf: (Int) -> SetLog?,
     isLogged: (Int) -> Boolean,
     onDraft: (Int, SetDraftState) -> Unit,
     onToggle: (Int, SetDraftState, Boolean) -> Unit,
+    onAddWarmup: () -> Unit,
+    onDetails: (Int) -> Unit,
     onSwap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -733,9 +804,10 @@ private fun ExercisePanel(
     val sets = entry.item.sets
     val doneCount = (1..sets).count(isLogged)
     val complete = doneCount == sets
-    // Prancha e cardio se medem em tempo: sem carga, e o valor é segundos ou minutos.
+    // Prancha e cardio se medem em tempo: sem carga, e o valor é segundos ou minutos (o cardio ganha a distância).
     val kind = entry.exercise.kind
     val timed = kind == ExerciseKind.HOLD || kind == ExerciseKind.CARDIO
+    val cardio = kind == ExerciseKind.CARDIO
 
     ZenCard(modifier, accent = accent, entranceIndex = entranceIndex) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -760,10 +832,17 @@ private fun ExercisePanel(
         ExerciseImage(entry.exercise.name)
         Spacer(Modifier.height(8.dp))
         // Com séries já registradas a troca fica travada: o registro pertence ao exercício atual.
-        if (doneCount == 0) {
-            ZenButton(tr("Trocar exercício ({0})", group.label), onSwap, accent = Zen.p.card, small = true, leading = ZenIcons.Swap)
-        } else {
-            Text(tr("Para trocar, desfaça as séries deste exercício."), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+        val hasWarmupLogged = warmups.any { isLogged(-it) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (doneCount == 0 && !hasWarmupLogged) {
+                ZenButton(tr("Trocar ({0})", group.label), onSwap, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true, leading = ZenIcons.Swap)
+            } else {
+                Text(tr("Para trocar, desfaça as séries deste exercício."), Modifier.weight(1f), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+            }
+            // Aquecimento só faz sentido com carga (não em prancha e cardio), e no máximo três.
+            if (!timed && warmups.size < 3) {
+                ZenButton(tr("+ Aquecimento"), onAddWarmup, accent = Zen.p.card, small = true)
+            }
         }
         hint?.let {
             Spacer(Modifier.height(8.dp))
@@ -777,25 +856,126 @@ private fun ExercisePanel(
                 when (kind) { ExerciseKind.HOLD -> tr("seg"); ExerciseKind.CARDIO -> tr("min"); else -> tr("reps") },
                 Modifier.weight(1f)
             )
+            if (cardio) ColumnLabel(tr("km"), Modifier.weight(1f))
             Spacer(Modifier.width(SideCell))
         }
         Spacer(Modifier.height(4.dp))
+        // Aquecimentos (A1, A2…) antes das séries de trabalho; não contam no volume nem nos recordes.
+        warmups.forEach { n ->
+            val i = -n
+            val draft = draftOf(i)
+            val logged = isLogged(i)
+            SetRow(
+                label = "A$n",
+                badge = if (draft.note.isNotBlank()) "✎" else null,
+                accent = Zen.p.muted,
+                draft = draft,
+                logged = logged,
+                showWeight = true,
+                showKm = false,
+                onWeight = { onDraft(i, draft.copy(weight = it)) },
+                onReps = { onDraft(i, draft.copy(reps = it)) },
+                onKm = { },
+                onIndex = { onDetails(i) },
+                onToggle = { onToggle(i, draft, logged) }
+            )
+            Spacer(Modifier.height(6.dp))
+        }
         for (i in 1..sets) {
             val draft = draftOf(i)
             val logged = isLogged(i)
             SetRow(
-                index = i,
+                label = "$i",
+                badge = draft.rir?.let { "RIR$it" } ?: if (draft.note.isNotBlank()) "✎" else null,
                 accent = accent,
                 draft = draft,
                 logged = logged,
                 showWeight = !timed,
+                showKm = cardio,
                 onWeight = { onDraft(i, draft.copy(weight = it)) },
                 onReps = { onDraft(i, draft.copy(reps = it)) },
+                onKm = { onDraft(i, draft.copy(km = it)) },
+                onIndex = { onDetails(i) },
                 onToggle = { onToggle(i, draft, logged) }
             )
             if (i < sets) Spacer(Modifier.height(6.dp))
         }
+        Spacer(Modifier.height(8.dp))
+        if (cardio) {
+            // Gasto e ritmo do cardio registrado hoje (estimativa pelo MET da atividade).
+            val done = (1..sets).mapNotNull(loggedOf)
+            val minutes = done.sumOf { it.reps }
+            val km = done.mapNotNull { it.distanceKm }.sum().takeIf { it > 0 }
+            val kcal = done.sumOf { it.kcal ?: 0 }
+            Text(
+                if (done.isEmpty()) tr("Informe os minutos e, se quiser, a distância. As calorias são estimadas.")
+                else listOfNotNull(
+                    tr("{0} min", minutes),
+                    km?.let { tr("{0} km", kgText(it)) },
+                    Cardio.paceLabel(minutes, km),
+                    tr("≈ {0} kcal", kcal)
+                ).joinToString(" · "),
+                color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+            )
+        } else {
+            Text(
+                tr("Toque no número da série para anotar o esforço (RIR) e uma nota."),
+                color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
+            )
+        }
     }
+}
+
+/**
+ * Detalhes de uma série: esforço em RIR (repetições que ainda sobravam; RPE ≈ 10 − RIR) e uma nota livre.
+ * Aquecimentos ainda não registrados podem ser removidos aqui.
+ */
+@Composable
+private fun SetDetailsDialog(
+    title: String,
+    exerciseName: String,
+    accent: Color,
+    initialRir: Int?,
+    initialNote: String,
+    showRir: Boolean,
+    onRemove: (() -> Unit)?,
+    onSave: (Int?, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var rir by remember { mutableStateOf(initialRir) }
+    var note by remember { mutableStateOf(initialNote) }
+    ZenDialog("$title · $exerciseName", onDismiss, accent = accent, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onRemove != null) ZenButton(tr("Remover"), onRemove, Modifier.weight(1f), accent = Aka, fill = true, small = true)
+            ZenButton(tr("Salvar"), { onSave(rir, note) }, Modifier.weight(1f), accent = Midori, fill = true, small = true)
+            ZenButton(tr("Cancelar"), onDismiss, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+        }
+    }) {
+        if (showRir) {
+            Text(tr("QUANTAS REPETIÇÕES AINDA SOBRAVAM? (RIR)"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                ZenChip("—", rir == null, { rir = null }, Modifier.weight(1f), accent = accent, compact = true)
+                (0..5).forEach { v ->
+                    ZenChip(if (v == 5) "5+" else "$v", rir == v, { rir = v }, Modifier.weight(1f), accent = accent, compact = true)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                rir?.let { tr("RPE {0} · {1}", Progression.rpe(it), rirMeaning(it)) }
+                    ?: tr("0 = falha; 1–2 = pesado; 3+ = sobrou força. Com 3+ em todas as séries, o app sugere subir a carga."),
+                color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        ZenField(tr("Nota"), note, { note = it.take(200) }, placeholder = tr("Ex.: pegada fechada, dor no ombro…"))
+    }
+}
+
+private fun rirMeaning(rir: Int): String = when (rir) {
+    0 -> tr("até a falha")
+    1, 2 -> tr("pesado")
+    else -> tr("sobrou força")
 }
 
 /** Carimbo "完" (concluído) que cai girando sobre o painel quando todas as séries são feitas. */
@@ -823,22 +1003,23 @@ private fun HankoStamp() {
     }
 }
 
-/** Balão de fala com a dica de progressão de carga. */
+/** Balão de fala com a dica de progressão de carga (subir, mais repetições ou deload). */
 @Composable
-private fun SpeechTag(text: String) {
+private fun SpeechTag(hint: Hint) {
     val p = Zen.p
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            tr("Suba!"),
+            hint.tag,
             color = Sumi,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.clip(Zen.look.smallShape).background(Ki).border(Zen.look.thinBorder, p.border, Zen.look.smallShape).padding(horizontal = 6.dp, vertical = 3.dp)
+            modifier = Modifier.clip(Zen.look.smallShape).background(hint.color).border(Zen.look.thinBorder, p.border, Zen.look.smallShape).padding(horizontal = 6.dp, vertical = 3.dp)
         )
         Text(
-            text,
+            hint.text,
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier
+                .weight(1f, fill = false)
                 .padding(start = 4.dp)
                 .clip(Zen.look.smallShape)
                 .background(p.bg)
@@ -855,13 +1036,17 @@ private fun ColumnLabel(text: String, modifier: Modifier) {
 
 @Composable
 private fun SetRow(
-    index: Int,
+    label: String,
+    badge: String?,
     accent: Color,
     draft: SetDraftState,
     logged: Boolean,
     showWeight: Boolean,
+    showKm: Boolean,
     onWeight: (String) -> Unit,
     onReps: (String) -> Unit,
+    onKm: (String) -> Unit,
+    onIndex: () -> Unit,
     onToggle: () -> Unit
 ) {
     val p = Zen.p
@@ -888,14 +1073,24 @@ private fun SetRow(
     }
 
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Número da série: toque para anotar esforço e nota; a marca embaixo mostra o que já foi anotado.
+        val detailsLabel = tr("Detalhes da série {0}", label)
         Box(
-            Modifier.size(SideCell, CellHeight).clip(look.smallShape).background(indexBg).border(look.thinBorder, p.border, look.smallShape),
+            Modifier.size(SideCell, CellHeight).clip(look.smallShape).background(indexBg).border(look.thinBorder, p.border, look.smallShape)
+                .semantics { contentDescription = detailsLabel }
+                .clickable(role = Role.Button, onClick = onIndex),
             contentAlignment = Alignment.Center
         ) {
-            Text("$index", color = if (logged) Sumi else p.ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, color = if (logged) Sumi else p.ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, maxLines = 1)
+                if (badge != null) {
+                    Text(badge, color = if (logged) Sumi else p.muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
+            }
         }
         if (showWeight) SetInput(draft.weight, onWeight, KeyboardType.Decimal, placeholder = "0", enabled = !logged, modifier = Modifier.weight(1f))
         SetInput(draft.reps, onReps, KeyboardType.Number, placeholder = "–", enabled = !logged, modifier = Modifier.weight(1f))
+        if (showKm) SetInput(draft.km, onKm, KeyboardType.Decimal, placeholder = "–", enabled = !logged, modifier = Modifier.weight(1f))
         val interaction = remember { MutableInteractionSource() }
         Box(
             Modifier

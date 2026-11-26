@@ -1,6 +1,8 @@
 package com.zenkaigym.domain
 
 import com.zenkaigym.data.entity.Exercise
+import com.zenkaigym.data.entity.ExerciseKind
+import com.zenkaigym.data.entity.WaterLog
 import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.MealCheck
 import com.zenkaigym.data.entity.MealType
@@ -323,12 +325,88 @@ class ProgressTest {
     }
 
     @Test
-    fun conquistas_catorzeNoTotalETodasTemAlvoPositivo() {
+    fun conquistas_dezesseteNoTotalETodasTemAlvoPositivo() {
         val list = Progress.compute(input()).achievements
-        assertEquals(14, list.size)
+        assertEquals(17, list.size)
         assertTrue(list.all { it.target > 0 })
         assertEquals(list.size, list.map { it.id }.toSet().size)
         assertNotNull(list.firstOrNull { it.id == "volume_1t" })
+    }
+
+    // ---- Desafios, escudos, cardio e água ----
+
+    @Test
+    fun desafios_semanaAtualTemTresEOsCumpridosValemXp() {
+        // Meta de 2 treinos: cumprida nesta semana (o desafio de treinos sempre aparece).
+        val sets = listOf(set(today, 1, 1, 10, 30.0), set(today + 1, 1, 1, 10, 30.0))
+        val s = Progress.compute(input(sets = sets, planned = 2, day = today + 1))
+        assertEquals(Challenges.PER_WEEK, s.challenges.size)
+        assertTrue(s.challenges.first { it.id == "sessions" }.completed)
+        val completed = s.challenges.count { it.completed }
+        assertEquals(completed, s.challengesCompleted)
+        assertEquals(XpRules.total(2, 2, 0, 0, 0, completed), s.level.xp)
+    }
+
+    @Test
+    fun desafios_semanasPassadasTambemContam() {
+        val sets = listOf(set(today - 7, 1, 1, 10, 30.0), set(today - 6, 1, 1, 10, 30.0))
+        val s = Progress.compute(input(sets = sets, planned = 2))
+        assertTrue(s.challengesCompleted >= 1) // a semana passada cumpriu os treinos
+        assertFalse(s.challenges.first { it.id == "sessions" }.completed) // esta ainda não
+    }
+
+    @Test
+    fun escudo_quatroSemanasNaMetaSalvamUmaSemanaPerdida() {
+        // Semanas -6..-3 cumpridas (escudo), -2 vazia (gasta o escudo), -1 cumprida; a atual em aberto.
+        val weeks = listOf(-6, -5, -4, -3, -1)
+        val sets = weeks.map { set(today + it * 7L, 1, 1, 10, 30.0) }
+        val s = Progress.compute(input(sets = sets, planned = 1))
+        assertEquals(5, s.weekStreak)
+        assertEquals(0, s.weekShields)
+        assertEquals(1, s.shieldsUsed)
+    }
+
+    @Test
+    fun escudo_seteDiasDeDietaGanhamEscudo() {
+        val all = listOf(MealType.BREAKFAST, MealType.LUNCH)
+        val checks = (1..7).flatMap { d -> all.map { done(today - d, it) } }
+        val s = Progress.compute(input(checks = checks, meals = 2))
+        assertEquals(7, s.dietStreak)
+        assertEquals(1, s.dietShields)
+    }
+
+    @Test
+    fun cardio_minutosEKcalDaSemanaEDoTotal() {
+        val sets = listOf(
+            SetLog(epochDay = today, exerciseId = 3, setIndex = 1, reps = 30, weightKg = 0.0, kcal = 250),
+            SetLog(epochDay = today - 14, exerciseId = 3, setIndex = 1, reps = 20, weightKg = 0.0, kcal = 150),
+            set(today, 1, 1, 10, 30.0)
+        )
+        val bikeCardio = Exercise(3, "Bicicleta", MuscleGroup.CARDIO, ExerciseKind.CARDIO)
+        val s = Progress.compute(ProgressInput(sets, listOf(bench, squat, bikeCardio), emptyList(), emptyList(), 3, emptyList(), Goal.MAINTAIN, 3, today, monday))
+        assertEquals(50, s.cardioMinutes)
+        assertEquals(400, s.cardioKcal)
+        assertEquals(30, s.thisWeek.cardioMinutes)
+        assertEquals(250, s.thisWeek.cardioKcal)
+        assertEquals(2, s.thisWeek.sets)
+    }
+
+    @Test
+    fun agua_diasComMetaBatida() {
+        val water = listOf(WaterLog(today, 2500), WaterLog(today - 1, 1000), WaterLog(today - 2, 2000))
+        val s = Progress.compute(
+            ProgressInput(emptyList(), listOf(bench), emptyList(), emptyList(), 3, emptyList(), Goal.MAINTAIN, 3, today, monday, water, waterGoalMl = 2000)
+        )
+        assertEquals(2, s.waterGoalDays)
+        assertEquals(2, s.achievements.first { it.id == "water_7" }.progress)
+    }
+
+    @Test
+    fun aquecimentoNaoEntraNasEstatisticas_quandoOBancoJaFiltra() {
+        // O DAO só entrega séries de trabalho; aqui garantimos que o volume da semana vem delas.
+        val s = Progress.compute(input(sets = listOf(set(today, 1, 1, 10, 50.0))))
+        assertEquals(500.0, s.thisWeek.volumeKg, 0.001)
+        assertEquals(today, s.weekFirstDay) // hoje é segunda: a semana começa hoje
     }
 
     @Test

@@ -22,6 +22,15 @@ import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutLog
+import com.zenkaigym.data.entity.WaterLog
+import com.zenkaigym.data.entity.ExerciseKind
+import com.zenkaigym.domain.Cardio
+import com.zenkaigym.domain.Csv
+import com.zenkaigym.domain.LevelUp
+import com.zenkaigym.domain.Water
+import com.zenkaigym.notify.RestTimer
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import com.zenkaigym.domain.DietProgress
 import com.zenkaigym.domain.DoneSet
 import com.zenkaigym.domain.Stats
@@ -70,8 +79,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** O que se sabe de um exercício antes de hoje. */
-data class ExerciseHistory(val last: List<DoneSet>, val bestKg: Double)
+/** O que se sabe de um exercício antes de hoje: a última vez, a melhor carga e as últimas sessões (da mais antiga à mais recente). */
+data class ExerciseHistory(val last: List<DoneSet>, val bestKg: Double, val sessions: List<List<DoneSet>> = listOf(last))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ZenViewModel(
@@ -283,19 +292,49 @@ class ZenViewModel(
         _keepScreenOn.value = value
     }
 
-    /** Descanso em andamento: instante (System.currentTimeMillis) em que termina e a duração total. */
-    data class Rest(val endsAt: Long, val totalMs: Long)
+    /** Descanso em andamento (vive no processo: segue na notificação com o app em segundo plano). */
+    val rest: StateFlow<RestTimer.Rest?> = RestTimer.state
 
-    private val _rest = MutableStateFlow<Rest?>(null)
-    val rest: StateFlow<Rest?> = _rest
+    fun startRest(seconds: Int) = RestTimer.start(seconds)
 
-    fun startRest(seconds: Int) {
-        val total = seconds * 1000L
-        _rest.value = Rest(System.currentTimeMillis() + total, total)
+    fun addRest(seconds: Int = RestTimer.ADD_SECONDS) = RestTimer.add(seconds)
+
+    fun stopRest() = RestTimer.stop()
+
+    /** Pedir a permissão de notificações uma vez ao abrir o modo treino (para o descanso aparecer fora do app). */
+    fun shouldAskRestPermission(): Boolean = !flags.restPermissionAsked
+
+    fun markRestPermissionAsked() {
+        flags.restPermissionAsked = true
     }
 
-    fun stopRest() {
-        _rest.value = null
+    // ---- Lembretes de água ----
+
+    private val _waterReminders = MutableStateFlow(flags.waterReminders)
+    val waterReminders: StateFlow<Boolean> = _waterReminders
+
+    fun setWaterReminders(on: Boolean) {
+        flags.waterReminders = on
+        _waterReminders.value = on
+    }
+
+    // ---- Água ----
+
+    /** ml bebidos hoje. */
+    val waterToday: StateFlow<Int> = clock.map { it.epochDay }.distinctUntilChanged()
+        .flatMapLatest { repo.water(it) }
+        .map { it?.ml ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Meta do dia pelo peso do perfil. */
+    val waterGoal: StateFlow<Int> = profile.map { Water.goalMl(it?.weightKg) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, Water.goalMl(null))
+
+    fun addWater(deltaMl: Int) = launchSafe {
+        val before = waterToday.value
+        val after = repo.addWater(clock.value.epochDay, deltaMl)
+        val goal = waterGoal.value
+        if (before < goal && after >= goal) toast(tr("Meta de água batida! {0}", Water.label(after)))
     }
 
     // ---- Progresso (gráficos do perfil) ----
@@ -381,12 +420,14 @@ class ZenViewModel(
 
     // ---- Evolução (nível, sequências, recordes e conquistas) ----
 
-    private class StatsData(val sets: List<SetLog>, val logs: List<WorkoutLog>, val checks: List<MealCheck>, val weights: List<WeightEntry>)
+    private class StatsData(
+        val sets: List<SetLog>, val logs: List<WorkoutLog>, val checks: List<MealCheck>, val weights: List<WeightEntry>, val water: List<WaterLog>
+    )
     private class StatsMeta(val exercises: List<Exercise>, val profile: UserProfile?, val availability: List<Availability>, val slots: List<MealSlot>)
 
     /** Tudo o que a tela de evolução e o nível do perfil mostram; recalculado quando algum registro muda. */
     val progressStats: StateFlow<ProgressStats?> = combine(
-        combine(repo.allSets, repo.workoutLogsFrom(0L), repo.checksFrom(0L), repo.weights) { s, l, c, w -> StatsData(s, l, c, w) },
+        combine(repo.allSets, repo.workoutLogsFrom(0L), repo.checksFrom(0L), repo.weights, repo.waterFrom(0L)) { s, l, c, w, h -> StatsData(s, l, c, w, h) },
         combine(exercises, profile, availability, mealSlots) { e, p, a, m -> StatsMeta(e, p, a, m) },
         combine(today, _weekStart) { day, start -> day to start }
     ) { data, meta, (day, start) ->
@@ -395,11 +436,35 @@ class ZenViewModel(
                 ProgressInput(
                     sets = data.sets, exercises = meta.exercises, workoutLogs = data.logs, checks = data.checks,
                     mealsPerDay = meta.slots.size, weights = data.weights, goal = meta.profile?.goal ?: Goal.MAINTAIN,
-                    plannedPerWeek = meta.availability.windowsByDay().size, today = day, weekStart = start
+                    plannedPerWeek = meta.availability.windowsByDay().size, today = day, weekStart = start,
+                    water = data.water, waterGoalMl = Water.goalMl(meta.profile?.weightKg)
                 )
             )
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ---- Subida de nível (cena de comemoração) ----
+
+    private val _levelUp = MutableStateFlow<LevelUp?>(null)
+    /** Subida de nível ainda não comemorada; a cena aparece por cima de tudo até ser dispensada. */
+    val levelUp: StateFlow<LevelUp?> = _levelUp
+
+    /** Chamado com o nível atual sempre que a evolução é recalculada. */
+    fun observeLevel(level: Int) {
+        if (_importing.value) return // os dados estão sendo trocados: o nível do backup vira referência depois
+        val seen = flags.lastLevelSeen
+        val up = LevelUp.detect(seen, level)
+        when {
+            up != null -> _levelUp.value = up
+            // Primeira vez, ou o nível caiu (dados apagados ou importados): só guarda a referência.
+            seen < 1 || level < seen -> flags.lastLevelSeen = level
+        }
+    }
+
+    fun dismissLevelUp() {
+        _levelUp.value?.let { flags.lastLevelSeen = it.toLevel }
+        _levelUp.value = null
+    }
 
     // ---- Apagar todos os dados ----
 
@@ -407,6 +472,7 @@ class ZenViewModel(
     fun wipeAllData() = launchSafe {
         stopTraining()
         working(tr("Apagando seus dados…")) { repo.wipeAll() }
+        flags.lastLevelSeen = -1 // o nível recomeça: nada de comemorar o que já existia
         flags.foodsSeeded = true // a lista inicial de alimentos já foi recriada
         flags.setupDone = false
         _showSetup.value = true
@@ -433,6 +499,7 @@ class ZenViewModel(
                 when (result) {
                     Backup.ImportResult.OK -> {
                         stopTraining() // a ficha do modo treino aberto pode não existir mais
+                        flags.lastLevelSeen = -1 // o nível do backup vira a nova referência, sem comemoração
                         flags.foodsSeeded = true
                         val hasProfile = repo.hasProfile()
                         flags.setupDone = hasProfile
@@ -585,20 +652,75 @@ class ZenViewModel(
     fun replaceExercise(itemId: Long, exercise: Exercise) = launchSafe { repo.replaceExercise(itemId, exercise.id) }
     fun addWorkoutItem(dayId: Long, exercise: Exercise) = launchSafe { repo.addWorkoutItem(dayId, exercise.id) }
 
-    /** Última vez e melhor carga anteriores a hoje, para pré-preencher e sugerir a progressão. */
+    /** Últimas sessões e melhor carga anteriores a hoje, para pré-preencher e aconselhar a progressão. */
     suspend fun history(exerciseId: Long): ExerciseHistory {
         val today = clock.value.epochDay
+        val sessions = repo.recentSets(exerciseId, today, HISTORY_SESSIONS)
+            .groupBy { it.epochDay }.toSortedMap().values
+            .map { day -> day.sortedBy { it.setIndex }.map { DoneSet(it.reps, it.weightKg, it.rir) } }
         return ExerciseHistory(
-            last = repo.lastSets(exerciseId, today).map { DoneSet(it.reps, it.weightKg) },
-            bestKg = repo.bestWeight(exerciseId, today)
+            last = sessions.lastOrNull().orEmpty(),
+            bestKg = repo.bestWeight(exerciseId, today),
+            sessions = sessions
         )
     }
 
-    fun logSet(exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) = launchSafe {
+    /**
+     * Registra uma série de hoje. Aquecimento ([warmup]) não vira recorde. No cardio ([reps] = minutos)
+     * as calorias são estimadas pelo MET da atividade e o peso do perfil.
+     */
+    fun logSet(
+        exercise: Exercise, setIndex: Int, reps: Int, weightKg: Double,
+        rir: Int? = null, note: String? = null, warmup: Boolean = false, distanceKm: Double? = null
+    ) = launchSafe {
         val today = clock.value.epochDay
-        val best = repo.bestWeight(exerciseId, today)
-        repo.logSet(today, exerciseId, setIndex, reps, weightKg)
-        if (Progression.isPersonalRecord(weightKg, best) && best > 0) toast(tr("Novo recorde! {0} kg", weightKg))
+        val best = repo.bestWeight(exercise.id, today)
+        val cardio = exercise.kind == ExerciseKind.CARDIO
+        val kcal = if (cardio) Cardio.kcal(exercise.name, profile.value?.weightKg ?: 70.0, reps, distanceKm) else null
+        repo.logSet(
+            SetLog(
+                epochDay = today, exerciseId = exercise.id, setIndex = setIndex, reps = reps, weightKg = weightKg,
+                rir = rir, note = note?.trim()?.takeIf { it.isNotEmpty() }, warmup = warmup,
+                distanceKm = distanceKm?.takeIf { cardio && it > 0 }, kcal = kcal
+            )
+        )
+        if (!warmup && Progression.isPersonalRecord(weightKg, best) && best > 0) toast(tr("Novo recorde! {0} kg", weightKg))
+    }
+
+    /** Esforço (RIR) e nota de uma série já registrada hoje. */
+    fun updateSetDetails(exerciseId: Long, setIndex: Int, rir: Int?, note: String?) = launchSafe {
+        repo.updateSetDetails(clock.value.epochDay, exerciseId, setIndex, rir, note)
+    }
+
+    // ---- Exportação em CSV ----
+
+    /** Grava um .zip com séries, peso, refeições e água em CSV no local escolhido. */
+    fun exportCsv(context: Context, target: Uri) = launchSafe {
+        val app = context.applicationContext
+        val ok = working(tr("Exportando planilhas…")) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val data = repo.exportData()
+                    val files = mapOf(
+                        "series.csv" to Csv.sets(data.sets, data.exercises),
+                        "peso.csv" to Csv.weights(data.weights),
+                        "refeicoes.csv" to Csv.meals(data.checks),
+                        "agua.csv" to Csv.water(data.water)
+                    )
+                    val out = app.contentResolver.openOutputStream(target) ?: error("Destino indisponível")
+                    ZipOutputStream(out).use { zip ->
+                        files.forEach { (name, text) ->
+                            zip.putNextEntry(ZipEntry(name))
+                            // BOM: o Excel reconhece os acentos como UTF-8.
+                            zip.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
+                            zip.write(text.toByteArray(Charsets.UTF_8))
+                            zip.closeEntry()
+                        }
+                    }
+                }.onFailure { Log.e("ZenViewModel", "Falha ao exportar CSV", it) }.isSuccess
+            }
+        }
+        toast(if (ok) tr("Planilhas exportadas!") else tr("Não foi possível exportar as planilhas."))
     }
 
     fun unlogSet(exerciseId: Long, setIndex: Int) = launchSafe {
@@ -727,6 +849,8 @@ class ZenViewModel(
     }
 
     private companion object {
+        /** Sessões lidas para o conselho de carga (estagnação pede mais de 3). */
+        const val HISTORY_SESSIONS = 6
         const val MIN_LOADING_MS = 600L
         const val MIN_BUSY_MS = 450L
         /** A tela "Importando…" fica visível ao menos este tempo, para não piscar em backups pequenos. */

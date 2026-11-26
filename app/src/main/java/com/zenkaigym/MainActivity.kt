@@ -4,6 +4,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import com.zenkaigym.notify.ReminderScheduler
+import com.zenkaigym.notify.RestTimer
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -85,11 +86,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        RestTimer.setForeground(true)
+    }
+
     override fun onStop() {
         super.onStop()
+        // Fora da tela, o descanso em andamento passa para a notificação com cronômetro.
+        RestTimer.setForeground(false)
         // Horários de refeição e treino podem ter mudado: os alarmes acompanham a agenda atual.
         val app = application as ZenApp
-        if (app.appFlags.remindersEnabled) {
+        if (app.appFlags.remindersEnabled || app.appFlags.waterReminders) {
             CoroutineScope(Dispatchers.IO).launch { ReminderScheduler.rescheduleAll(app) }
         }
     }

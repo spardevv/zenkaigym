@@ -24,6 +24,7 @@ import com.zenkaigym.data.entity.MealItem
 import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.data.entity.WaterLog
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
@@ -36,9 +37,9 @@ import com.zenkaigym.data.entity.WorkoutSwap
         UserProfile::class, WeightEntry::class, Availability::class, Food::class,
         Exercise::class, WorkoutPlan::class, WorkoutDay::class, WorkoutItem::class,
         DietPlan::class, Meal::class, MealItem::class, MealSlot::class, MealCheck::class,
-        WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class
+        WorkoutLog::class, SetLog::class, WorkoutSwap::class, MealExtra::class, WaterLog::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -146,6 +147,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v10: esforço (RIR), nota e aquecimento por série, distância e kcal do cardio, e registro de água. */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE set_log ADD COLUMN rir INTEGER")
+                db.execSQL("ALTER TABLE set_log ADD COLUMN note TEXT")
+                db.execSQL("ALTER TABLE set_log ADD COLUMN warmup INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_log ADD COLUMN distanceKm REAL")
+                db.execSQL("ALTER TABLE set_log ADD COLUMN kcal INTEGER")
+                db.execSQL("CREATE TABLE IF NOT EXISTS water_log (epochDay INTEGER NOT NULL, ml INTEGER NOT NULL, PRIMARY KEY(epochDay))")
+            }
+        }
+
         /** Põe os exercícios do catálogo no grupo, tipo e equipamento atuais e insere os que ainda não existem. */
         private fun syncCatalog(db: SupportSQLiteDatabase) {
             ExerciseCatalog.entries.forEach {
@@ -164,7 +177,7 @@ abstract class AppDatabase : RoomDatabase() {
         /** Abre (ou cria) o banco [name] com todas as migrações; usado também para ler um backup antes de importar. */
         fun open(context: Context, name: String): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .addCallback(object : Callback() {
                     // Antes de qualquer leitura: um valor fora dos enums derrubaria o app a cada abertura.
                     override fun onOpen(db: SupportSQLiteDatabase) = repairCatalog(db)

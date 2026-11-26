@@ -64,6 +64,9 @@ import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
+import com.zenkaigym.ui.components.ZenProgressBar
+import com.zenkaigym.domain.Water
+import androidx.compose.foundation.layout.width
 import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.nav.Routes
 import com.zenkaigym.ui.theme.Aka
@@ -105,6 +108,8 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     var addingExtra by remember { mutableStateOf<MealFull?>(null) }
     var changingWorkout by remember { mutableStateOf(false) }
     val swapped by viewModel.workoutSwapped.collectAsStateWithLifecycle()
+    val water by viewModel.waterToday.collectAsStateWithLifecycle()
+    val waterGoal by viewModel.waterGoal.collectAsStateWithLifecycle()
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
@@ -156,15 +161,22 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                         onRemoveExtra = viewModel::removeExtra
                     )
                 }
+                val waterCard: @Composable () -> Unit = {
+                    WaterCard(water, waterGoal, onAdd = { viewModel.addWater(Water.GLASS_ML) }, onUndo = { viewModel.addWater(-Water.GLASS_ML) })
+                }
                 // Em telas largas, treino e refeição ficam lado a lado.
                 if (currentWindowLayout.twoColumns) {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Column(Modifier.weight(1f)) { todayCard() }
-                        Column(Modifier.weight(1f)) { mealCard() }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            mealCard()
+                            waterCard()
+                        }
                     }
                 } else {
                     todayCard()
                     mealCard()
+                    waterCard()
                 }
             }
         }
@@ -465,6 +477,33 @@ private fun NextMeal(
                     mark = if (meals.size > 4) null else if (isDone) ZenIcons.Check else if (isSkipped) ZenIcons.Close else null
                 )
             }
+        }
+    }
+}
+
+/**
+ * Água do dia numa faixa só: kanji, total / meta, barra e os botões de um copo (desfazer e +250 ml).
+ * Fica baixa de propósito para o Dojo continuar cabendo na tela sem rolagem.
+ */
+@Composable
+private fun WaterCard(ml: Int, goal: Int, onAdd: () -> Unit, onUndo: () -> Unit) {
+    val reached = ml >= goal
+    ZenCard(accent = Ao, entranceIndex = 2) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            KanjiBadge("水", color = if (reached) Midori else Ao, size = 34.dp)
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(
+                    tr("ÁGUA · {0} / {1}", Water.label(ml), Water.label(goal)),
+                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                ZenProgressBar(Water.fraction(ml, goal), if (reached) Midori else Ao, height = 8.dp)
+            }
+            if (ml > 0) {
+                ZenButton("−", onUndo, accent = Zen.p.card, small = true)
+                Spacer(Modifier.width(6.dp))
+            }
+            ZenButton(tr("+{0} ml", Water.GLASS_ML), onAdd, accent = Ao, small = true)
         }
     }
 }

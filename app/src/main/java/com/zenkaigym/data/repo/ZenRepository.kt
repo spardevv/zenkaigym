@@ -21,7 +21,9 @@ import com.zenkaigym.data.entity.MealType
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.PlanStatus
 import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.data.entity.WaterLog
 import com.zenkaigym.data.entity.WeightEntry
+import com.zenkaigym.domain.Water
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.WorkoutItem
@@ -455,13 +457,40 @@ class ZenRepository(
     fun setsLogged(epochDay: Long) = workoutDao.observeSets(epochDay)
     fun workoutLog(epochDay: Long) = workoutDao.observeWorkoutLog(epochDay)
 
-    suspend fun logSet(epochDay: Long, exerciseId: Long, setIndex: Int, reps: Int, weightKg: Double) =
-        workoutDao.upsertSet(SetLog(epochDay = epochDay, exerciseId = exerciseId, setIndex = setIndex, reps = reps, weightKg = weightKg))
+    suspend fun logSet(log: SetLog) = workoutDao.upsertSet(log)
 
     suspend fun unlogSet(epochDay: Long, exerciseId: Long, setIndex: Int) = workoutDao.deleteSet(epochDay, exerciseId, setIndex)
 
+    /** Esforço (RIR) e nota de uma série já registrada. */
+    suspend fun updateSetDetails(epochDay: Long, exerciseId: Long, setIndex: Int, rir: Int?, note: String?) =
+        workoutDao.updateSetDetails(epochDay, exerciseId, setIndex, rir, note?.trim()?.takeIf { it.isNotEmpty() })
+
     suspend fun lastSets(exerciseId: Long, beforeDay: Long) = workoutDao.lastSets(exerciseId, beforeDay)
+    suspend fun recentSets(exerciseId: Long, beforeDay: Long, sessions: Int) = workoutDao.recentSets(exerciseId, beforeDay, sessions)
     suspend fun bestWeight(exerciseId: Long, beforeDay: Long) = workoutDao.bestWeight(exerciseId, beforeDay)
+
+    // ---- Água ----
+
+    fun water(epochDay: Long) = dietDao.observeWater(epochDay)
+    fun waterFrom(from: Long) = dietDao.observeWaterFrom(from)
+
+    /** Soma [deltaMl] à água do dia (negativo desfaz um copo) e devolve o novo total. */
+    suspend fun addWater(epochDay: Long, deltaMl: Int): Int = db.withTransaction {
+        val ml = Water.add(dietDao.getWater(epochDay)?.ml ?: 0, deltaMl)
+        dietDao.upsertWater(WaterLog(epochDay, ml))
+        ml
+    }
+
+    // ---- Exportação em CSV ----
+
+    class ExportData(
+        val sets: List<SetLog>, val exercises: List<Exercise>, val weights: List<WeightEntry>,
+        val checks: List<MealCheck>, val water: List<WaterLog>
+    )
+
+    suspend fun exportData(): ExportData = ExportData(
+        workoutDao.allSetsForExport(), workoutDao.exercises(), profileDao.getWeights(), dietDao.allChecks(), dietDao.allWater()
+    )
 
     suspend fun setWorkoutDone(epochDay: Long, done: Boolean) {
         if (done) workoutDao.upsertWorkoutLog(WorkoutLog(epochDay)) else workoutDao.deleteWorkoutLog(epochDay)

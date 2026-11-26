@@ -19,6 +19,7 @@ import com.zenkaigym.data.entity.MealSlot
 import com.zenkaigym.data.entity.PlanStatus
 import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.UserProfile
+import com.zenkaigym.data.entity.WaterLog
 import com.zenkaigym.data.entity.WeightEntry
 import com.zenkaigym.data.entity.WorkoutDay
 import com.zenkaigym.data.entity.WorkoutItem
@@ -170,21 +171,36 @@ interface WorkoutDao {
 
     /** Séries da última vez em que o exercício foi feito antes de [beforeDay]; vazio se nunca. */
     @Query(
-        "SELECT * FROM set_log WHERE exerciseId = :exerciseId AND epochDay = " +
-            "(SELECT MAX(epochDay) FROM set_log WHERE exerciseId = :exerciseId AND epochDay < :beforeDay) " +
+        "SELECT * FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 AND epochDay = " +
+            "(SELECT MAX(epochDay) FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 AND epochDay < :beforeDay) " +
             "ORDER BY setIndex"
     )
     suspend fun lastSets(exerciseId: Long, beforeDay: Long): List<SetLog>
 
-    @Query("SELECT COALESCE(MAX(weightKg), 0) FROM set_log WHERE exerciseId = :exerciseId AND epochDay < :beforeDay")
+    @Query("SELECT COALESCE(MAX(weightKg), 0) FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 AND epochDay < :beforeDay")
     suspend fun bestWeight(exerciseId: Long, beforeDay: Long): Double
+
+    /** Séries de trabalho das últimas [sessions] vezes em que o exercício foi feito antes de [beforeDay]. */
+    @Query(
+        "SELECT * FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 AND epochDay IN " +
+            "(SELECT DISTINCT epochDay FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 AND epochDay < :beforeDay " +
+            "ORDER BY epochDay DESC LIMIT :sessions) ORDER BY epochDay, setIndex"
+    )
+    suspend fun recentSets(exerciseId: Long, beforeDay: Long, sessions: Int): List<SetLog>
+
+    @Query("UPDATE set_log SET rir = :rir, note = :note WHERE epochDay = :epochDay AND exerciseId = :exerciseId AND setIndex = :setIndex")
+    suspend fun updateSetDetails(epochDay: Long, exerciseId: Long, setIndex: Int, rir: Int?, note: String?)
+
+    /** Todas as séries, inclusive aquecimentos (exportação em CSV). */
+    @Query("SELECT * FROM set_log ORDER BY epochDay, exerciseId, setIndex")
+    suspend fun allSetsForExport(): List<SetLog>
 
     /** Exercícios que já têm alguma série registrada. */
     @Query("SELECT * FROM exercise WHERE id IN (SELECT DISTINCT exerciseId FROM set_log) ORDER BY name")
     fun observeLoggedExercises(): Flow<List<Exercise>>
 
     /** Todas as séries já feitas do exercício, das mais antigas às mais recentes. */
-    @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId ORDER BY epochDay, setIndex")
+    @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId AND warmup = 0 ORDER BY epochDay, setIndex")
     fun observeSetsOf(exerciseId: Long): Flow<List<SetLog>>
 
     @Query("SELECT * FROM workout_log WHERE epochDay = :epochDay")
@@ -197,11 +213,11 @@ interface WorkoutDao {
     suspend fun deleteWorkoutLog(epochDay: Long)
 
     /** Volume (carga × repetições) e séries por dia, a partir de [from]. */
-    @Query("SELECT epochDay, SUM(weightKg * reps) AS volume, COUNT(*) AS sets FROM set_log WHERE epochDay >= :from GROUP BY epochDay")
+    @Query("SELECT epochDay, SUM(weightKg * reps) AS volume, COUNT(*) AS sets FROM set_log WHERE epochDay >= :from AND warmup = 0 GROUP BY epochDay")
     fun observeVolumePerDay(from: Long): Flow<List<DayVolume>>
 
-    /** Todas as séries já registradas: base das estatísticas de evolução (o banco é pequeno). */
-    @Query("SELECT * FROM set_log")
+    /** Todas as séries de trabalho já registradas: base das estatísticas de evolução (o banco é pequeno). */
+    @Query("SELECT * FROM set_log WHERE warmup = 0")
     fun observeAllSets(): Flow<List<SetLog>>
 
     @Query("SELECT epochDay FROM workout_log WHERE epochDay >= :from AND finished = 1")
@@ -318,6 +334,27 @@ interface DietDao {
 
     @Query("DELETE FROM meal_extra WHERE epochDay < :epochDay")
     suspend fun pruneExtrasBefore(epochDay: Long)
+
+    // ---- Água ----
+
+    @Query("SELECT * FROM water_log WHERE epochDay = :epochDay")
+    fun observeWater(epochDay: Long): Flow<WaterLog?>
+
+    @Query("SELECT * FROM water_log WHERE epochDay = :epochDay")
+    suspend fun getWater(epochDay: Long): WaterLog?
+
+    @Query("SELECT * FROM water_log WHERE epochDay >= :from ORDER BY epochDay")
+    fun observeWaterFrom(from: Long): Flow<List<WaterLog>>
+
+    @Query("SELECT * FROM water_log ORDER BY epochDay")
+    suspend fun allWater(): List<WaterLog>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertWater(log: WaterLog)
+
+    /** Todas as refeições marcadas (exportação em CSV). */
+    @Query("SELECT * FROM meal_check ORDER BY epochDay")
+    suspend fun allChecks(): List<MealCheck>
 
     /** Refeições feitas por dia, a partir de [from] (para o gráfico de aderência). */
     @Query("SELECT epochDay, COUNT(*) AS count FROM meal_check WHERE epochDay >= :from AND skipped = 0 GROUP BY epochDay")

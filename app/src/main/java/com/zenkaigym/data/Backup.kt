@@ -25,7 +25,7 @@ import java.io.File
  */
 object Backup {
     /** Versão do esquema do banco deste app; arquivos de versão maior vêm de um app mais novo e são recusados. */
-    private const val MAX_VERSION = 9 // manter igual a AppDatabase.version
+    private const val MAX_VERSION = 10 // manter igual a AppDatabase.version
     private const val DB_NAME = "zenkaigym.db"
     /** Cópia temporária do arquivo escolhido, aberta à parte enquanto os dados são copiados. */
     private const val STAGING_NAME = "zenkaigym-import.db"
@@ -39,7 +39,7 @@ object Backup {
         "user_profile", "weight_entry", "availability", "food", "exercise",
         "workout_plan", "workout_day", "workout_item",
         "diet_plan", "meal", "meal_item", "meal_slot", "meal_check",
-        "workout_log", "set_log", "workout_swap", "meal_extra"
+        "workout_log", "set_log", "workout_swap", "meal_extra", "water_log"
     )
 
     enum class ImportResult { OK, INVALID, TOO_NEW }

@@ -1,5 +1,6 @@
 package com.zenkaigym.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -235,9 +236,26 @@ data class SetLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val epochDay: Long,
     val exerciseId: Long,
+    /** 1, 2, 3… nas séries de trabalho; -1, -2… nos aquecimentos (que não contam em volume, recordes e XP). */
     val setIndex: Int,
+    /** Repetições; no cardio, minutos; na prancha, segundos. */
     val reps: Int,
-    val weightKg: Double
+    val weightKg: Double,
+    /** Repetições que ainda sobravam (RIR); RPE ≈ 10 − RIR. Null = não anotado. */
+    val rir: Int? = null,
+    val note: String? = null,
+    @ColumnInfo(defaultValue = "0") val warmup: Boolean = false,
+    /** Cardio: distância percorrida, se informada. */
+    val distanceKm: Double? = null,
+    /** Cardio: calorias estimadas pelo MET da atividade e o peso do dia. */
+    val kcal: Int? = null
+)
+
+/** Água bebida num dia, em ml. */
+@Entity(tableName = "water_log")
+data class WaterLog(
+    @PrimaryKey val epochDay: Long,
+    val ml: Int
 )
 
 /** Agenda de refeições do usuário: uma linha por refeição do dia, com seu horário (HH:mm). */

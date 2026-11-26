@@ -24,23 +24,38 @@ sealed class Reminder {
         override val days: Set<Int> get() = setOf(dayOfWeek)
     }
 
+    /** Copo de água: [index] = posição na lista de horários de água (todo dia). */
+    data class Water(val index: Int, override val time: TimeOfDay) : Reminder() {
+        override val id get() = WATER_BASE + index
+        override val days: Set<Int>? get() = null
+    }
+
     companion object {
         const val MEAL_BASE = 1
         const val WORKOUT_BASE = 100
+        const val WATER_BASE = 200
+        const val MAX_WATER = 8
 
         /** Todos os ids possíveis, para cancelar os alarmes antigos antes de agendar de novo. */
         val allIds: List<Int> =
-            MealType.entries.map { MEAL_BASE + it.ordinal } + (1..7).map { WORKOUT_BASE + it }
+            MealType.entries.map { MEAL_BASE + it.ordinal } + (1..7).map { WORKOUT_BASE + it } + (0 until MAX_WATER).map { WATER_BASE + it }
     }
 }
 
 object Reminders {
-    /** Avisos a partir da agenda de refeições e dos dias de treino com horário definido. */
-    fun build(slots: List<MealSlot>, availability: List<Availability>): List<Reminder> {
-        val meals = slots.mapNotNull { slot -> TimeOfDay.parse(slot.time)?.let { Reminder.Meal(slot.type, it) } }
-        val workouts = availability.filter { it.available }
+    /** Horários fixos do lembrete de água, espalhados pelo dia. */
+    val WATER_TIMES = listOf(TimeOfDay(10, 0), TimeOfDay(13, 0), TimeOfDay(16, 0), TimeOfDay(19, 0))
+
+    /**
+     * Avisos a partir da agenda de refeições e dos dias de treino com horário definido
+     * ([meals]: lembretes gerais ligados) e, com [water], os de água.
+     */
+    fun build(slots: List<MealSlot>, availability: List<Availability>, meals: Boolean = true, water: Boolean = false): List<Reminder> {
+        val mealReminders = if (!meals) emptyList() else slots.mapNotNull { slot -> TimeOfDay.parse(slot.time)?.let { Reminder.Meal(slot.type, it) } }
+        val workouts = if (!meals) emptyList() else availability.filter { it.available }
             .mapNotNull { a -> TimeOfDay.parse(a.startTime)?.let { Reminder.Workout(a.dayOfWeek, it) } }
-        return meals + workouts
+        val waterReminders = if (!water) emptyList() else WATER_TIMES.mapIndexed { i, t -> Reminder.Water(i, t) }
+        return mealReminders + workouts + waterReminders
     }
 
     /** Próximo disparo (em ms) depois de [now]; sempre no futuro, nunca no mesmo minuto. */

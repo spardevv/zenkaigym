@@ -8,4 +8,13 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="zen_window_bg">#FFF3F0E8</color>
+    <!-- Widget do Dojo: papel, tinta, texto apagado, vermelho e verde (as mesmas cores do estilo Shōnen). -->
+    <color name="widget_paper">#FFFFFDF7</color>
+    <color name="widget_ink">#FF17171A</color>
+    <color name="widget_muted">#FF6B6B73</color>
+    <color name="widget_border">#FF17171A</color>
+    <color name="widget_aka">#FFF25A52</color>
+    <color name="widget_midori">#FF55D48A</color>
+    <color name="widget_ao">#FF45C0EE</color>
+    <color name="widget_track">#FFE8E4DA</color>
 </resources>

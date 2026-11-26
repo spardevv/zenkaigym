@@ -68,5 +68,26 @@ class RemindersTest {
         assertEquals(Reminder.allIds.size, Reminder.allIds.toSet().size)
         assertTrue(Reminder.Meal(MealType.SUPPER, TimeOfDay(22, 0)).id in Reminder.allIds)
         assertTrue(Reminder.Workout(7, TimeOfDay(6, 0)).id in Reminder.allIds)
+        Reminders.WATER_TIMES.indices.forEach { assertTrue(Reminder.Water(it, TimeOfDay(10, 0)).id in Reminder.allIds) }
+    }
+
+    @Test
+    fun aguaSoEntraQuandoLigadaEIndependeDosOutrosLembretes() {
+        val slots = listOf(MealSlot(MealType.BREAKFAST, 0, "07:00"))
+        val availability = listOf(Availability(1, true, "18:00", "19:00"))
+        assertTrue(Reminders.build(slots, availability).none { it is Reminder.Water })
+
+        val onlyWater = Reminders.build(slots, availability, meals = false, water = true)
+        assertEquals(Reminders.WATER_TIMES.size, onlyWater.size)
+        assertTrue(onlyWater.all { it is Reminder.Water && it.days == null })
+
+        assertEquals(2 + Reminders.WATER_TIMES.size, Reminders.build(slots, availability, meals = true, water = true).size)
+    }
+
+    @Test
+    fun aguaDisparaTodoDiaNoProximoHorario() {
+        val now = wednesday(14, 0)
+        assertEquals(at(now, 0, 16, 0), Reminders.nextTrigger(Reminder.Water(2, TimeOfDay(16, 0)), now))
+        assertEquals(at(now, 1, 10, 0), Reminders.nextTrigger(Reminder.Water(0, TimeOfDay(10, 0)), now))
     }
 }

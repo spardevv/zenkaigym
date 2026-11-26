@@ -70,6 +70,7 @@ import com.zenkaigym.ui.screens.DietScreen
 import com.zenkaigym.ui.screens.FoodsScreen
 import com.zenkaigym.ui.screens.HistoryScreen
 import com.zenkaigym.ui.screens.HomeScreen
+import com.zenkaigym.ui.screens.LevelUpScene
 import com.zenkaigym.ui.screens.ProfileScreen
 import com.zenkaigym.ui.screens.ProgressScreen
 import com.zenkaigym.ui.screens.SettingsScreen
@@ -176,6 +177,11 @@ fun AppNav(viewModel: ZenViewModel) {
     val assignment by viewModel.todayWorkout.collectAsStateWithLifecycle()
     val trainingDay = assignment.session
 
+    // O nível é acompanhado o tempo todo: subir de nível em qualquer tela dispara a comemoração.
+    val stats by viewModel.progressStats.collectAsStateWithLifecycle()
+    val levelUp by viewModel.levelUp.collectAsStateWithLifecycle()
+    LaunchedEffect(stats?.level?.level) { stats?.level?.level?.let(viewModel::observeLevel) }
+
     val layout = currentWindowLayout
 
     Box(Modifier.fillMaxSize().background(Zen.p.bg).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
@@ -221,6 +227,10 @@ fun AppNav(viewModel: ZenViewModel) {
             var shown by remember { mutableStateOf(trainingDay) }
             if (trainingDay != null) shown = trainingDay
             shown?.let { TrainSessionScreen(it, viewModel, onClose = viewModel::stopTraining) }
+        }
+        // Subida de nível: comemora fora do modo treino (para não atrapalhar a série), por cima das telas.
+        if (!trainingActive) {
+            levelUp?.let { up -> LevelUpScene(up, onDismiss = viewModel::dismissLevelUp) }
         }
         // As confirmações ficam por cima de tudo, inclusive do modo treino.
         FeedbackHost(busy, message, Modifier.align(Alignment.TopCenter).statusBarsPadding())

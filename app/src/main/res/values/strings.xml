@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Zenkaigym</string>
+    <!-- Padrão em inglês, como o app em idiomas sem tradução; português e japonês nas pastas próprias. -->
+    <string name="widget_description">Today\'s workout, next meal and water for the day.</string>
 </resources>
