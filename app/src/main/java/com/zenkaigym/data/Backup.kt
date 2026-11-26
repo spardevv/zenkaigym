@@ -18,10 +18,15 @@ import com.zenkaigym.data.entity.PlanStatus
 import com.zenkaigym.data.entity.Sex
 import com.zenkaigym.data.entity.TrainingFocus
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 /**
- * Cópia de segurança manual: o arquivo do banco inteiro vai para (ou vem de) um local que o usuário escolhe.
- * Nada sai do aparelho sem esse gesto.
+ * Cópia de segurança manual num único arquivo .zip, salvo onde o usuário escolhe (nada sai do aparelho sem esse gesto).
+ *
+ * O .zip leva o banco inteiro ([DB_ENTRY]: perfil, fichas, dieta, séries, peso, água, tudo) e, ao lado, planilhas
+ * CSV para abrir no Excel. A importação lê esse mesmo .zip (e ainda aceita o .db solto das versões antigas).
  */
 object Backup {
     /** Versão do esquema do banco deste app; arquivos de versão maior vêm de um app mais novo e são recusados. */
@@ -44,15 +49,58 @@ object Backup {
 
     enum class ImportResult { OK, INVALID, TOO_NEW }
 
-    fun suggestedName(): String =
-        "zenkaigym-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.db"
+    /** Nome do banco dentro do .zip. */
+    const val DB_ENTRY = "zenkaigym.db"
+    /** Pasta das planilhas dentro do .zip. */
+    const val SHEETS_DIR = "planilhas/"
+    private val ZIP_HEADER = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+    private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
 
-    /** Grava o banco em [target]. Antes, descarrega o log de escrita (WAL) para o arquivo principal. */
-    fun export(context: Context, db: AppDatabase, target: Uri) {
+    fun suggestedName(): String =
+        "zenkaigym-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip"
+
+    /**
+     * Grava em [target] o .zip com o banco e as [sheets] (nome do arquivo → texto CSV).
+     * Antes, descarrega o log de escrita (WAL) para o arquivo principal do banco.
+     */
+    fun export(context: Context, db: AppDatabase, target: Uri, sheets: Map<String, String>) {
         db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
         val source = context.getDatabasePath(DB_NAME)
         val out = context.contentResolver.openOutputStream(target) ?: error("Não foi possível abrir o destino")
-        out.use { sink -> source.inputStream().use { it.copyTo(sink) } }
+        ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(ZipEntry(DB_ENTRY))
+            source.inputStream().use { it.copyTo(zip) }
+            zip.closeEntry()
+            sheets.forEach { (name, text) ->
+                zip.putNextEntry(ZipEntry(SHEETS_DIR + name))
+                zip.write(UTF8_BOM) // o Excel reconhece os acentos como UTF-8
+                zip.write(text.toByteArray(Charsets.UTF_8))
+                zip.closeEntry()
+            }
+        }
+    }
+
+    /**
+     * Copia para [staging] o banco escolhido pelo usuário: a entrada [DB_ENTRY] do .zip exportado,
+     * ou o arquivo inteiro quando é um .db solto (backups das versões antigas). False se o .zip não tiver o banco.
+     */
+    private fun unpack(context: Context, source: Uri, staging: File): Boolean {
+        val head = ByteArray(ZIP_HEADER.size)
+        val read = context.contentResolver.openInputStream(source)?.use { it.read(head) } ?: return false
+        val input = context.contentResolver.openInputStream(source) ?: return false
+        if (read == head.size && head.contentEquals(ZIP_HEADER)) {
+            ZipInputStream(input).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: return false
+                    if (!entry.isDirectory && entry.name == DB_ENTRY) {
+                        staging.outputStream().use { zip.copyTo(it) }
+                        return true
+                    }
+                }
+            }
+        }
+        input.use { stream -> staging.outputStream().use { stream.copyTo(it) } }
+        return true
     }
 
     /**
@@ -67,9 +115,8 @@ object Backup {
         val staging = context.getDatabasePath(STAGING_NAME)
         deleteWithSidecars(staging)
         try {
-            val input = context.contentResolver.openInputStream(source) ?: return ImportResult.INVALID
             staging.parentFile?.mkdirs()
-            input.use { stream -> staging.outputStream().use { stream.copyTo(it) } }
+            if (!unpack(context, source, staging)) return ImportResult.INVALID
 
             val checked = validate(staging)
             if (checked != ImportResult.OK) return checked

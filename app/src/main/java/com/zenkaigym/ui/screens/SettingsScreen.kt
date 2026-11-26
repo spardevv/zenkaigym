@@ -82,12 +82,8 @@ fun SettingsScreen(viewModel: ZenViewModel) {
     var pendingImport by remember { mutableStateOf<Uri?>(null) }
     val app = context.applicationContext as ZenApp
 
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) { runCatching { Backup.export(context, app.database, uri) }.isSuccess }
-            Toast.makeText(context, if (ok) tr("Backup salvo!") else tr("Não foi possível salvar o backup."), Toast.LENGTH_LONG).show()
-        }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) viewModel.exportData(context, uri)
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) {
@@ -107,9 +103,6 @@ fun SettingsScreen(viewModel: ZenViewModel) {
         val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         if (on && needsPermission) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
-    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        if (uri != null) viewModel.exportCsv(context, uri)
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) pendingImport = uri
@@ -261,7 +254,7 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    tr("Para trocar de celular ou guardar uma cópia, exporte seus dados para um arquivo e importe no outro aparelho. O arquivo só vai para onde você escolher."),
+                    tr("Exporte tudo num arquivo .zip (perfil, fichas, dieta, treinos, peso, água e evolução) e importe esse mesmo arquivo para restaurar ou trocar de celular. Dentro dele há também planilhas CSV para abrir no Excel. O arquivo só vai para onde você escolher."),
                     color = Zen.p.muted
                 )
                 Spacer(Modifier.height(10.dp))
@@ -269,17 +262,6 @@ fun SettingsScreen(viewModel: ZenViewModel) {
                     ZenButton(tr("Exportar dados"), { exportLauncher.launch(Backup.suggestedName()) }, Modifier.weight(1f), accent = Ao, fill = true)
                     ZenButton(tr("Importar dados"), { importLauncher.launch(arrayOf("*/*")) }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
                 }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    tr("Planilhas (CSV): séries, peso, refeições e água num arquivo .zip, para abrir no Excel ou no Google Planilhas. Serve para analisar; para restaurar, use o backup acima."),
-                    color = Zen.p.muted
-                )
-                Spacer(Modifier.height(8.dp))
-                ZenButton(
-                    tr("Exportar planilhas (CSV)"),
-                    { csvLauncher.launch("zenkaigym-planilhas-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip") },
-                    Modifier.fillMaxWidth(), accent = Midori, fill = true
-                )
             }
 
             UpdateCard(entranceIndex = 4)

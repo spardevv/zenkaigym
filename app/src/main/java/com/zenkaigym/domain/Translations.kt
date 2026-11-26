@@ -186,7 +186,8 @@ object Translations {
         "Importando seus dados…", "Importing your data…", "データを読み込み中…",
         "Esse backup é de uma versão mais nova do app. Atualize o Zenkaigym.", "This backup is from a newer version of the app. Update Zenkaigym.", "このバックアップは新しいバージョンのものです。Zenkaigymを更新してください。",
         "Esse arquivo não é um backup do Zenkaigym.", "This file is not a Zenkaigym backup.", "このファイルはZenkaigymのバックアップではありません。",
-        "Para trocar de celular ou guardar uma cópia, exporte seus dados para um arquivo e importe no outro aparelho. O arquivo só vai para onde você escolher.", "To switch phones or keep a copy, export your data to a file and import it on the other device. The file only goes where you choose.", "機種変更やコピーの保管には、データをファイルに書き出し、別の端末で読み込んでください。ファイルはあなたが選んだ場所にだけ保存されます。",
+        "Exporte tudo num arquivo .zip (perfil, fichas, dieta, treinos, peso, água e evolução) e importe esse mesmo arquivo para restaurar ou trocar de celular. Dentro dele há também planilhas CSV para abrir no Excel. O arquivo só vai para onde você escolher.", "Export everything to one .zip file (profile, plans, diet, workouts, weight, water and progress) and import that same file to restore or switch phones. It also contains CSV spreadsheets to open in Excel. The file only goes where you choose.", "すべて（プロフィール、メニュー、食事、トレーニング、体重、水分、成長記録）を1つの.zipファイルに書き出し、同じファイルを読み込めば復元や機種変更ができます。中にはExcelで開けるCSVスプレッドシートも入っています。ファイルはあなたが選んだ場所にだけ保存されます。",
+        "Exportando dados…", "Exporting data…", "データを書き出し中…",
         "Exportar dados", "Export data", "データを書き出す",
         "Importar dados", "Import data", "データを読み込む",
         "Importar dados?", "Import data?", "データを読み込みますか？",
@@ -953,11 +954,6 @@ object Translations {
         "Feito com Zenkaigym · treino e dieta offline", "Made with Zenkaigym · offline workout and diet", "Zenkaigymで作成 · オフラインのトレーニングと食事",
 
         // ---- Exportação em CSV ----
-        "Planilhas (CSV): séries, peso, refeições e água num arquivo .zip, para abrir no Excel ou no Google Planilhas. Serve para analisar; para restaurar, use o backup acima.", "Spreadsheets (CSV): sets, weight, meals and water in a .zip file to open in Excel or Google Sheets. Good for analysis; to restore, use the backup above.", "スプレッドシート（CSV）：セット、体重、食事、水分を.zipファイルにまとめ、ExcelやGoogleスプレッドシートで開けます。分析用です。復元には上のバックアップを使ってください。",
-        "Exportar planilhas (CSV)", "Export spreadsheets (CSV)", "スプレッドシートを書き出す（CSV）",
-        "Exportando planilhas…", "Exporting spreadsheets…", "スプレッドシートを書き出し中…",
-        "Planilhas exportadas!", "Spreadsheets exported!", "スプレッドシートを書き出しました！",
-        "Não foi possível exportar as planilhas.", "Couldn't export the spreadsheets.", "スプレッドシートを書き出せませんでした。",
         "data", "date", "日付",
         "exercício", "exercise", "エクササイズ",
         "grupo", "group", "部位",

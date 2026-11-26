@@ -167,14 +167,16 @@ fun ZenButton(
             } else {
                 // Com ícone, o rótulo usa weight: o ícone é medido primeiro e o texto encolhe no que sobra.
                 // O weight só vale em largura limitada; sem ícone, o rótulo vai direto (ex.: faixa com rolagem horizontal).
+                // Sem texto, o botão é só o ícone (o chamador dá a descrição para leitores de tela).
+                val hasLabel = label.isNotEmpty()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (leading != null) {
                         ZenIcon(leading, size = iconSize, color = ink)
-                        Spacer(Modifier.width(6.dp))
+                        if (hasLabel) Spacer(Modifier.width(6.dp))
                     }
-                    FitLabel(label, ink, baseSp, spacing, Modifier.weight(1f, fill = false))
+                    if (hasLabel) FitLabel(label, ink, baseSp, spacing, Modifier.weight(1f, fill = false))
                     if (trailing != null) {
-                        Spacer(Modifier.width(6.dp))
+                        if (hasLabel) Spacer(Modifier.width(6.dp))
                         ZenIcon(trailing, size = iconSize, color = ink)
                     }
                 }

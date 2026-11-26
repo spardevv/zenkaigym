@@ -29,8 +29,6 @@ import com.zenkaigym.domain.Csv
 import com.zenkaigym.domain.LevelUp
 import com.zenkaigym.domain.Water
 import com.zenkaigym.notify.RestTimer
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 import com.zenkaigym.domain.DietProgress
 import com.zenkaigym.domain.DoneSet
 import com.zenkaigym.domain.Stats
@@ -692,35 +690,27 @@ class ZenViewModel(
         repo.updateSetDetails(clock.value.epochDay, exerciseId, setIndex, rir, note)
     }
 
-    // ---- Exportação em CSV ----
+    // ---- Exportação ----
 
-    /** Grava um .zip com séries, peso, refeições e água em CSV no local escolhido. */
-    fun exportCsv(context: Context, target: Uri) = launchSafe {
+    /**
+     * Grava no local escolhido o backup completo: um .zip com o banco (o que a importação lê) e
+     * planilhas CSV de séries, peso, refeições e água para abrir no Excel.
+     */
+    fun exportData(context: Context, target: Uri) = launchSafe {
         val app = context.applicationContext
-        val ok = working(tr("Exportando planilhas…")) {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val data = repo.exportData()
-                    val files = mapOf(
-                        "series.csv" to Csv.sets(data.sets, data.exercises),
-                        "peso.csv" to Csv.weights(data.weights),
-                        "refeicoes.csv" to Csv.meals(data.checks),
-                        "agua.csv" to Csv.water(data.water)
-                    )
-                    val out = app.contentResolver.openOutputStream(target) ?: error("Destino indisponível")
-                    ZipOutputStream(out).use { zip ->
-                        files.forEach { (name, text) ->
-                            zip.putNextEntry(ZipEntry(name))
-                            // BOM: o Excel reconhece os acentos como UTF-8.
-                            zip.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
-                            zip.write(text.toByteArray(Charsets.UTF_8))
-                            zip.closeEntry()
-                        }
-                    }
-                }.onFailure { Log.e("ZenViewModel", "Falha ao exportar CSV", it) }.isSuccess
-            }
+        val ok = working(tr("Exportando dados…")) {
+            runCatching {
+                val data = withContext(Dispatchers.IO) { repo.exportData() }
+                val sheets = mapOf(
+                    "series.csv" to Csv.sets(data.sets, data.exercises),
+                    "peso.csv" to Csv.weights(data.weights),
+                    "refeicoes.csv" to Csv.meals(data.checks),
+                    "agua.csv" to Csv.water(data.water)
+                )
+                repo.exportBackup(app, target, sheets)
+            }.onFailure { Log.e("ZenViewModel", "Falha ao exportar", it) }.isSuccess
         }
-        toast(if (ok) tr("Planilhas exportadas!") else tr("Não foi possível exportar as planilhas."))
+        toast(if (ok) tr("Backup salvo!") else tr("Não foi possível salvar o backup."))
     }
 
     fun unlogSet(exerciseId: Long, setIndex: Int) = launchSafe {

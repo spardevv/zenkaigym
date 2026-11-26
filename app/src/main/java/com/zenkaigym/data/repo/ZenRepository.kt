@@ -112,6 +112,10 @@ class ZenRepository(
         return result
     }
 
+    /** Grava o backup (.zip com o banco e as planilhas [sheets]) em [target]. */
+    suspend fun exportBackup(context: Context, target: Uri, sheets: Map<String, String>) =
+        withContext(Dispatchers.IO) { Backup.export(context, db, target, sheets) }
+
     suspend fun hasProfile(): Boolean = profileDao.getProfile() != null
 
     /** Apaga tudo o que o usuário registrou e recria só os dados iniciais (exercícios, agenda e alimentos). */
