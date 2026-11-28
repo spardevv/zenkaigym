@@ -164,7 +164,7 @@ fun WorkoutScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
 
     if (menuOpen) {
         ZenSheet(onDismiss = { menuOpen = false }, accent = Ki, title = tr("Treino")) {
-            SheetOption(tr("Nova sugestão"), tr("Monta outra ficha para você revisar e aceitar."), viewModel::generateWorkout)
+            SheetOption(tr("Nova sugestão"), tr("Monta outra ficha para você revisar e aceitar."), { viewModel.generateWorkout(); tabIndex = 0 })
         }
     }
 

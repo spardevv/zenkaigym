@@ -173,9 +173,10 @@ fun AppNav(viewModel: ZenViewModel) {
     Box(Modifier.fillMaxSize().background(Zen.p.bg).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
       Row(Modifier.fillMaxSize()) {
         // Tablets e celulares deitados: as abas ficam numa coluna à esquerda, liberando a altura para o conteúdo.
-        if (layout.useRail) SideRail(parentTab(current), layout.railWidth, onSelect = ::go)
+        if (layout.useRail) SideRail(parentTab(current), layout.railWidth, layout.shortHeight, onSelect = ::go)
         Column(Modifier.weight(1f).fillMaxHeight().background(Zen.p.bg).imePadding()) {
-            Box(Modifier.weight(1f).statusBarsPadding()) {
+            // A barra de navegação do sistema (3 botões) não pode cobrir o fim das telas.
+            Box(Modifier.weight(1f).statusBarsPadding().navigationBarsPadding()) {
                 NavHost(
                     navController,
                     startDestination = Routes.HOME,
@@ -221,13 +222,13 @@ fun AppNav(viewModel: ZenViewModel) {
 
 /** Uma entrada da coluna lateral (kanji + rótulo). */
 @Composable
-private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
+private fun TabItem(tab: Tab, selected: Boolean, compact: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
     val p = Zen.p
     val background by animateColorAsState(
         if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
     )
     val scale by animateFloatAsState(
-        if (selected) 1.25f else 1f,
+        if (selected) (if (compact) 1.1f else 1.25f) else 1f,
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "tab-scale"
     )
@@ -236,12 +237,12 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onSelect: (
             .background(background)
             .semantics(mergeDescendants = true) { this.selected = selected }
             .clickable(role = Role.Tab) { onSelect(tab.route) }
-            .padding(vertical = 8.dp),
+            .padding(vertical = if (compact) 3.dp else 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         // Altura fixa para o kanji, para os rótulos ficarem alinhados.
-        Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.height(if (compact) 26.dp else 36.dp), contentAlignment = Alignment.Center) {
             Text(
                 tab.kanji,
                 modifier = Modifier.graphicsLayer {
@@ -264,13 +265,13 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onSelect: (
 
 /** Abas em coluna, para tablets e celulares deitados. Rola se a altura não bastar. */
 @Composable
-private fun SideRail(current: String, width: Dp, onSelect: (String) -> Unit) {
+private fun SideRail(current: String, width: Dp, compact: Boolean, onSelect: (String) -> Unit) {
     val p = Zen.p
     Row(Modifier.fillMaxHeight().background(p.card)) {
         Box(Modifier.width(width).fillMaxHeight().statusBarsPadding().navigationBarsPadding(), contentAlignment = Alignment.Center) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 tabs().forEach { tab ->
-                    TabItem(tab, tab.route == current, Modifier.fillMaxWidth().padding(vertical = 2.dp), onSelect)
+                    TabItem(tab, tab.route == current, compact, Modifier.fillMaxWidth().padding(vertical = if (compact) 1.dp else 2.dp), onSelect)
                 }
             }
         }

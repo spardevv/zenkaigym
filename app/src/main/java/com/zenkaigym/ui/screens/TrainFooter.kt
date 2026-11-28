@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -112,7 +113,8 @@ fun TrainFooter(
                             accent = Aka,
                             enabled = next != null,
                             filled = true,
-                            main = "▶ " + tr("Registrar série {0}", next?.setIndex ?: 0),
+                            main = tr("Registrar série {0}", next?.setIndex ?: 0),
+                            leading = ZenIcons.Play,
                             sub = next?.let { "${it.exerciseName} · ${it.detail}" }
                         )
                         TrainPrimary.FINISH -> ZenButton(tr("Concluir treino"), onFinish, Modifier.weight(1f), accent = Midori, fill = true)
@@ -153,6 +155,7 @@ private fun ToolButton(
     filled: Boolean = false,
     enabled: Boolean = true,
     icon: ImageVector? = null,
+    leading: ImageVector? = null,
     main: String? = null,
     sub: String? = null
 ) {
@@ -184,10 +187,16 @@ private fun ToolButton(
             ZenIcon(icon, Modifier.size(22.dp), color = mainColor)
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    main.orEmpty(), color = mainColor, style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (leading != null) {
+                        ZenIcon(leading, Modifier.size(16.dp), color = mainColor)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        main.orEmpty(), color = mainColor, style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
                 if (sub != null) {
                     Text(
                         sub, color = mainColor, style = MaterialTheme.typography.labelMedium,

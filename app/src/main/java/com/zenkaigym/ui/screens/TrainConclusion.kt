@@ -71,7 +71,7 @@ fun TrainConclusion(
 
             Text(
                 summary?.let { tr("+{0} XP", it.xp) } ?: "—",
-                color = Daidai, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black
+                color = p.ink, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black
             )
             Spacer(Modifier.height(6.dp))
             ZenProgressBar(level?.fraction ?: 0f, Daidai)

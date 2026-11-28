@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -89,6 +90,8 @@ fun ZenCard(
     entranceIndex: Int = 0,
     onClick: (() -> Unit)? = null,
     backdrop: Boolean = false,
+    /** Preenche a altura dada pelo pai (ex.: dois quadros de uma linha com a mesma altura). */
+    fillHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val p = Zen.p
@@ -104,7 +107,7 @@ fun ZenCard(
             .border(look.border, p.border, look.shape)
     ) {
         if (backdrop) StyleBackdrop(Modifier.matchParentSize(), fadeTo = p.card)
-        Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)) {
             if (accent != null) {
                 if (look.isekai) {
                     // Isekai: filete fino de neon no topo do painel, como o cabeçalho de uma janela de status.
@@ -117,7 +120,7 @@ fun ZenCard(
                     Box(Modifier.fillMaxWidth().height(BorderWidth).background(p.border))
                 }
             }
-            Column(Modifier.fillMaxWidth().padding(14.dp), content = content)
+            Column(Modifier.fillMaxWidth().then(if (fillHeight) Modifier.weight(1f) else Modifier).padding(14.dp), content = content)
         }
     }
 }
@@ -162,7 +165,7 @@ fun ZenButton(
                 .clip(look.shape)
                 .background(background)
                 .border(look.border, p.border, look.shape)
-                .defaultMinSize(minHeight = MIN_TOUCH)
+                .defaultMinSize(minWidth = if (text.isEmpty()) MIN_TOUCH else 0.dp, minHeight = MIN_TOUCH)
                 .clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
                 .padding(horizontal = if (small) 10.dp else 16.dp, vertical = if (small) 7.dp else 12.dp),
             contentAlignment = Alignment.Center

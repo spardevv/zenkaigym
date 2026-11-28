@@ -115,9 +115,9 @@ private fun MenuTile(entry: MenuEntry, size: TileSize, onOpen: (String) -> Unit,
     val detail: @Composable () -> Unit = {
         Text(entry.detail, style = MaterialTheme.typography.bodySmall, color = Zen.p.muted)
     }
-    ZenCard(modifier, accent = entry.accent, onClick = { onOpen(entry.route) }, backdrop = size != TileSize.LOW) {
+    ZenCard(modifier, accent = entry.accent, onClick = { onOpen(entry.route) }, backdrop = size != TileSize.LOW, fillHeight = size != TileSize.WIDE) {
         when (size) {
-            TileSize.TALL -> Column(Modifier.heightIn(min = 110.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TileSize.TALL -> Column(Modifier.fillMaxHeight().heightIn(min = 110.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 KanjiBadge(entry.kanji, color = entry.accent, size = 44.dp)
                 Spacer(Modifier.weight(1f))
                 Text(entry.title.uppercase(), style = MaterialTheme.typography.titleMedium)

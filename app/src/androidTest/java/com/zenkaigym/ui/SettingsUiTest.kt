@@ -35,7 +35,7 @@ class SettingsUiTest {
     @After fun tearDown() = app.close()
 
     @Test fun mostraOsAjustesNoIdiomaPadrao() {
-        rule.onNodeWithText("Aparência, estilo, treino, semana, idioma e informações").assertIsDisplayed()
+        rule.onNodeWithText("Estilo, treino, dados e app").assertIsDisplayed()
         rule.onNodeWithText("Segue o modo claro/escuro do seu celular.").assertIsDisplayed()
     }
 

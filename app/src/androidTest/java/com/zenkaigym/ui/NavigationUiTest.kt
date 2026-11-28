@@ -1,7 +1,11 @@
 package com.zenkaigym.ui
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -28,12 +32,18 @@ class NavigationUiTest {
     @After fun tearDown() { app?.close() }
 
     /** Cria o ambiente e o app; com [wide] simula uma tela larga (coluna lateral no lugar do selo do menu). */
-    private fun start(wide: Boolean = false, setup: TestApp.() -> TestApp = { withProfile() }) {
+    private fun start(wide: Boolean = false, phoneLandscape: Boolean = false, setup: TestApp.() -> TestApp = { withProfile() }) {
         val a = TestApp.create().setup()
         app = a
         rule.setContent {
             ZenkaigymTheme(darkTheme = false) {
-                if (wide) {
+                if (phoneLandscape) {
+                    // Celular deitado: configuração e área real de 914 x 411 dp.
+                    val config = Configuration(LocalConfiguration.current).apply { screenWidthDp = 914; screenHeightDp = 411 }
+                    CompositionLocalProvider(LocalConfiguration provides config) {
+                        Box(Modifier.size(914.dp, 411.dp)) { AppNav(a.viewModel) }
+                    }
+                } else if (wide) {
                     val config = Configuration(LocalConfiguration.current).apply { screenWidthDp = 900; screenHeightDp = 700 }
                     CompositionLocalProvider(LocalConfiguration provides config) { AppNav(a.viewModel) }
                 } else {
@@ -76,7 +86,7 @@ class NavigationUiTest {
         listOf(
             "TREINO" to "Dias, horários e ficha", "DIETA" to "Meta, horários e refeições",
             "EVOLUÇÃO" to "Treino, dieta, peso e conquistas", "PERFIL" to "Seus dados",
-            "AJUSTES" to "Aparência, estilo, treino, semana, idioma e informações"
+            "AJUSTES" to "Estilo, treino, dados e app"
         ).forEach { (tile, subtitle) ->
             openMenu()
             rule.onNodeWithText(tile).performClick()
@@ -124,6 +134,11 @@ class NavigationUiTest {
         rule.waitForIdle()
         openMenu(); rule.onNodeWithText("DIETA").performClick(); waitForText("Meta, horários e refeições")
         rule.onNodeWithText("Cardápio").assertIsSelected()
+    }
+
+    @Test fun celularDeitadoMostraTodasAsSeisEntradasDaColuna() {
+        start(phoneLandscape = true)
+        rule.onNodeWithText("AJUSTES").assertIsDisplayed()
     }
 
     @Test fun telaLargaMostraColunaSemSelo() {

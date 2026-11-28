@@ -64,6 +64,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -120,7 +121,7 @@ fun SettingsScreen(viewModel: ZenViewModel, onBack: () -> Unit = {}) {
       Column(Modifier.fillMaxSize()) {
         val open = page
         if (open == null) {
-            ZenFixedHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Aparência, estilo, treino, semana, idioma e informações"), back = { HeaderBar(onBack) })
+            ZenFixedHeader(tr("Ajustes"), "設", accent = Ao, subtitle = tr("Estilo, treino, dados e app"), back = { HeaderBar(onBack) })
         } else {
             val title = when (open) {
                 SettingsPage.TRAINING -> tr("Modo treino")
@@ -133,7 +134,7 @@ fun SettingsScreen(viewModel: ZenViewModel, onBack: () -> Unit = {}) {
             ZenFixedHeader(title, "設", accent = Ao, back = { HeaderBar({ page = null }, backLabel = tr("Ajustes")) })
         }
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState())
+            Modifier.weight(1f).verticalScroll(key(open) { rememberScrollState() }) // cada página começa do topo
                 .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
