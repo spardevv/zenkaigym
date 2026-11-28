@@ -41,6 +41,7 @@ import com.zenkaigym.data.entity.WorkoutDayFull
 import com.zenkaigym.domain.DayAdjust
 import com.zenkaigym.domain.DayAdjustment
 import com.zenkaigym.domain.WeekDietBalance
+import com.zenkaigym.domain.WeekStrip
 import com.zenkaigym.domain.WorkoutPlanner
 import com.zenkaigym.domain.WorkoutSwaps
 import com.zenkaigym.domain.WorkoutWeek
@@ -76,6 +77,14 @@ import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Zen
+import com.zenkaigym.data.entity.SetLog
+import com.zenkaigym.domain.DojoWorkoutState
+import com.zenkaigym.domain.TrainingFlow
+import com.zenkaigym.domain.distinctByKanji
+import com.zenkaigym.domain.kanji
+import com.zenkaigym.domain.setCount
+import com.zenkaigym.ui.components.MoreButton
+import com.zenkaigym.ui.components.color
 import com.zenkaigym.util.WEEK_DAYS_SHORT
 import com.zenkaigym.util.todayDayOfWeek
 
@@ -85,7 +94,7 @@ import com.zenkaigym.util.todayDayOfWeek
  * ou celular deitado) e nunca aparece quando o conteúdo cabe.
  */
 @Composable
-fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
+fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit, showMenuSeal: Boolean) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val workout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val diet by viewModel.activeDiet.collectAsStateWithLifecycle()
@@ -103,9 +112,11 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
     val weekLogs by viewModel.weekWorkoutLogs.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     val swaps by viewModel.swapsToday.collectAsStateWithLifecycle()
+    val setsToday by viewModel.setsToday.collectAsStateWithLifecycle()
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
     val extras by viewModel.extrasToday.collectAsStateWithLifecycle()
     val foods by viewModel.foods.collectAsStateWithLifecycle()
+    val stats by viewModel.progressStats.collectAsStateWithLifecycle()
     val dow = todayDayOfWeek()
     var addingExtra by remember { mutableStateOf<MealFull?>(null) }
     var changingWorkout by remember { mutableStateOf(false) }
@@ -115,7 +126,10 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
-        ZenFixedHeader(tr("Dojo"), "道", subtitle = tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]))
+        ZenFixedHeader(
+            tr("Dojo"), "道", subtitle = tr("Hoje · {0}", WEEK_DAYS_SHORT[dow - 1]),
+            trailing = if (showMenuSeal) ({ MenuSeal { onNavigate(Routes.MENU) } }) else ({})
+        )
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
@@ -146,8 +160,9 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                 val todayBurn = if (workoutSkipped && goal != Goal.GAIN) WeekDietBalance.workoutBurnKcal(weight, minutesOf(dow)) else 0
                 val todayCard: @Composable () -> Unit = {
                     TodayWorkout(
-                        workout, assignment, window, onNavigate, workoutDone, workoutSkipped,
+                        workout, assignment, window, onNavigate, workoutDone, workoutSkipped, setsToday,
                         onTrain = viewModel::startTraining, onSkip = viewModel::setWorkoutSkipped,
+                        onDone = viewModel::setWorkoutDone,
                         onChange = { changingWorkout = true }
                     ) { day ->
                         // O treino de hoje já aparece com as trocas feitas só para hoje.
@@ -177,6 +192,14 @@ fun HomeScreen(viewModel: ZenViewModel, onNavigate: (String) -> Unit) {
                     todayCard()
                     mealCard()
                 }
+                // Faixa da semana: sem cartão, largura total. Sem estatísticas (carregando) mostra os quadrados vazios.
+                val stripDays = remember(weekStart, clock.epochDay, stats, windows) {
+                    WeekStrip.days(weekStart, clock.epochDay, stats?.weekDots.orEmpty(), windows.keys)
+                }
+                DojoWeekStrip(
+                    stripDays, sessions = stats?.weekSessions ?: 0, planned = stats?.plannedPerWeek ?: windows.size,
+                    level = stats?.level, onClick = { onNavigate(Routes.PROGRESS) }
+                )
             }
         }
       }
@@ -225,12 +248,15 @@ private fun TodayWorkout(
     onNavigate: (String) -> Unit,
     done: Boolean,
     skipped: Boolean,
+    logged: List<SetLog>,
     onTrain: () -> Unit,
     onSkip: (Boolean) -> Unit,
+    onDone: (Boolean) -> Unit,
     onChange: () -> Unit,
     withSwaps: (WorkoutDayFull) -> WorkoutDayFull
 ) {
     val compactHeight = currentWindowLayout.heightDp < 700
+    var menuOpen by remember { mutableStateOf(false) }
     ZenCard(accent = Aka, entranceIndex = 1) {
         val today = assignment.session?.let(withSwaps)
         when {
@@ -254,6 +280,8 @@ private fun TodayWorkout(
             }
             else -> {
                 val items = today.items.sortedBy { it.item.position }
+                val count = setCount(today.items.map { it.exercise.id to it.item.sets }, logged)
+                val state = TrainingFlow.dojoState(true, true, done, skipped, count)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle(tr("Treino de hoje"), Modifier.weight(1f), accent = Aka)
                     if (window != null) {
@@ -267,14 +295,13 @@ private fun TodayWorkout(
                     if (assignment.moved) " · " + tr("Remarcado de {0}", WEEK_DAYS_SHORT[today.day.dayOfWeek - 1]) else ""
                 Text(summary, color = Zen.p.muted, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (!compactHeight) {
-                    // Só os primeiros nomes: o treino completo fica na aba Treino e no modo treino.
-                    val names = items.filter { it.exercise.kind != ExerciseKind.CARDIO }.take(3).map { tr(it.exercise.name) }
-                    val more = items.size - names.size
-                    if (names.isNotEmpty()) {
-                        Text(
-                            names.joinToString(" · ") + if (more > 0) "  +$more" else "",
-                            style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
+                    // Os grupos musculares do treino, em kanji; o treino completo fica na aba Treino e no modo treino.
+                    val groups = items.map { it.exercise.group }.distinctByKanji()
+                    if (groups.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            groups.forEach { KanjiBadge(it.kanji(), color = it.color(), size = 30.dp) }
+                        }
                     }
                 }
                 if (assignment.dropped.isNotEmpty()) {
@@ -284,29 +311,40 @@ private fun TodayWorkout(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                // Trocar o treino de hoje vira um botão de ícone na mesma fileira, para o cartão ficar baixo.
-                val swapLabel = tr("Trocar treino de hoje")
-                val swapButton: @Composable () -> Unit = {
-                    ZenButton(
-                        "", onChange, Modifier.semantics { contentDescription = swapLabel },
-                        accent = Zen.p.card, small = true, leading = ZenIcons.Swap
+                if (state == DojoWorkoutState.IN_PROGRESS) {
+                    Text(
+                        tr("Em andamento · {0}/{1}", count.done, count.total),
+                        color = Zen.p.muted, style = MaterialTheme.typography.labelLarge, maxLines = 1
                     )
+                    Spacer(Modifier.height(4.dp))
+                    ZenProgressBar(count.done.toFloat() / count.total.coerceAtLeast(1), Ki, height = 8.dp)
+                    Spacer(Modifier.height(8.dp))
                 }
-                when {
-                    done -> ZenButton(tr("TREINO FEITO"), onTrain, accent = Midori, fill = true, trailing = ZenIcons.Check)
-                    skipped -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        IconText(
-                            tr("NÃO REALIZADO"), Modifier.weight(1f), trailing = ZenIcons.Close,
-                            color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
-                        )
-                        ZenButton(tr("Desfazer"), { onSkip(false) }, accent = Zen.p.card, small = true)
-                        swapButton()
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    when (state) {
+                        DojoWorkoutState.DONE ->
+                            ZenButton(tr("TREINO FEITO"), onTrain, Modifier.weight(1f), accent = Midori, fill = true, trailing = ZenIcons.Check)
+                        DojoWorkoutState.SKIPPED -> {
+                            IconText(
+                                tr("NÃO REALIZADO"), Modifier.weight(1f), trailing = ZenIcons.Close,
+                                color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
+                            )
+                            ZenButton(tr("Desfazer"), { onSkip(false) }, accent = Zen.p.card, small = true)
+                        }
+                        DojoWorkoutState.IN_PROGRESS -> ZenButton(tr("Continuar"), onTrain, Modifier.weight(1f), accent = Aka, fill = true)
+                        else -> ZenButton(tr("Treinar agora"), onTrain, Modifier.weight(1f), accent = Aka, fill = true)
                     }
-                    else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ZenButton(tr("Treinar agora"), onTrain, Modifier.weight(1.6f), accent = Aka, fill = true)
-                        ZenButton(tr("Não realizado"), { onSkip(true) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
-                        swapButton()
-                    }
+                    MoreButton({ menuOpen = true }, description = tr("Mais opções do treino"))
+                }
+                if (menuOpen) {
+                    WorkoutSheet(
+                        state, tr(today.day.name), window?.format(),
+                        onDismiss = { menuOpen = false },
+                        onMarkDone = { onDone(true) },
+                        onUndoDone = { onDone(false) },
+                        onSkip = { onSkip(true) },
+                        onChange = onChange
+                    )
                 }
             }
         }
@@ -348,6 +386,7 @@ private fun NextMeal(
         val target = meals.indexOfFirst { it.meal.type == nextType }.takeIf { it >= 0 }
             ?: meals.indexOfFirst { it.meal.type !in done && it.meal.type !in skipped }.takeIf { it >= 0 }
             ?: 0
+        var menuMeal by remember { mutableStateOf<MealFull?>(null) }
         val pager = rememberPagerState(initialPage = target) { meals.size }
         LaunchedEffect(nextType, meals.size) {
             if (meals.isNotEmpty()) pager.animateScrollToPage(target.coerceIn(0, meals.lastIndex))
@@ -453,27 +492,35 @@ private fun NextMeal(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                // Uma fileira só: marcar (ou desfazer) e registrar um prato fora do cardápio (ícone +).
-                val extraLabel = tr("+ Comi outra coisa")
+                // Uma fileira só: o botão principal (marcar ou desfazer) e o ⋯ com as ações secundárias.
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (isDone) {
-                        ZenButton(tr("Desfazer"), { onDone(meal.meal.type, false, null) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+                        ZenButton(tr("Desfazer"), { onDone(meal.meal.type, false, null) }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
                     } else if (isSkipped) {
-                        ZenButton(tr("Desfazer"), { onSkip(meal.meal.type, false) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+                        ZenButton(tr("Desfazer"), { onSkip(meal.meal.type, false) }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
                     } else {
                         // Grava as calorias que a refeição tem agora (com o ajuste do dia) para o saldo da semana.
                         ZenButton(
                             tr("Feito"), { onDone(meal.meal.type, true, DayAdjust.adjustedKcal(meal, adjustment).roundToInt()) },
-                            Modifier.weight(1.6f), accent = Midori, fill = true, trailing = ZenIcons.Check
+                            Modifier.weight(1f), accent = Midori, fill = true, trailing = ZenIcons.Check
                         )
-                        ZenButton(tr("Não realizei"), { onSkip(meal.meal.type, true) }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
                     }
-                    ZenButton(
-                        "", { onAddExtra(meal) }, Modifier.semantics { contentDescription = extraLabel },
-                        accent = Ao, small = true, leading = ZenIcons.Plus
-                    )
+                    MoreButton({ menuMeal = meal }, description = tr("Mais opções da refeição"))
                 }
             }
+        }
+        menuMeal?.let { meal ->
+            val type = meal.meal.type
+            MealSheet(
+                title = tr(meal.meal.name),
+                subtitle = MealSchedule.timeOf(type, slots).format() + " · " +
+                    (meal.meal.cheatKcal?.let { tr("{0} kcal", it) } ?: tr("{0} kcal", DayAdjust.adjustedKcal(meal, adjustment).roundToInt())),
+                canSkip = type !in done && type !in skipped,
+                onDismiss = { menuMeal = null },
+                onOther = { onAddExtra(meal) },
+                onSkip = { onSkip(type, true) },
+                onMenu = { onNavigate(Routes.DIET) }
+            )
         }
 
         // Linha do dia: verde = feita; toque para ir até aquela refeição (também serve de guia ao deslizar).
@@ -491,9 +538,11 @@ private fun NextMeal(
                     MealSchedule.timeOf(meal.meal.type, slots).format(),
                     isDone,
                     { scope.launch { pager.animateScrollToPage(index) } },
-                    Modifier.weight(1f), accent = Aka, compact = true,
+                    Modifier.weight(1f), accent = Midori, compact = true,
                     // Com muitas refeições os chips ficam estreitos demais para o ícone.
-                    mark = if (meals.size > 4) null else if (isDone) ZenIcons.Check else if (isSkipped) ZenIcons.Close else null
+                    mark = if (meals.size > 4) null else if (isSkipped) ZenIcons.Close else if (isDone) ZenIcons.Check else null,
+                    // A da vez ganha a borda cheia; as outras, a fina.
+                    border = if (meal.meal.type == nextType) Zen.look.border else Zen.look.thinBorder
                 )
             }
         }
@@ -529,3 +578,18 @@ private fun WaterCard(ml: Int, goal: Int, onAdd: () -> Unit, onUndo: () -> Unit)
 
 /** Número com sinal: +120 / −180. */
 private fun signed(value: Int): String = if (value > 0) "+$value" else if (value < 0) "−${-value}" else "0"
+
+/** Selo 道 que abre o menu, com o rótulo "Menu" embaixo; um nó só para o leitor de tela. */
+@Composable
+private fun MenuSeal(onClick: () -> Unit) {
+    val description = tr("Abrir menu")
+    Column(
+        Modifier
+            .semantics(mergeDescendants = true) { contentDescription = description }
+            .clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        KanjiBadge("道", color = Aka, size = 56.dp)
+        Text(tr("Menu").uppercase(), style = MaterialTheme.typography.labelSmall, color = Zen.p.muted)
+    }
+}

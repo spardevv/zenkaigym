@@ -4,7 +4,16 @@ import com.zenkaigym.ui.components.ZenIcon
 import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
-import com.zenkaigym.ui.components.MiniButton
+import com.zenkaigym.ui.components.HeaderBar
+import com.zenkaigym.ui.components.MoreButton
+import com.zenkaigym.ui.components.SheetOption
+import com.zenkaigym.ui.components.ZenSheet
+import com.zenkaigym.ui.components.ZenTab
+import com.zenkaigym.ui.components.ZenTabs
+import com.zenkaigym.ui.components.AccordionCard
+import com.zenkaigym.util.todayDayOfWeek
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.zenkaigym.data.ExerciseCatalog
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -73,7 +82,7 @@ import com.zenkaigym.ui.theme.Zen
 import com.zenkaigym.util.WEEK_DAYS_SHORT
 
 @Composable
-fun WorkoutScreen(viewModel: ZenViewModel) {
+fun WorkoutScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val proposed by viewModel.proposedWorkout.collectAsStateWithLifecycle()
     val active by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
@@ -95,33 +104,68 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
 
     var editingId by remember { mutableStateOf<Long?>(null) }
     var addingTo by remember { mutableStateOf<Long?>(null) }
-    var managing by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    // Dia aberto na ficha: null = ainda o padrão (hoje ou o primeiro); CLOSED = a pessoa fechou todos.
+    var openDayId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
-        ZenFixedHeader(tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha"))
+        ZenFixedHeader(
+            tr("Treino"), "体", accent = Ki, subtitle = tr("Dias, horários e ficha"),
+            back = { HeaderBar(onBack) { MoreButton({ menuOpen = true }) } }
+        )
+        ZenTabs(WorkoutTab.entries.map { ZenTab(tr(it.pt), Ki) }, tabIndex, { tabIndex = it })
+        Spacer(Modifier.height(10.dp))
         Box(Modifier.weight(1f)) {
         val listState = rememberLazyListState()
+        LaunchedEffect(tabIndex) { listState.scrollToItem(0) }
         LazyColumn(
             state = listState,
             contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
-            item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
-            item(key = "mine") { ZenButton(tr("Meus exercícios"), { managing = true }, accent = Zen.p.card, small = true) }
-            if (shown != null) {
-                items(shown.days.sortedBy { week.position(it.day.dayOfWeek) }, key = { it.day.id }) { day ->
-                    // Dias que entram, saem ou mudam de lugar (nova sugestão) deslizam em vez de pular.
-                    Column(Modifier.animateItem()) {
-                        DayCard(day, windows[day.day.dayOfWeek], onEdit = { editingId = it }, onAdd = { addingTo = day.day.id })
+            when (WorkoutTab.entries[tabIndex.coerceIn(0, WorkoutTab.entries.lastIndex)]) {
+                WorkoutTab.PLAN -> {
+                    item(key = "plan") { PlanCard(shown, isProposal, hasActive = active != null, viewModel = viewModel) }
+                    if (shown != null) {
+                        val days = shown.days.sortedBy { week.position(it.day.dayOfWeek) }
+                        // Hoje abre primeiro; sem sessão hoje, abre o primeiro dia.
+                        val defaultId = (days.firstOrNull { it.day.dayOfWeek == todayDayOfWeek() } ?: days.firstOrNull())?.day?.id
+                        val openId = when {
+                            openDayId == CLOSED -> null
+                            days.any { it.day.id == openDayId } -> openDayId
+                            else -> defaultId
+                        }
+                        items(days, key = { it.day.id }) { day ->
+                            val count = day.items.size
+                            val window = windows[day.day.dayOfWeek]
+                            val meta = listOfNotNull(window?.format(), tr("{0} exercícios", count)).joinToString(" · ")
+                            // Dias que entram, saem ou mudam de lugar (nova sugestão) deslizam em vez de pular.
+                            AccordionCard(
+                                "${WEEK_DAYS_SHORT[day.day.dayOfWeek - 1].uppercase()} · ${tr(day.day.name)}", meta,
+                                expanded = day.day.id == openId,
+                                onToggle = { openDayId = if (day.day.id == openId) CLOSED else day.day.id },
+                                modifier = Modifier.animateItem()
+                            ) {
+                                DayExercises(day, onEdit = { editingId = it }, onAdd = { addingTo = day.day.id })
+                            }
+                        }
                     }
                 }
+                WorkoutTab.SCHEDULE -> item(key = "agenda") { AvailabilitySection(editable, viewModel::saveAvailability, entranceIndex = 0) }
+                WorkoutTab.EXERCISES -> item(key = "mine") { MyExercisesList(exercises, viewModel) }
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
         }
       }
+    }
+
+    if (menuOpen) {
+        ZenSheet(onDismiss = { menuOpen = false }, accent = Ki, title = tr("Treino")) {
+            SheetOption(tr("Nova sugestão"), tr("Monta outra ficha para você revisar e aceitar."), viewModel::generateWorkout)
+        }
     }
 
     val items = shown?.days?.flatMap { d -> d.items.map { d to it } }.orEmpty()
@@ -130,7 +174,6 @@ fun WorkoutScreen(viewModel: ZenViewModel) {
         if (pair == null) editingId = null
         else ExerciseItemDialog(pair.first, pair.second, exercises, viewModel) { editingId = null }
     }
-    if (managing) MyExercisesDialog(exercises, viewModel) { managing = false }
     addingTo?.let { id ->
         val day = shown?.days?.firstOrNull { it.day.id == id }
         if (day == null) addingTo = null
@@ -154,50 +197,50 @@ private fun PlanCard(shown: WorkoutPlanFull?, isProposal: Boolean, hasActive: Bo
         Text(if (isProposal) tr("SUGESTÃO · REVISE E ACEITE") else tr("FICHA ATIVA"), style = MaterialTheme.typography.labelLarge)
         Text(tr(shown.plan.splitName), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(6.dp))
+        if (!isProposal) {
+            Text(tr("{0} dias · {1} exercícios", shown.days.size, shown.days.sumOf { it.items.size }), color = Zen.p.muted)
+            return@ZenCard
+        }
         Text(tr("Toque num exercício para trocar, ajustar séries ou remover."), color = Zen.p.muted)
         Spacer(Modifier.height(10.dp))
-        if (isProposal) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Aceitar"), { viewModel.acceptWorkout(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
-                ZenButton(tr("Outra"), viewModel::generateWorkout, Modifier.weight(1f), accent = Sakura, fill = true)
-            }
-            if (hasActive) {
-                Spacer(Modifier.height(4.dp))
-                ZenButton(tr("Descartar e manter a ativa"), viewModel::discardWorkout, accent = Zen.p.card, small = true)
-            }
-        } else {
-            ZenButton(tr("Nova sugestão"), viewModel::generateWorkout, accent = Sakura, small = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZenButton(tr("Aceitar"), { viewModel.acceptWorkout(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
+            ZenButton(tr("Outra"), viewModel::generateWorkout, Modifier.weight(1f), accent = Sakura, fill = true)
+        }
+        if (hasActive) {
+            Spacer(Modifier.height(4.dp))
+            ZenButton(tr("Descartar e manter a ativa"), viewModel::discardWorkout, accent = Zen.p.card, small = true)
         }
     }
 }
 
+/** Linhas do dia aberto na sanfona: toque numa linha abre a troca; "+ Adicionar" soma um exercício. */
 @Composable
-private fun DayCard(day: WorkoutDayFull, window: TimeWindow?, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
-    ZenCard(entranceIndex = -1) {
-        Text("${WEEK_DAYS_SHORT[day.day.dayOfWeek - 1].uppercase()} · ${tr(day.day.name)}", style = MaterialTheme.typography.titleMedium)
-        window?.let {
-            Text("${it.format()} · ${it.durationLabel()}", color = Zen.p.muted, style = MaterialTheme.typography.labelLarge)
-        }
-        Spacer(Modifier.height(6.dp))
-        day.items.sortedBy { it.item.position }.forEach { entry ->
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(tr(entry.exercise.name), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        tr("{0} séries × {1} · {2}", entry.item.sets, entry.item.reps, entry.exercise.group.label),
-                        color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
+private fun DayExercises(day: WorkoutDayFull, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
+    Spacer(Modifier.height(6.dp))
+    day.items.sortedBy { it.item.position }.forEach { entry ->
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tr(entry.exercise.name), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    tr("{0} séries × {1} · {2}", entry.item.sets, entry.item.reps, entry.exercise.group.label),
+                    color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+                )
             }
+            ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
         }
-        Spacer(Modifier.height(6.dp))
-        ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
     }
+    Spacer(Modifier.height(6.dp))
+    ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
 }
+
+/** Abas internas do Treino. */
+private enum class WorkoutTab(val pt: String) { PLAN("Ficha"), SCHEDULE("Agenda"), EXERCISES("Exercícios") }
+
+private const val CLOSED = -1L
 
 // ---- Janelas de troca ----
 
@@ -314,56 +357,5 @@ internal fun NewExerciseDialog(group: MuscleGroup, onDismiss: () -> Unit, onSave
         }
     }) {
         ZenField(tr("Nome"), name, { name = it }, placeholder = tr("ex.: Supino na máquina"))
-    }
-}
-
-/** Exercícios cadastrados pelo usuário: renomear ou excluir (só os que não estão em nenhuma ficha). */
-@Composable
-private fun MyExercisesDialog(exercises: List<Exercise>, viewModel: ZenViewModel, onClose: () -> Unit) {
-    val catalogNames = remember { ExerciseCatalog.entries.map { it.name }.toSet() }
-    val mine = remember(exercises) { exercises.filter { it.name !in catalogNames } }
-    var renaming by remember { mutableStateOf<Exercise?>(null) }
-    var deleting by remember { mutableStateOf<Exercise?>(null) }
-
-    ZenDialog(tr("Meus exercícios"), onClose, accent = Ki, footer = {
-        ZenButton(tr("Fechar"), onClose, accent = Zen.p.card, fill = true)
-    }) {
-        if (mine.isEmpty()) {
-            Text(tr("Você ainda não criou nenhum exercício. Crie um ao trocar ou adicionar exercícios na ficha."), color = Zen.p.muted)
-        }
-        mine.forEach { exercise ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
-                    Text(exercise.group.label, color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-                }
-                MiniButton(ZenIcons.Edit, { renaming = exercise }, description = tr("Renomear"))
-                Spacer(Modifier.width(4.dp))
-                MiniButton(ZenIcons.Close, { deleting = exercise }, color = Aka)
-            }
-        }
-    }
-
-    renaming?.let { exercise ->
-        var name by remember(exercise.id) { mutableStateOf(exercise.name) }
-        ZenDialog(tr("Renomear exercício"), { renaming = null }, accent = Ki, footer = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Salvar"), { renaming = null; viewModel.renameExercise(exercise.id, name) }, Modifier.weight(1f), accent = Ki, enabled = name.isNotBlank(), fill = true)
-                ZenButton(tr("Cancelar"), { renaming = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
-            }
-        }) {
-            ZenField(tr("Nome"), name, { name = it })
-        }
-    }
-
-    deleting?.let { exercise ->
-        ZenDialog(tr("Excluir exercício?"), { deleting = null }, accent = Aka, footer = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Excluir"), { deleting = null; viewModel.deleteExercise(exercise.id) }, Modifier.weight(1f), accent = Aka, fill = true)
-                ZenButton(tr("Cancelar"), { deleting = null }, Modifier.weight(1f), accent = Zen.p.card, fill = true)
-            }
-        }) {
-            Text(tr("{0} e todo o histórico de cargas dele serão apagados. Isso não pode ser desfeito.", exercise.name), color = Zen.p.muted)
-        }
     }
 }

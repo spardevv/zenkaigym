@@ -55,9 +55,9 @@ import com.zenkaigym.ui.theme.Zen
 
 private enum class FoodsAction { RESET, CLEAR }
 
-/** Seus alimentos, agrupados por categoria. Toque num alimento para editar ou excluir. */
+/** Aba Alimentos da Dieta: seus alimentos, agrupados por categoria. Toque num alimento para editar ou excluir. */
 @Composable
-fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
+fun FoodsTab(viewModel: ZenViewModel) {
     val foods by viewModel.foods.collectAsStateWithLifecycle()
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Food?>(null) }
@@ -65,13 +65,7 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     var confirm by remember { mutableStateOf<FoodsAction?>(null) }
     val grouped = remember(foods) { FoodCategory.entries.map { cat -> cat to foods.filter { it.category == cat } }.filter { it.second.isNotEmpty() } }
 
-    ZenPage {
-      Column(Modifier.fillMaxSize()) {
-        ZenFixedHeader(
-            tr("Alimentos"), "米", accent = Midori, subtitle = tr("Valores por 100 g · a dieta usa estes"),
-            back = { ZenButton(tr("Voltar à dieta"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
-        )
-        Box(Modifier.weight(1f)) {
+    Box(Modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
         LazyColumn(
             state = listState,
@@ -124,8 +118,6 @@ fun FoodsScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
-        }
-      }
     }
 
     confirm?.let { action ->

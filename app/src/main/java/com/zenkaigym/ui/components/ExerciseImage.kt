@@ -27,13 +27,13 @@ import kotlinx.coroutines.withContext
 
 /** Ilustração do exercício com o crédito do autor logo abaixo; não ocupa espaço se não houver imagem. */
 @Composable
-fun ExerciseImage(exerciseName: String, modifier: Modifier = Modifier) {
+fun ExerciseImage(exerciseName: String, modifier: Modifier = Modifier, showCredit: Boolean = true) {
     val context = LocalContext.current
     val bitmap by produceState<ImageBitmap?>(null, exerciseName) {
         value = withContext(Dispatchers.IO) { ExerciseImages.load(context, exerciseName)?.asImageBitmap() }
     }
     val image = bitmap ?: return
-    val diagram = ExerciseImages.diagramCredit(context)
+    val diagram = if (showCredit) ExerciseImages.diagramCredit(context) else null
     Column(modifier) {
         Image(
             bitmap = image,

@@ -1,25 +1,13 @@
 package com.zenkaigym.ui.screens
 
-import com.zenkaigym.ui.components.ZenIcon
-import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.fillMaxSize
 import com.zenkaigym.ui.components.ZenFixedHeader
-import com.zenkaigym.ui.components.ZenDialog
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
+import com.zenkaigym.ui.components.HeaderBar
 import com.zenkaigym.domain.tr
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -27,16 +15,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -44,45 +28,28 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenkaigym.data.entity.Goal
 import com.zenkaigym.data.entity.Sex
 import com.zenkaigym.data.entity.UserProfile
-import com.zenkaigym.data.entity.WeightEntry
-import com.zenkaigym.domain.Motion
 import com.zenkaigym.domain.ProfileValidation
 import com.zenkaigym.domain.ProfileValidator
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.components.SectionTitle
-import com.zenkaigym.ui.components.ConfirmDialog
 import com.zenkaigym.ui.components.ZenButton
 import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenField
-import com.zenkaigym.ui.components.ZenHeader
 import com.zenkaigym.ui.components.ZenPage
 import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.theme.Aka
-import com.zenkaigym.ui.theme.Daidai
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Zen
-import com.zenkaigym.util.formatEpochDay
 import com.zenkaigym.util.toDecimalOrNull
 import androidx.compose.animation.AnimatedVisibility
 import com.zenkaigym.ui.components.Conceal
 import com.zenkaigym.ui.components.Reveal
 import kotlin.math.abs
-import kotlin.math.roundToInt
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import com.zenkaigym.ui.components.KanjiBadge
-import com.zenkaigym.ui.components.StatTile
-import com.zenkaigym.ui.components.ZenBarChart
-import com.zenkaigym.ui.theme.Ki
-import com.zenkaigym.ui.theme.Midori
-import com.zenkaigym.ui.theme.Sumi
 
 @Composable
-fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpenProgress: () -> Unit = {}) {
+fun ProfileScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
-    val progress by viewModel.progressStats.collectAsStateWithLifecycle()
-    val weights by viewModel.weights.collectAsStateWithLifecycle()
 
     // O formulário recomeça do perfil salvo sempre que ele muda (ao salvar ou ao registrar um peso novo).
     var height by rememberSaveable(profile) { mutableStateOf(profile?.heightCm?.toString() ?: "") }
@@ -119,21 +86,14 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpe
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
-        ZenFixedHeader(tr("Perfil"), "己", accent = Daidai, subtitle = tr("Seus dados"))
+        ZenFixedHeader(tr("Perfil"), "己", accent = Sakura, subtitle = tr("Seus dados"), back = { HeaderBar(onBack) })
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Nível do jogador: toque para abrir a evolução completa.
-            progress?.let { LevelCard(it.level, onClick = onOpenProgress) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Evolução"), onOpenProgress, Modifier.weight(1f), accent = Daidai, fill = true, small = true, trailing = ZenIcons.ArrowRight)
-                ZenButton(tr("Histórico"), onOpenHistory, Modifier.weight(1f), accent = Ki, fill = true, small = true, trailing = ZenIcons.ArrowRight)
-            }
-
-            ZenCard(accent = Daidai, entranceIndex = 0) {
-                SectionTitle(tr("Corpo"), accent = Daidai)
+            ZenCard(accent = Sakura, entranceIndex = 0) {
+                SectionTitle(tr("Corpo"), accent = Sakura)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ZenField(tr("Altura (cm)"), height, { height = it }, Modifier.weight(1f), KeyboardType.Number, imeAction = ImeAction.Next)
@@ -143,17 +103,17 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpe
                 Spacer(Modifier.height(12.dp))
                 Label(tr("Sexo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Sex.entries.forEach { ZenChip(it.label, sex == it, { sex = it }, accent = Daidai) }
+                    Sex.entries.forEach { ZenChip(it.label, sex == it, { sex = it }, accent = Sakura) }
                 }
                 Spacer(Modifier.height(12.dp))
                 Label(tr("Objetivo"))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }, accent = Daidai) }
+                    Goal.entries.forEach { ZenChip(it.label, goal == it, { goal = it }, accent = Sakura) }
                 }
                 Spacer(Modifier.height(16.dp))
-                SectionTitle(tr("Treino"), accent = Daidai)
+                SectionTitle(tr("Treino"), accent = Sakura)
                 Spacer(Modifier.height(10.dp))
-                TrainingPrefs(prefs, { prefs = it }, accent = Daidai)
+                TrainingPrefs(prefs, { prefs = it }, accent = Sakura)
                 AnimatedVisibility(error != null, enter = Reveal, exit = Conceal) {
                     Text(error.orEmpty(), Modifier.padding(top = 10.dp), color = Aka, style = MaterialTheme.typography.labelLarge)
                 }
@@ -173,14 +133,10 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpe
                                     )
                                 }
                             }
-                        }, Modifier.weight(1f), accent = Daidai, fill = true)
+                        }, Modifier.weight(1f), accent = Sakura, fill = true)
                         if (profile != null) ZenButton(tr("Desfazer"), ::reset, accent = Zen.p.card)
                     }
                 }
-            }
-
-            profile?.let {
-                WeightCard(it, weights, viewModel::addWeight, viewModel::editWeight, viewModel::removeWeight)
             }
         }
       }
@@ -190,117 +146,4 @@ fun ProfileScreen(viewModel: ZenViewModel, onOpenHistory: () -> Unit = {}, onOpe
 @Composable
 private fun Label(text: String) {
     Text(text.uppercase(), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-}
-
-@Composable
-private fun WeightCard(
-    profile: UserProfile,
-    weights: List<WeightEntry>,
-    onRegister: (Double) -> Unit,
-    onEdit: (Long, Double) -> Unit,
-    onRemove: (Long) -> Unit
-) {
-    var input by remember { mutableStateOf("") }
-    var editing by remember { mutableStateOf<WeightEntry?>(null) }
-    var removing by remember { mutableStateOf<WeightEntry?>(null) }
-    ZenCard(accent = Daidai, entranceIndex = 1) {
-        SectionTitle(tr("Evolução do peso"), accent = Daidai)
-        Spacer(Modifier.height(8.dp))
-        Text("%.1f kg".format(profile.weightKg), style = MaterialTheme.typography.displayMedium)
-        if (weights.size >= 2) {
-            val recent = weights.takeLast(12)
-            Spacer(Modifier.height(10.dp))
-            WeightChart(recent)
-            Spacer(Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatEpochDay(recent.first().epochDay), style = MaterialTheme.typography.labelSmall, color = Zen.p.muted)
-                Text(formatEpochDay(recent.last().epochDay), style = MaterialTheme.typography.labelSmall, color = Zen.p.muted)
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ZenField(tr("Novo peso (kg)"), input, { input = it }, Modifier.weight(1f), KeyboardType.Decimal)
-            ZenButton(tr("Registrar"), {
-                val kg = input.toDecimalOrNull()
-                if (kg != null && kg in 30.0..300.0) {
-                    onRegister(kg)
-                    input = ""
-                }
-            }, accent = Daidai)
-        }
-        if (weights.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            Text(tr("Registros de peso"), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-            weights.takeLast(8).asReversed().forEach { entry ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { editing = entry },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(formatEpochDay(entry.epochDay), Modifier.weight(1f), color = Zen.p.muted)
-                    Text("%.1f kg".format(entry.weightKg), style = MaterialTheme.typography.bodyLarge)
-                    ZenIcon(ZenIcons.Edit, Modifier.padding(start = 8.dp), size = 16.dp, color = Zen.p.muted)
-                }
-            }
-        }
-    }
-
-    editing?.let { entry ->
-        var text by remember(entry.id) { mutableStateOf("%.1f".format(entry.weightKg)) }
-        val kg = text.toDecimalOrNull()
-        val valid = kg != null && kg in 30.0..300.0
-        ZenDialog(
-            tr("Editar peso"), { editing = null }, accent = Daidai,
-            footer = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ZenButton(tr("Salvar"), { editing = null; onEdit(entry.id, kg!!) }, Modifier.weight(1f), accent = Daidai, enabled = valid, fill = true)
-                    if (weights.size > 1) {
-                        ZenButton(tr("Remover"), { removing = entry }, Modifier.weight(1f), accent = Aka, fill = true)
-                    }
-                }
-            }
-        ) {
-            Text(formatEpochDay(entry.epochDay), color = Zen.p.muted)
-            Spacer(Modifier.height(8.dp))
-            ZenField(tr("Peso (kg)"), text, { text = it }, keyboardType = KeyboardType.Decimal)
-        }
-    }
-
-    removing?.let { entry ->
-        ConfirmDialog(
-            tr("Remover peso?"), tr("O registro de {0} kg será apagado.", "%.1f".format(entry.weightKg)), tr("Remover"),
-            onConfirm = { removing = null; editing = null; onRemove(entry.id) },
-            onDismiss = { removing = null }
-        )
-    }
-}
-
-@Composable
-private fun WeightChart(entries: List<WeightEntry>) {
-    val line = Daidai
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(entries.size) {
-        progress.snapTo(0f)
-        progress.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-    }
-    val summary = tr("Evolução do peso: de {0} kg para {1} kg", "%.1f".format(entries.first().weightKg), "%.1f".format(entries.last().weightKg))
-    Canvas(Modifier.fillMaxWidth().height(80.dp).semantics { contentDescription = summary }) {
-        val min = entries.minOf { it.weightKg }
-        val max = entries.maxOf { it.weightKg }
-        val range = (max - min).coerceAtLeast(0.5)
-        val pad = 8.dp.toPx()
-        fun point(i: Int) = Offset(
-            pad + (size.width - 2 * pad) * i / (entries.size - 1),
-            pad + (size.height - 2 * pad) * (1f - ((entries[i].weightKg - min) / range).toFloat())
-        )
-        val fractions = Motion.segmentFractions(progress.value, entries.size - 1)
-        drawCircle(line, 5.dp.toPx(), point(0))
-        fractions.forEachIndexed { index, fraction ->
-            if (fraction > 0f) {
-                val start = point(index)
-                val end = point(index + 1)
-                drawLine(line, start, start + (end - start) * fraction, strokeWidth = 5.dp.toPx(), cap = StrokeCap.Round)
-                drawCircle(line, 5.dp.toPx() * fraction, point(index + 1))
-            }
-        }
-    }
 }

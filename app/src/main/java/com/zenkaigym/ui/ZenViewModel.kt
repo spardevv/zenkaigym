@@ -28,6 +28,8 @@ import com.zenkaigym.domain.Cardio
 import com.zenkaigym.domain.Csv
 import com.zenkaigym.domain.LevelUp
 import com.zenkaigym.domain.Water
+import com.zenkaigym.domain.DaySummary
+import com.zenkaigym.domain.WorkoutSummary
 import com.zenkaigym.notify.RestTimer
 import com.zenkaigym.domain.DietProgress
 import com.zenkaigym.domain.DoneSet
@@ -441,6 +443,11 @@ class ZenViewModel(
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** Resumo do treino de hoje para a tela de conclusão. */
+    val todaySummary: StateFlow<DaySummary?> = combine(repo.allSets, exercises, today) { sets, ex, day ->
+        WorkoutSummary.of(sets, day, ex.associate { it.id to it.name })
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     // ---- Subida de nível (cena de comemoração) ----
 
     private val _levelUp = MutableStateFlow<LevelUp?>(null)
@@ -723,6 +730,12 @@ class ZenViewModel(
             stopTraining() // também zera o descanso
             toast(tr("Treino concluído! Bom trabalho."))
         }
+    }
+
+    /** Conclui o treino de hoje sem fechar o modo treino (a tela de conclusão aparece dentro dele) e sem aviso. */
+    fun completeWorkout() = launchSafe {
+        repo.setWorkoutDone(clock.value.epochDay, true)
+        stopRest()
     }
 
     /** Marca o treino de hoje como não realizado: a sessão passa para o próximo dia de treino. */

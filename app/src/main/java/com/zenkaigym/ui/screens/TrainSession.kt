@@ -1,5 +1,6 @@
 package com.zenkaigym.ui.screens
 
+import com.zenkaigym.ui.components.color
 import com.zenkaigym.ui.components.ZenIcon
 import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,22 +15,29 @@ import androidx.compose.ui.draw.clip
 import com.zenkaigym.data.entity.Exercise
 import com.zenkaigym.ui.components.ExerciseImage
 import com.zenkaigym.domain.WorkoutSwaps
+import com.zenkaigym.domain.kanji
+import com.zenkaigym.domain.SetCount
+import com.zenkaigym.domain.TrainingFlow
+import com.zenkaigym.domain.setCount
+import com.zenkaigym.ui.components.MoreButton
+import com.zenkaigym.ui.components.SheetOption
+import com.zenkaigym.ui.components.ZenProgressBar
+import com.zenkaigym.ui.components.ZenSheet
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.zenkaigym.ui.components.PickRow
 import com.zenkaigym.ui.components.currentWindowLayout
 import com.zenkaigym.ui.components.ZenDialog
 import com.zenkaigym.ui.components.drawSparkle
-import com.zenkaigym.ui.components.zenShadow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -89,6 +97,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -96,7 +105,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.zenkaigym.data.entity.ExerciseKind
 import com.zenkaigym.data.entity.MuscleGroup
 import com.zenkaigym.data.entity.SetLog
@@ -105,7 +113,6 @@ import com.zenkaigym.data.entity.WorkoutItemFull
 import com.zenkaigym.domain.Progression
 import com.zenkaigym.domain.LoadAdvice
 import com.zenkaigym.domain.Cardio
-import com.zenkaigym.notify.RestTimer
 import com.zenkaigym.ui.components.ZenChip
 import com.zenkaigym.ui.components.ZenField
 import android.Manifest
@@ -134,13 +141,11 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
@@ -184,26 +189,6 @@ private fun LoadAdvice.hint(): Hint = when (this) {
     is LoadAdvice.AddWeight -> Hint(tr("Suba!"), tr("Última vez: {0} kg · hoje: {1} kg", kgText(fromKg), kgText(toKg)), Ki)
     is LoadAdvice.AddReps -> Hint(tr("Mais reps!"), tr("Fique em {0} kg e busque {1} reps por série", kgText(kg), targetReps), Midori)
     is LoadAdvice.Deload -> Hint(tr("Deload"), tr("3 sessões sem evoluir: tente {0} kg nesta semana e volte a subir", kgText(toKg)), Ao)
-}
-
-/** Kanji e cor de cada grupo muscular: dão identidade a cada painel do treino. */
-private fun MuscleGroup.kanji(): String = when (this) {
-    MuscleGroup.CHEST -> "胸"
-    MuscleGroup.LATS, MuscleGroup.MID_BACK, MuscleGroup.TRAPS, MuscleGroup.LOWER_BACK -> "背"
-    MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> "脚"
-    MuscleGroup.SHOULDERS_FRONT, MuscleGroup.SHOULDERS_SIDE, MuscleGroup.SHOULDERS_REAR -> "肩"
-    MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.FOREARMS -> "腕"
-    MuscleGroup.ABS, MuscleGroup.OBLIQUES -> "腹"
-    MuscleGroup.CARDIO -> "走"
-}
-
-private fun MuscleGroup.color(): Color = when (this) {
-    MuscleGroup.CHEST -> Aka
-    MuscleGroup.LATS, MuscleGroup.MID_BACK, MuscleGroup.TRAPS, MuscleGroup.LOWER_BACK -> Ao
-    MuscleGroup.QUADS, MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.ADDUCTORS, MuscleGroup.CALVES -> Ki
-    MuscleGroup.SHOULDERS_FRONT, MuscleGroup.SHOULDERS_SIDE, MuscleGroup.SHOULDERS_REAR -> Daidai
-    MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.FOREARMS -> Sakura
-    MuscleGroup.ABS, MuscleGroup.OBLIQUES, MuscleGroup.CARDIO -> Midori
 }
 
 /** Registro do treino de hoje: carga e repetições de cada série, já preenchidas com a última vez. */
@@ -256,12 +241,22 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     // Séries feitas hoje mostram o que foi registrado, não o rascunho.
     val loggedByKey = logged.associateBy { it.exerciseId to it.setIndex }
     val loggedKeys = loggedByKey.keys
-    val totalSets = items.sumOf { it.item.sets }
-    val doneSets = items.sumOf { e -> (1..e.item.sets).count { (e.exercise.id to it) in loggedKeys } }
+    val count = setCount(items.map { it.exercise.id to it.item.sets }, logged)
+    val totalSets = count.total
+    val doneSets = count.done
     val allDone = totalSets > 0 && doneSets == totalSets
 
-    // Voltar do sistema sai do modo treino (as séries já registradas ficam salvas).
-    BackHandler(onBack = onClose)
+    // Tela de conclusão por cima do treino; sobrevive ao giro de tela.
+    var showConclusion by rememberSaveable { mutableStateOf(false) }
+    val summary by viewModel.todaySummary.collectAsStateWithLifecycle()
+    val progress by viewModel.progressStats.collectAsStateWithLifecycle()
+
+    // O X e o voltar do sistema pedem a mesma saída: com séries registradas e treino aberto, pergunta antes.
+    var askingExit by remember { mutableStateOf(false) }
+    fun requestExit() {
+        if (TrainingFlow.askOnExit(count, done)) askingExit = true else onClose()
+    }
+    BackHandler(onBack = ::requestExit)
 
     // Tela acesa enquanto o modo treino estiver aberto (se ligado em Ajustes).
     val keepOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
@@ -283,6 +278,55 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
 
     fun pageOf(exerciseId: Long) = items.indexOfFirst { it.exercise.id == exerciseId }
 
+    // Texto do botão principal: exercício e o que está preenchido para a próxima série.
+    val nextSet = next?.let { (id, i) ->
+        val entry = items.firstOrNull { it.exercise.id == id } ?: return@let null
+        val draft = loggedByKey[id to i]?.asDraft() ?: drafts[id to i] ?: SetDraftState("", "")
+        // Repetições vazias não são registradas (logDraft recusa): o detalhe não finge que a ficha vale.
+        val reps = draft.reps.trim().ifEmpty { "—" }
+        val kg = draft.weight.decimal()?.takeIf { it > 0 }
+        val detail = when (entry.exercise.kind) {
+            ExerciseKind.HOLD -> tr("{0} s", reps)
+            ExerciseKind.CARDIO -> tr("{0} min", reps)
+            else -> if (kg != null) "${kgText(kg)} kg × $reps" else "× $reps"
+        }
+        NextSet(i, tr(entry.exercise.name), detail)
+    }
+
+    /** Registra a série com o rascunho atual e já inicia o descanso. Devolve false se faltam repetições. */
+    fun logDraft(exerciseId: Long, setIndex: Int, draft: SetDraftState): Boolean {
+        val reps = draft.reps.trim().toIntOrNull()?.takeIf { it > 0 } ?: return false
+        val kg = draft.weight.decimal() ?: 0.0
+        val exercise = items.firstOrNull { it.exercise.id == exerciseId }?.exercise ?: return false
+        val warmup = setIndex < 0
+        viewModel.logSet(exercise, setIndex, reps, kg, draft.rir, draft.note, warmup, draft.km.decimal())
+        // A última série pendente fecha o treino: nada de descanso depois dela.
+        val isLast = !warmup && pending.size == 1 && pending.first() == (exerciseId to setIndex)
+        // Cardio e aquecimento não têm descanso marcado; a prancha pede um intervalo curto.
+        val kind = exercise.kind
+        when {
+            isLast || warmup || kind == ExerciseKind.CARDIO -> Unit
+            kind == ExerciseKind.HOLD -> viewModel.startRest(45)
+            else -> viewModel.startRest(restPreset.takeIf { it > 0 } ?: Progression.restSeconds(reps))
+        }
+        // Conclusão automática só se o treino ainda não estava feito: registrar de novo depois não reabre.
+        if (TrainingFlow.shouldAutoComplete(isLast, done)) {
+            viewModel.completeWorkout()
+            showConclusion = true
+        }
+        return true
+    }
+
+    /** Registra a próxima série pendente e desliza até o exercício da série seguinte. */
+    fun onNext() {
+        val target = next ?: return
+        if (logDraft(target.first, target.second, drafts[target] ?: SetDraftState("", ""))) {
+            val after = pending.getOrNull(1) ?: return
+            val page = pageOf(after.first)
+            if (page >= 0 && page != pager.currentPage) scope.launch { pager.animateScrollToPage(page) }
+        }
+    }
+
     // Ao reabrir um treino já começado, abre direto no exercício da próxima série.
     var positioned by remember(day) { mutableStateOf(false) }
     LaunchedEffect(logged) {
@@ -294,33 +338,12 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
     // Com todas as séries feitas não há mais descanso: o cronômetro volta ao estado inicial.
     LaunchedEffect(allDone) { if (allDone) viewModel.stopRest() }
 
-    /** Registra a série com o rascunho atual e já inicia o descanso. Devolve false se faltam repetições. */
-    fun logDraft(exerciseId: Long, setIndex: Int, draft: SetDraftState): Boolean {
-        val reps = draft.reps.trim().toIntOrNull()?.takeIf { it > 0 } ?: return false
-        val kg = draft.weight.decimal() ?: 0.0
-        val exercise = items.firstOrNull { it.exercise.id == exerciseId }?.exercise ?: return false
-        val warmup = setIndex < 0
-        viewModel.logSet(exercise, setIndex, reps, kg, draft.rir, draft.note, warmup, draft.km.decimal())
-        // A última série pendente fecha o treino: nada de descanso depois dela.
-        val isLast = pending.size == 1 && pending.first() == (exerciseId to setIndex)
-        // Cardio e aquecimento não têm descanso marcado; a prancha pede um intervalo curto.
-        val kind = exercise.kind
-        when {
-            isLast || warmup || kind == ExerciseKind.CARDIO -> Unit
-            kind == ExerciseKind.HOLD -> viewModel.startRest(45)
-            else -> viewModel.startRest(restPreset.takeIf { it > 0 } ?: Progression.restSeconds(reps))
-        }
-        return true
-    }
-
     // Em telas largas o treino ocupa uma coluna central; o fundo continua cobrindo a tela toda.
     val layout = currentWindowLayout
     val sideSpace = ((layout.widthDp - layout.contentMaxWidth.value) / 2).coerceAtLeast(0f).dp
     Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = sideSpace)) {
-        TrainHeader(tr(day.day.name), onClose)
+        TrainHeader(tr(day.day.name), count, done, ::requestExit)
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
-            PowerGauge(doneSets, totalSets)
-            Spacer(Modifier.height(10.dp))
             ExerciseTabs(items, loggedKeys, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
         }
         HorizontalPager(
@@ -372,22 +395,33 @@ fun TrainSessionScreen(day: WorkoutDayFull, viewModel: ZenViewModel, onClose: ()
         }
         TrainFooter(
             viewModel = viewModel,
-            done = done,
-            allDone = allDone,
-            nextLabel = next?.let { (id, i) ->
-                val name = items.firstOrNull { it.exercise.id == id }?.exercise?.name.orEmpty()
-                tr("{0} · série {1}", tr(name), i)
-            },
-            onNext = {
-                val target = next ?: return@TrainFooter
-                if (logDraft(target.first, target.second, drafts[target] ?: SetDraftState("", ""))) {
-                    // Desliza até o exercício da série seguinte.
-                    val after = pending.getOrNull(1) ?: return@TrainFooter
-                    val page = pageOf(after.first)
-                    if (page >= 0 && page != pager.currentPage) scope.launch { pager.animateScrollToPage(page) }
-                }
-            },
-            onClose = onClose
+            primary = TrainingFlow.primary(done, count),
+            next = nextSet,
+            restBlocked = allDone || done,
+            onLogNext = ::onNext,
+            onFinish = { viewModel.completeWorkout(); showConclusion = true },
+            onSummary = { showConclusion = true }
+        )
+    }
+
+    if (askingExit) {
+        ZenDialog(tr("Sair do treino?"), { askingExit = false }, accent = Midori, footer = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZenButton(tr("Concluir assim"), { askingExit = false; viewModel.completeWorkout(); showConclusion = true }, Modifier.weight(1f), accent = Midori, fill = true, small = true)
+                ZenButton(tr("Continuar depois"), { askingExit = false; onClose() }, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+            }
+        }) {
+            Text(tr("Você registrou {0} de {1} séries.", count.done, count.total), color = Zen.p.muted)
+        }
+    }
+
+    if (showConclusion) {
+        TrainConclusion(
+            dayName = tr(day.day.name),
+            summary = summary,
+            level = progress?.level,
+            onBackToDojo = onClose,
+            onUndo = { viewModel.setWorkoutDone(false); showConclusion = false }
         )
     }
 
@@ -538,200 +572,16 @@ private fun ExerciseTabs(items: List<WorkoutItemFull>, loggedKeys: Set<Pair<Long
 }
 
 /**
- * Rodapé fixo do modo treino. Linha de ferramentas (descanso e próxima série, em destaque)
- * e linha de ações (sair e concluir/desfazer).
+ * Cabeçalho do modo treino numa faixa só: X, "Modo treino" e o dia, o kanji do ânimo
+ * e, embaixo, a barra com "9 / 33 séries" (ou "Concluído" com o treino já feito).
  */
 @Composable
-private fun TrainFooter(
-    viewModel: ZenViewModel,
-    done: Boolean,
-    allDone: Boolean,
-    nextLabel: String?,
-    onNext: () -> Unit,
-    onClose: () -> Unit
-) {
+private fun TrainHeader(dayName: String, count: SetCount, done: Boolean, onClose: () -> Unit) {
     val p = Zen.p
-    val rest by viewModel.rest.collectAsStateWithLifecycle()
-    val restPreset by viewModel.restPreset.collectAsStateWithLifecycle()
-    val manualRest = restPreset.takeIf { it > 0 } ?: 90
-
-    // Relógio do descanso: só atualiza o visor. O fim (vibração e aviso) fica com o RestTimer,
-    // que continua contando com o app em segundo plano.
-    val now by produceState(System.currentTimeMillis(), rest) {
-        while (rest != null) {
-            value = System.currentTimeMillis()
-            delay(200)
-        }
-    }
-
-    Column(Modifier.background(p.card)) {
-        Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val r = rest
-                val remainingMs = r?.let { (it.endsAt - now).coerceAtLeast(0) } ?: 0L
-                // Treino finalizado (todas as séries ou marcado como concluído): sem descanso.
-                val restEnabled = !allDone && !done
-                ToolButton(
-                    top = if (r != null) tr("DESCANSO · PULAR") else tr("DESCANSO"),
-                    main = if (r != null) "%d:%02d".format(remainingMs / 60_000, remainingMs / 1000 % 60) else "%d:%02d".format(manualRest / 60, manualRest % 60),
-                    mainIcon = if (r != null) null else ZenIcons.Timer,
-                    onClick = { if (r != null) viewModel.stopRest() else viewModel.startRest(manualRest) },
-                    modifier = Modifier.weight(1f),
-                    accent = Ao,
-                    progress = r?.let { 1f - remainingMs.toFloat() / it.totalMs },
-                    active = r != null,
-                    enabled = restEnabled
-                )
-                // Durante o descanso: mais tempo sem precisar pular e recomeçar.
-                if (r != null) {
-                    ToolButton(
-                        top = tr("MAIS"),
-                        main = tr("+{0} s", RestTimer.ADD_SECONDS),
-                        onClick = { viewModel.addRest() },
-                        modifier = Modifier.weight(0.8f),
-                        accent = Ao
-                    )
-                }
-                // Ação principal do treino: vermelho sólido e mais larga, para achar sem procurar.
-                ToolButton(
-                    top = tr("PRÓXIMA SÉRIE"),
-                    topIcon = ZenIcons.Play,
-                    main = nextLabel ?: tr("Tudo feito!"),
-                    onClick = onNext,
-                    modifier = Modifier.weight(2f),
-                    accent = Aka,
-                    enabled = nextLabel != null,
-                    filled = nextLabel != null
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ZenButton(tr("Sair"), onClose, Modifier.weight(1f), accent = p.card, fill = true)
-                if (done) {
-                    // Sempre visível: mostra que já foi concluído e permite desfazer.
-                    ZenButton(
-                        tr("Treino feito · desfazer"), { viewModel.setWorkoutDone(false) }, Modifier.weight(1.4f),
-                        accent = Midori, fill = true, leading = ZenIcons.Check
-                    )
-                } else {
-                    // Com todas as séries feitas, o botão pulsa chamando para fechar o treino.
-                    val pulse = if (allDone) {
-                        rememberInfiniteTransition(label = "finish-pulse").animateFloat(
-                            1f, 1.05f, infiniteRepeatable(tween(520, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "finish-scale"
-                        ).value
-                    } else 1f
-                    ZenButton(
-                        tr("Concluir treino"), { viewModel.setWorkoutDone(true) },
-                        Modifier.weight(1.4f).graphicsLayer { scaleX = pulse; scaleY = pulse },
-                        accent = Midori, fill = true
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Botão de ferramenta do rodapé: rótulo pequeno em cima e valor grande embaixo, com sombra de mangá.
- * [progress] (0..1) desenha uma faixa enchendo por trás (usado pelo descanso).
- */
-@Composable
-private fun ToolButton(
-    top: String,
-    main: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    accent: Color,
-    progress: Float? = null,
-    active: Boolean = false,
-    filled: Boolean = false,
-    enabled: Boolean = true,
-    icon: ImageVector? = null,
-    iconDescription: String? = null,
-    topIcon: ImageVector? = null,
-    mainIcon: ImageVector? = null
-) {
-    val p = Zen.p
-    val look = Zen.look
-    val interaction = remember { MutableInteractionSource() }
-    // Cores opacas (sem transparência): misturar o acento com o fundo deixava o botão com tom barrento.
-    val bg by animateColorAsState(
-        when {
-            filled -> accent
-            active -> p.card
-            else -> p.bg
-        },
-        tween(200), label = "tool-bg"
-    )
-    val topColor = when {
-        filled -> Sumi
-        enabled -> p.muted
-        else -> p.muted.copy(alpha = 0.5f)
-    }
-    val mainColor = when {
-        filled -> Sumi
-        enabled -> p.ink
-        else -> p.muted
-    }
-    Box(
-        modifier
-            .padding(end = 3.dp, bottom = 3.dp)
-            .zenShadow(3.dp, p.shadow, look.smallShape)
-            .pressScale(interaction)
-            .heightIn(min = 52.dp)
-            .clip(look.smallShape)
-            .background(bg)
-            .drawBehind {
-                if (progress != null) drawRect(accent, size = size.copy(width = size.width * progress.coerceIn(0f, 1f)))
-            }
-            .border(look.thinBorder, p.border, look.smallShape)
-            .clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    top, Modifier.weight(1f, fill = false), color = topColor,
-                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1
-                )
-                if (topIcon != null) ZenIcon(topIcon, Modifier.padding(start = 5.dp), size = 9.dp, color = topColor)
-            }
-            // Ícone vetorial em vez de símbolo de texto: símbolos como ☀ viram emoji colorido e ignoram a cor.
-            if (icon != null) {
-                Icon(icon, contentDescription = iconDescription, tint = mainColor, modifier = Modifier.size(22.dp))
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (mainIcon != null) ZenIcon(mainIcon, Modifier.padding(end = 5.dp), size = 16.dp, color = mainColor)
-                    Text(
-                        main,
-                        Modifier.weight(1f, fill = false),
-                        color = mainColor,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Cabeçalho do modo treino: faixa vermelha, título grande e botão de sair. */
-@Composable
-private fun TrainHeader(dayName: String, onClose: () -> Unit) {
-    val p = Zen.p
+    val kanji = Progression.mood(count.done, count.total).first
     Column(Modifier.background(p.card)) {
         Box(Modifier.fillMaxWidth().height(8.dp).background(Aka))
-        Row(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(tr("MODO TREINO"), color = p.muted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Text(dayName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.upright) FontStyle.Normal else FontStyle.Italic)
-            }
-            KanjiBadge(if (Zen.look.kawaii) "♡" else "体", color = Ki, size = 40.dp)
-            Spacer(Modifier.width(10.dp))
+        Row(Modifier.padding(start = 12.dp, end = 16.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             val interaction = remember { MutableInteractionSource() }
             val closeLabel = tr("Fechar")
             Box(
@@ -747,38 +597,28 @@ private fun TrainHeader(dayName: String, onClose: () -> Unit) {
             ) {
                 ZenIcon(ZenIcons.Close, size = 20.dp)
             }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tr("MODO TREINO"), color = p.muted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    dayName.uppercase(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black,
+                    fontStyle = if (Zen.look.upright) FontStyle.Normal else FontStyle.Italic, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            KanjiBadge(kanji, color = if (done || count.complete) Midori else Aka, size = 28.dp)
+        }
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 10.dp)) {
+            ZenProgressBar(
+                if (count.total == 0) 0f else count.done.toFloat() / count.total,
+                if (done || count.complete) Midori else Aka, height = 10.dp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (done) tr("Concluído") else tr("{0} / {1} séries", count.done, count.total),
+                color = p.muted, style = MaterialTheme.typography.labelLarge
+            )
         }
         Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
-    }
-}
-
-/**
- * Medidor de "energia" do treino: kanji, frase de ânimo e porcentagem mudando conforme o progresso.
- * O progresso de cada exercício fica na fileira de abas logo abaixo ([ExerciseTabs]).
- */
-@Composable
-private fun PowerGauge(done: Int, total: Int) {
-    val p = Zen.p
-    val percent by animateIntAsState(if (total == 0) 0 else done * 100 / total, tween(450), label = "gauge-percent")
-    val (kanji, phrase) = Progression.mood(done, total)
-    val color by animateColorAsState(if (total > 0 && done == total) Midori else Aka, tween(300), label = "gauge-color")
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        AnimatedContent(
-            kanji,
-            transitionSpec = { (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith fadeOut(tween(120)) },
-            label = "gauge-kanji"
-        ) { KanjiBadge(it, color = color, size = 44.dp) }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            AnimatedContent(
-                phrase,
-                transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
-                label = "gauge-phrase"
-            ) { Text(tr(it).uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black) }
-            Text(tr("{0} de {1} séries", done, total), color = p.muted, style = MaterialTheme.typography.labelLarge)
-        }
-        Text("$percent%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, fontStyle = if (Zen.look.upright) FontStyle.Normal else FontStyle.Italic)
     }
 }
 
@@ -809,44 +649,53 @@ private fun ExercisePanel(
     val timed = kind == ExerciseKind.HOLD || kind == ExerciseKind.CARDIO
     val cardio = kind == ExerciseKind.CARDIO
 
+    var menuOpen by remember { mutableStateOf(false) }
+    var imageOpen by remember { mutableStateOf(false) }
+    // Com séries já registradas a troca fica travada: o registro pertence ao exercício atual.
+    val hasWarmupLogged = warmups.any { isLogged(-it) }
+    val canSwap = doneCount == 0 && !hasWarmupLogged
+    // Aquecimento só faz sentido com carga (não em prancha e cardio), e no máximo três.
+    val canWarmup = !timed && warmups.size < 3
+
     ZenCard(modifier, accent = accent, entranceIndex = entranceIndex) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            KanjiBadge(group.kanji(), color = accent, size = 38.dp)
+            // Miniatura: tocar amplia a imagem num diálogo. Sem imagem, fica o kanji do grupo.
+            val zoomLabel = tr("Ampliar imagem")
+            Box(
+                Modifier
+                    .size(56.dp)
+                    .clip(Zen.look.smallShape)
+                    .background(Zen.p.bg)
+                    .border(Zen.look.thinBorder, Zen.p.border, Zen.look.smallShape)
+                    .semantics { contentDescription = zoomLabel }
+                    .clickable(role = Role.Button) { imageOpen = true },
+                contentAlignment = Alignment.Center
+            ) {
+                KanjiBadge(group.kanji(), color = accent, size = 38.dp)
+                ExerciseImage(entry.exercise.name, showCredit = false)
+            }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(tr(entry.exercise.name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    if (kind == ExerciseKind.CARDIO) entry.item.reps else tr("{0} séries × {1}", sets, entry.item.reps),
+                    if (kind == ExerciseKind.CARDIO) entry.item.reps else tr("{0} séries × {1} · {2}", sets, entry.item.reps, group.label),
                     color = Zen.p.muted, style = MaterialTheme.typography.labelLarge
                 )
             }
             Box(contentAlignment = Alignment.Center) {
                 if (complete) HankoStamp()
             }
+            Spacer(Modifier.width(6.dp))
+            MoreButton({ menuOpen = true }, tr("Mais opções do exercício"))
         }
         if (swappedFrom != null) {
             Spacer(Modifier.height(4.dp))
             Text(tr("Trocado hoje · era {0}", tr(swappedFrom.name)), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
         }
-        Spacer(Modifier.height(8.dp))
-        ExerciseImage(entry.exercise.name)
-        Spacer(Modifier.height(8.dp))
-        // Com séries já registradas a troca fica travada: o registro pertence ao exercício atual.
-        val hasWarmupLogged = warmups.any { isLogged(-it) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (doneCount == 0 && !hasWarmupLogged) {
-                ZenButton(tr("Trocar ({0})", group.label), onSwap, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true, leading = ZenIcons.Swap)
-            } else {
-                Text(tr("Para trocar, desfaça as séries deste exercício."), Modifier.weight(1f), color = Zen.p.muted, style = MaterialTheme.typography.labelSmall)
-            }
-            // Aquecimento só faz sentido com carga (não em prancha e cardio), e no máximo três.
-            if (!timed && warmups.size < 3) {
-                ZenButton(tr("+ Aquecimento"), onAddWarmup, accent = Zen.p.card, small = true)
-            }
-        }
-        hint?.let {
-            Spacer(Modifier.height(8.dp))
-            SpeechTag(it)
+        // A dica de carga só vale até a primeira série de trabalho ser registrada.
+        if (hint != null && doneCount == 0) {
+            Spacer(Modifier.height(6.dp))
+            SpeechTag(hint)
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -924,6 +773,26 @@ private fun ExercisePanel(
             )
         }
     }
+
+    if (menuOpen) {
+        ZenSheet(onDismiss = { menuOpen = false }, accent = accent, title = tr(entry.exercise.name)) {
+            SheetOption(
+                title = tr("Trocar ({0})", group.label),
+                description = if (canSwap) tr("Vale só para o treino de hoje; a ficha continua igual.")
+                else tr("Para trocar, desfaça as séries deste exercício."),
+                onClick = onSwap,
+                enabled = canSwap
+            )
+            if (canWarmup) {
+                SheetOption(tr("+ Aquecimento"), tr("Adiciona uma série leve antes das de trabalho (até 3)."), onAddWarmup)
+            }
+        }
+    }
+    if (imageOpen) {
+        ZenDialog(tr(entry.exercise.name), onDismiss = { imageOpen = false }, accent = accent) {
+            ExerciseImage(entry.exercise.name)
+        }
+    }
 }
 
 /**
@@ -980,7 +849,7 @@ private fun rirMeaning(rir: Int): String = when (rir) {
 
 /** Carimbo "完" (concluído) que cai girando sobre o painel quando todas as séries são feitas. */
 @Composable
-private fun HankoStamp() {
+internal fun HankoStamp(size: Dp = 40.dp) {
     val anim = remember { Animatable(0f) }
     LaunchedEffect(Unit) { anim.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow)) }
     Box(
@@ -993,19 +862,36 @@ private fun HankoStamp() {
                 rotationZ = -14f * v
                 alpha = v.coerceIn(0f, 1f)
             }
-            .size(40.dp)
+            .size(size)
             .border(3.dp, Aka, CircleShape)
             .padding(3.dp)
             .border(1.dp, Aka, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Text(if (Zen.look.kawaii) "♥" else "完", color = Aka, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        Text(if (Zen.look.kawaii) "♥︎" else "完", color = Aka, fontWeight = FontWeight.Black, fontSize = (18f * size.value / 40f).sp)
     }
 }
 
 /** Balão de fala com a dica de progressão de carga (subir, mais repetições ou deload). */
 @Composable
 private fun SpeechTag(hint: Hint) {
+    val p = Zen.p
+    val border = Zen.look.thinBorder
+    // Pontinha para cima, apontando para o nome do exercício; desenhada por cima da borda do balão.
+    Column {
+        Canvas(Modifier.padding(start = 16.dp).size(width = 14.dp, height = 7.dp)) {
+            val tail = Path().apply {
+                moveTo(0f, size.height); lineTo(size.width / 2, 0f); lineTo(size.width, size.height)
+            }
+            drawPath(tail, hint.color)
+            drawPath(tail, p.border, style = Stroke(width = border.toPx().coerceAtLeast(1f)))
+        }
+        SpeechBubble(hint)
+    }
+}
+
+@Composable
+private fun SpeechBubble(hint: Hint) {
     val p = Zen.p
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(

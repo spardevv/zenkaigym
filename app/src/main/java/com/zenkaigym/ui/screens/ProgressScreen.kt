@@ -1,22 +1,14 @@
 package com.zenkaigym.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxHeight
 import com.zenkaigym.ui.components.IconText
 import com.zenkaigym.ui.components.ZenIcon
 import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -69,8 +60,10 @@ import com.zenkaigym.ui.components.StatTile
 import com.zenkaigym.ui.components.ZenBarChart
 import com.zenkaigym.ui.components.ZenButton
 import com.zenkaigym.ui.components.ZenCard
-import com.zenkaigym.ui.components.ZenChip
+import com.zenkaigym.ui.components.ZenTab
+import com.zenkaigym.ui.components.ZenTabs
 import com.zenkaigym.ui.components.ZenFixedHeader
+import com.zenkaigym.ui.components.HeaderBar
 import com.zenkaigym.ui.components.ZenPage
 import com.zenkaigym.ui.components.ZenProgressBar
 import com.zenkaigym.ui.components.currentWindowLayout
@@ -106,48 +99,6 @@ private fun ProgressTab.accent(): Color = when (this) {
     ProgressTab.ACHIEVEMENTS -> Sakura
 }
 
-/**
- * Faixa de abas com rolagem horizontal: a aba escolhida sempre fica à vista (ao abrir pelo botão
- * "Ver conquistas", por exemplo) e um esmaecido na borda mostra que há mais abas para o lado.
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ProgressTabs(selected: Int, onSelect: (Int) -> Unit, gutter: Dp) {
-    val scroll = rememberScrollState()
-    Box(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal = gutter),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            ProgressTab.entries.forEachIndexed { i, t ->
-                val requester = remember { BringIntoViewRequester() }
-                LaunchedEffect(selected) { if (i == selected) requester.bringIntoView() }
-                ZenChip(
-                    tr(t.pt), i == selected, { onSelect(i) }, Modifier.bringIntoViewRequester(requester),
-                    accent = t.accent(), mark = t.icon
-                )
-            }
-        }
-        // Esmaecidos nas bordas. A camada acompanha o tamanho da faixa (matchParentSize): um fillMaxHeight solto
-        // aqui ocuparia a tela toda e deixaria o conteúdo da aba com altura zero.
-        val bg = Zen.p.bg
-        Box(Modifier.matchParentSize()) {
-            if (scroll.canScrollBackward) {
-                Box(
-                    Modifier.align(Alignment.CenterStart).fillMaxHeight().width(gutter + 14.dp)
-                        .background(Brush.horizontalGradient(listOf(bg, Color.Transparent)))
-                )
-            }
-            if (scroll.canScrollForward) {
-                Box(
-                    Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(gutter + 22.dp)
-                        .background(Brush.horizontalGradient(listOf(Color.Transparent, bg)))
-                )
-            }
-        }
-    }
-}
-
 private val AchievementColors = listOf(Ki, Aka, Ao, Midori, Daidai, Sakura)
 
 /**
@@ -160,6 +111,9 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val weights by viewModel.weights.collectAsStateWithLifecycle()
     val clock by viewModel.clock.collectAsStateWithLifecycle()
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    // Exercício aberto no histórico da aba Treino; o voltar do sistema fecha o detalhe antes de sair da tela.
+    var historyId by rememberSaveable { mutableStateOf<Long?>(null) }
+    BackHandler(enabled = historyId != null) { historyId = null }
     val tab = ProgressTab.entries[tabIndex.coerceIn(0, ProgressTab.entries.lastIndex)]
     val gutter = currentWindowLayout.gutter
 
@@ -167,12 +121,15 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             ZenFixedHeader(
                 tr("Evolução"), "進", accent = Daidai, subtitle = tr("Treino, dieta, peso e conquistas"),
-                back = { ZenButton(tr("Voltar ao perfil"), onBack, accent = Zen.p.card, small = true, leading = ZenIcons.ArrowLeft) }
+                back = { HeaderBar(onBack) }
             )
-            ProgressTabs(tabIndex, { tabIndex = it }, gutter)
+            ZenTabs(
+                ProgressTab.entries.map { ZenTab(tr(it.pt), it.accent(), it.icon) },
+                tabIndex, { tabIndex = it; historyId = null }
+            )
             Spacer(Modifier.height(10.dp))
             val scroll = rememberScrollState()
-            LaunchedEffect(tab) { scroll.scrollTo(0) }
+            LaunchedEffect(tab, historyId) { scroll.scrollTo(0) }
             Box(Modifier.weight(1f)) {
                 Column(
                     Modifier.fillMaxSize().verticalScroll(scroll)
@@ -183,10 +140,10 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
                     if (s == null) {
                         Text(tr("Carregando…"), color = Zen.p.muted)
                     } else when (tab) {
-                        ProgressTab.SUMMARY -> SummaryTab(s, onSeeAchievements = { tabIndex = ProgressTab.ACHIEVEMENTS.ordinal })
-                        ProgressTab.TRAINING -> TrainingTab(s)
+                        ProgressTab.SUMMARY -> SummaryTab(s, onSeeAchievements = { tabIndex = ProgressTab.ACHIEVEMENTS.ordinal; historyId = null })
+                        ProgressTab.TRAINING -> TrainingTab(s, viewModel, historyId, onOpenHistory = { historyId = it }, onCloseHistory = { historyId = null })
                         ProgressTab.DIET -> DietTab(s, clock.epochDay)
-                        ProgressTab.WEIGHT -> WeightTab(s, weights)
+                        ProgressTab.WEIGHT -> WeightTab(s, weights, viewModel::addWeight, viewModel::editWeight, viewModel::removeWeight)
                         ProgressTab.ACHIEVEMENTS -> AchievementsTab(s)
                     }
                 }
@@ -198,14 +155,11 @@ fun ProgressScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
 
 // ---- Nível ----
 
-/** Nível, patente e barra de XP. Com [onClick], o cartão inteiro é um atalho (usado no Perfil). */
+/** Nível, patente e barra de XP. */
 @Composable
-internal fun LevelCard(level: LevelInfo, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+private fun LevelCard(level: LevelInfo, modifier: Modifier = Modifier) {
     val p = Zen.p
-    ZenCard(
-        modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
-        accent = Daidai, entranceIndex = 0
-    ) {
+    ZenCard(modifier, accent = Daidai, entranceIndex = 0) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             KanjiBadge(level.rank.kanji, color = Daidai, size = 56.dp)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -380,8 +334,25 @@ private fun WeekCard(s: ProgressStats) {
 
 // ---- Treino ----
 
+/** Visão geral do treino e, no fim, o histórico por exercício; ao abrir um exercício, só o detalhe dele. */
 @Composable
-private fun TrainingTab(s: ProgressStats) {
+private fun TrainingTab(
+    s: ProgressStats, viewModel: ZenViewModel, historyId: Long?,
+    onOpenHistory: (Long) -> Unit, onCloseHistory: () -> Unit
+) {
+    val exercises by viewModel.loggedExercises.collectAsStateWithLifecycle()
+    val selected = exercises.firstOrNull { it.id == historyId }
+    if (selected != null) {
+        HistoryDetail(selected, viewModel, onBack = onCloseHistory)
+        return
+    }
+    TrainingOverview(s)
+    SectionTitle(tr("Histórico"), accent = Ki)
+    HistoryList(exercises, onSelect = { onOpenHistory(it.id) })
+}
+
+@Composable
+private fun TrainingOverview(s: ProgressStats) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatTile(tr("Treinos"), s.totalSessions, Modifier.weight(1f))
         StatTile(tr("Séries"), s.totalSets, Modifier.weight(1f))
@@ -568,15 +539,22 @@ private fun DietTab(s: ProgressStats, today: Long) {
 // ---- Peso ----
 
 @Composable
-private fun WeightTab(s: ProgressStats, weights: List<WeightEntry>) {
+private fun WeightTab(
+    s: ProgressStats,
+    weights: List<WeightEntry>,
+    onRegister: (Double) -> Unit,
+    onEdit: (Long, Double) -> Unit,
+    onRemove: (Long) -> Unit
+) {
     val w = s.weight
     if (w == null || w.entries < 2) {
         ZenCard(accent = Daidai, entranceIndex = 0) {
             SectionTitle(tr("Evolução do peso"), accent = Daidai)
             Spacer(Modifier.height(10.dp))
             if (w != null) Text("%.1f kg".format(w.current), style = MaterialTheme.typography.displayMedium)
-            EmptyProgress("秤", Daidai, tr("Registre seu peso no Perfil ao menos duas vezes para ver a evolução."))
+            EmptyProgress("秤", Daidai, tr("Registre seu peso aqui ao menos duas vezes para ver a evolução."))
         }
+        WeightLogCard(weights, onRegister, onEdit, onRemove)
         return
     }
     fun tenths(v: Double) = (v * 10).roundToInt()
@@ -609,6 +587,7 @@ private fun WeightTab(s: ProgressStats, weights: List<WeightEntry>) {
             color = Zen.p.muted, style = MaterialTheme.typography.labelSmall
         )
     }
+    WeightLogCard(weights, onRegister, onEdit, onRemove)
 }
 
 /** Linha do peso ao longo do tempo (pelo dia de cada registro), com área sob a curva e a faixa mínima–máxima. */
@@ -713,6 +692,6 @@ private fun EmptyProgress(kanji: String, accent: Color, text: String) {
 }
 
 /** Volume legível: até 999 em kg, depois em toneladas. */
-private fun volumeText(kg: Int): String = if (kg >= 1000) "%.1f t".format(kg / 1000f) else "$kg kg"
+internal fun volumeText(kg: Int): String = if (kg >= 1000) "%.1f t".format(kg / 1000f) else "$kg kg"
 
 private fun kgText(kg: Double): String = if (kg % 1.0 == 0.0) kg.toLong().toString() else "%.1f".format(kg)

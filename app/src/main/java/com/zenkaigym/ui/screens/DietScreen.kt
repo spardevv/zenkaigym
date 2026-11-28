@@ -5,9 +5,21 @@ import com.zenkaigym.ui.components.ZenIcon
 import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.foundation.layout.Box
 import com.zenkaigym.ui.components.ZenFixedHeader
+import com.zenkaigym.ui.components.HeaderBar
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
 import com.zenkaigym.domain.tr
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.zenkaigym.ui.components.AccordionCard
+import com.zenkaigym.ui.components.MoreButton
+import com.zenkaigym.ui.components.SheetOption
+import com.zenkaigym.ui.components.ZenSheet
+import com.zenkaigym.ui.components.ZenTab
+import com.zenkaigym.ui.components.ZenTabs
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -93,13 +105,16 @@ private fun MealFull.protein(): Int =
     if (meal.cheatKcal != null) 0 else items.sumOf { it.food.proteinPer100 * it.item.grams / 100 }.roundToInt()
 
 @Composable
-fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
+fun DietScreen(viewModel: ZenViewModel, onBack: () -> Unit) {
     val proposed by viewModel.proposedDiet.collectAsStateWithLifecycle()
     val active by viewModel.activeDiet.collectAsStateWithLifecycle()
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val suggested by viewModel.suggestedTarget.collectAsStateWithLifecycle()
     val slots by viewModel.mealSlots.collectAsStateWithLifecycle()
     val foods by viewModel.foods.collectAsStateWithLifecycle()
+    val done by viewModel.mealsDone.collectAsStateWithLifecycle()
+    val skipped by viewModel.mealsSkipped.collectAsStateWithLifecycle()
+    val clock by viewModel.clock.collectAsStateWithLifecycle()
     val shown = proposed ?: active
     val isProposal = proposed != null
 
@@ -111,47 +126,98 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
     var day by remember { mutableStateOf(todayDayOfWeek()) }
     var setup by remember { mutableStateOf(false) }
     var shopping by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    // Refeição aberta: null = ainda o padrão (a próxima de hoje ou a primeira); CLOSED = a pessoa fechou todas.
+    var openMealId by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Compra-se para o cardápio em uso; a proposta só entra se ainda não há um ativo.
+    val shoppingPlan = active ?: shown
 
     ZenPage {
       Column(Modifier.fillMaxSize()) {
-        ZenFixedHeader(tr("Dieta"), "食", accent = Midori, subtitle = tr("Meta, horários e refeições"))
+        ZenFixedHeader(
+            tr("Dieta"), "食", accent = Midori, subtitle = tr("Meta, horários e refeições"),
+            back = {
+                HeaderBar(onBack) {
+                    if (shoppingPlan != null) {
+                        ZenButton(
+                            "", { shopping = true }, accent = Zen.p.card, small = true, leading = ZenIcons.Cart,
+                            modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = tr("Lista de compras") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    MoreButton({ menuOpen = true })
+                }
+            }
+        )
+        ZenTabs(DietTab.entries.map { ZenTab(tr(it.pt), Midori) }, tabIndex, { tabIndex = it })
+        Spacer(Modifier.height(10.dp))
+        val tab = DietTab.entries[tabIndex.coerceIn(0, DietTab.entries.lastIndex)]
         Box(Modifier.weight(1f)) {
+        if (tab == DietTab.FOODS) FoodsTab(viewModel) else {
         val listState = rememberLazyListState()
+        LaunchedEffect(tabIndex) { listState.scrollToItem(0) }
         LazyColumn(
             state = listState,
             contentPadding = PaddingValues(start = currentWindowLayout.gutter, end = currentWindowLayout.gutter, top = 4.dp, bottom = currentWindowLayout.gutter),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item(key = "foods") { ZenButton(tr("Meus alimentos"), onOpenFoods, accent = Ao, fill = true, small = true, trailing = ZenIcons.ArrowRight) }
-            profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
-            item(key = "schedule") { ScheduleCard(slots, viewModel) }
-            item(key = "plan") {
-                PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel, onSetup = { setup = true }, onShopping = { shopping = true })
-            }
-            if (shown != null) {
-                item(key = "days") { DayPicker(shown, day) { day = it } }
-                item(key = "day-summary") { DaySummary(shown, day, slots) }
-                items(shown.mealsOf(day).sortedBy { it.meal.position }, key = { it.meal.id }) { meal ->
-                    // Ao trocar de dia ou mudar o número de refeições, os cartões deslizam para o lugar.
-                    Column(Modifier.animateItem()) {
-                        MealCard(
-                            meal, MealSchedule.timeOf(meal.meal.type, slots).format(),
-                            onEdit = { editingId = it }, onAdd = { addingTo = meal.meal.id }
-                        )
+            when (tab) {
+                DietTab.MENU -> {
+                    item(key = "plan") {
+                        PlanCard(shown, isProposal, hasActive = active != null, slots = slots, viewModel = viewModel, onSetup = { setup = true })
+                    }
+                    if (shown != null) {
+                        item(key = "days") { DayPicker(shown, day) { day = it } }
+                        item(key = "day-summary") { DaySummary(shown, day, slots) }
+                        val meals = shown.mealsOf(day).sortedBy { it.meal.position }
+                        // Hoje abre a próxima refeição; nos outros dias (ou sem próxima), a primeira.
+                        val nextType = if (day == todayDayOfWeek())
+                            MealSchedule.next(meals.map { it.meal.type }, slots, done + skipped, clock.minutes) else null
+                        val defaultId = (meals.firstOrNull { it.meal.type == nextType } ?: meals.firstOrNull())?.meal?.id
+                        val openId = when {
+                            openMealId == CLOSED -> null
+                            meals.any { it.meal.id == openMealId } -> openMealId
+                            else -> defaultId
+                        }
+                        items(meals, key = { it.meal.id }) { meal ->
+                            val cheat = meal.meal.cheatKcal
+                            val time = MealSchedule.timeOf(meal.meal.type, slots).format()
+                            // Ao trocar de dia ou mudar o número de refeições, os cartões deslizam para o lugar.
+                            AccordionCard(
+                                tr(meal.meal.name).uppercase(), "$time · ${tr("{0} kcal", cheat ?: meal.kcal())}",
+                                expanded = meal.meal.id == openId,
+                                onToggle = { openMealId = if (meal.meal.id == openId) CLOSED else meal.meal.id },
+                                accent = if (cheat != null) Aka else null,
+                                modifier = Modifier.animateItem()
+                            ) {
+                                MealItems(meal, onEdit = { editingId = it }, onAdd = { addingTo = meal.meal.id })
+                            }
+                        }
                     }
                 }
+                DietTab.TARGET -> {
+                    profile?.let { p -> item(key = "target") { TargetCard(p, suggested, viewModel) } }
+                    item(key = "schedule") { ScheduleCard(slots, viewModel) }
+                }
+                DietTab.FOODS -> Unit
             }
         }
         ScrollHints(listState.canScrollBackward, listState.canScrollForward, Modifier.fillMaxSize())
         }
+        }
       }
     }
 
+    if (menuOpen) {
+        ZenSheet(onDismiss = { menuOpen = false }, accent = Midori, title = tr("Dieta")) {
+            SheetOption(tr("Novo cardápio…"), tr("Monta um cardápio novo para a semana."), { setup = true })
+        }
+    }
+
     if (shopping) {
-        // Compra-se para o cardápio em uso; a proposta só entra se ainda não há um ativo.
-        val plan = active ?: shown
-        if (plan == null) shopping = false
-        else ShoppingListDialog(plan) { shopping = false }
+        if (shoppingPlan == null) shopping = false
+        else ShoppingListDialog(shoppingPlan) { shopping = false }
     }
 
     if (setup) {
@@ -159,7 +225,7 @@ fun DietScreen(viewModel: ZenViewModel, onOpenFoods: () -> Unit) {
         WeekSetupDialog(
             slots = slots, goalKcal = goal, initial = shown?.cheatDay(),
             onDismiss = { setup = false },
-            onCreate = { manual, cheat -> viewModel.createWeek(manual, cheat); setup = false }
+            onCreate = { manual, cheat -> viewModel.createWeek(manual, cheat); setup = false; tabIndex = DietTab.MENU.ordinal }
         )
     }
 
@@ -278,8 +344,7 @@ private fun PlanCard(
     hasActive: Boolean,
     slots: List<MealSlot>,
     viewModel: ZenViewModel,
-    onSetup: () -> Unit,
-    onShopping: () -> Unit
+    onSetup: () -> Unit
 ) {
     if (shown == null) {
         ZenCard(accent = Midori, entranceIndex = 2) {
@@ -308,16 +373,11 @@ private fun PlanCard(
                 ZenButton(tr("Aceitar"), { viewModel.acceptDiet(shown.plan.id) }, Modifier.weight(1f), accent = Midori, fill = true)
                 ZenButton(tr("Outra"), viewModel::generateDiet, Modifier.weight(1f), accent = Sakura, fill = true)
             }
-            Spacer(Modifier.height(8.dp))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ZenButton(tr("Novo cardápio…"), onSetup, Modifier.weight(1f), accent = Sakura, fill = true, small = true)
-            if (isProposal && hasActive) {
-                ZenButton(tr("Manter a ativa"), viewModel::discardDiet, Modifier.weight(1f), accent = Zen.p.card, fill = true, small = true)
+            if (hasActive) {
+                Spacer(Modifier.height(8.dp))
+                ZenButton(tr("Manter a ativa"), viewModel::discardDiet, fill = true, accent = Zen.p.card, small = true)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        ZenButton(tr("Lista de compras"), onShopping, accent = Ao, fill = true, small = true)
     }
 }
 
@@ -470,46 +530,39 @@ internal fun WeekSetupDialog(
     }
 }
 
+/** Conteúdo da refeição aberta na sanfona: toque numa linha abre a troca; "+ Adicionar" soma um alimento. */
 @Composable
-private fun MealCard(meal: MealFull, time: String, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
-    val cheatKcal = meal.meal.cheatKcal
-    ZenCard(accent = if (cheatKcal != null) Aka else null, entranceIndex = -1) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(tr(meal.meal.name).uppercase(), style = MaterialTheme.typography.titleMedium)
-                if (cheatKcal != null) {
-                    Text(tr("Refeição livre · cerca de {0} kcal", cheatKcal), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    Text(tr("{0} kcal · {1} g proteína", meal.kcal(), meal.protein()), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            Text(time, style = MaterialTheme.typography.headlineSmall)
-        }
-        if (cheatKcal != null) {
-            Spacer(Modifier.height(6.dp))
-            Text(tr("Fora da dieta: coma o que quiser, sem passar desse valor."), color = Zen.p.muted)
-            return@ZenCard
-        }
+private fun MealItems(meal: MealFull, onEdit: (Long) -> Unit, onAdd: () -> Unit) {
+    if (meal.meal.cheatKcal != null) {
         Spacer(Modifier.height(6.dp))
-        if (meal.items.isEmpty()) {
-            Text(tr("Nenhum alimento ainda. Toque em + Adicionar."), color = Zen.p.muted)
-        }
-        meal.items.forEach { entry ->
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(tr(entry.food.name), style = MaterialTheme.typography.bodyLarge)
-                    Text("${Portions.text(entry.food, entry.item.grams)} · ${entry.food.category.label}", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
-                }
-                ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
+        Text(tr("Refeição livre · cerca de {0} kcal", meal.meal.cheatKcal), color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+        Text(tr("Fora da dieta: coma o que quiser, sem passar desse valor."), color = Zen.p.muted)
+        return
     }
+    Spacer(Modifier.height(6.dp))
+    if (meal.items.isEmpty()) {
+        Text(tr("Nenhum alimento ainda. Toque em + Adicionar."), color = Zen.p.muted)
+    }
+    meal.items.forEach { entry ->
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { onEdit(entry.item.id) }.padding(vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tr(entry.food.name), style = MaterialTheme.typography.bodyLarge)
+                Text("${Portions.text(entry.food, entry.item.grams)} · ${entry.food.category.label}", color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+            ZenIcon(ZenIcons.Swap, size = 20.dp, color = Zen.p.muted)
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    ZenButton(tr("+ Adicionar"), onAdd, accent = Ao, small = true)
 }
+
+/** Abas internas da Dieta. */
+private enum class DietTab(val pt: String) { MENU("Cardápio"), TARGET("Meta"), FOODS("Alimentos") }
+
+private const val CLOSED = -1L
 
 // ---- Janelas de troca ----
 

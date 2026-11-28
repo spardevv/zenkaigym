@@ -76,6 +76,20 @@ object Zen {
         @Composable @ReadOnlyComposable get() = LocalWeekStart.current
 }
 
+/** Paleta de um estilo e modo (usada pelo tema e pelas prévias de estilo). */
+fun paletteFor(style: AppStyle, dark: Boolean): ZenPalette = when (style) {
+    AppStyle.KAWAII -> if (dark) KawaiiDarkPalette else KawaiiLightPalette
+    AppStyle.ISEKAI -> if (dark) IsekaiDarkPalette else IsekaiLightPalette
+    AppStyle.SHONEN -> if (dark) DarkPalette else LightPalette
+}
+
+/** Formas de um estilo. */
+fun lookFor(style: AppStyle): ZenLook = when (style) {
+    AppStyle.KAWAII -> ZenLook.KAWAII
+    AppStyle.ISEKAI -> ZenLook.ISEKAI
+    AppStyle.SHONEN -> ZenLook.SHONEN
+}
+
 @Composable
 fun ZenkaigymTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -83,11 +97,7 @@ fun ZenkaigymTheme(
     weekStart: WeekStart = WeekStart.MONDAY,
     content: @Composable () -> Unit
 ) {
-    val palette = when (style) {
-        AppStyle.KAWAII -> if (darkTheme) KawaiiDarkPalette else KawaiiLightPalette
-        AppStyle.ISEKAI -> if (darkTheme) IsekaiDarkPalette else IsekaiLightPalette
-        AppStyle.SHONEN -> if (darkTheme) DarkPalette else LightPalette
-    }
+    val palette = paletteFor(style, darkTheme)
     accentSet = when (style) {
         AppStyle.KAWAII -> if (darkTheme) AccentSet.KAWAII_DARK else AccentSet.KAWAII_LIGHT
         AppStyle.ISEKAI -> if (darkTheme) AccentSet.ISEKAI_DARK else AccentSet.ISEKAI_LIGHT
@@ -100,11 +110,7 @@ fun ZenkaigymTheme(
     }
     CompositionLocalProvider(
         LocalZenPalette provides palette,
-        LocalZenLook provides when (style) {
-            AppStyle.KAWAII -> ZenLook.KAWAII
-            AppStyle.ISEKAI -> ZenLook.ISEKAI
-            AppStyle.SHONEN -> ZenLook.SHONEN
-        },
+        LocalZenLook provides lookFor(style),
         LocalWeekStart provides weekStart,
         LocalMotionEnabled provides motionEnabled(LocalContext.current),
         LocalContentColor provides palette.ink

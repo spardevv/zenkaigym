@@ -33,7 +33,18 @@ val Sumi: Color get() = pick(0xFF17171A, 0xFF17171A, 0xFF4A3552, 0xFF3A2748, 0xF
 // Acentos. Shōnen: levemente saturados no claro, pastéis no escuro.
 // Kawaii: rosa, lilás, roxo e azul-bebê em tons pastel (um pouco mais claros no escuro).
 // Isekai: neons de interface de jogo — ciano de "sistema", rosa-carmim de dano, ouro, verde de HP e violeta de mana.
-val Aka: Color get() = pick(0xFFF25A52, 0xFFFF8F8F, 0xFFF7A8C4, 0xFFF9B8D0, 0xFFE0264A, 0xFFFF4D6D)       // vermelho · rosa · carmim
+// Os seis valores de Aka, na ordem de AccentSet: lidos por Aka e por previewAccent.
+private val AkaHex = longArrayOf(0xFFF25A52, 0xFFFF8F8F, 0xFFF7A8C4, 0xFFF9B8D0, 0xFFE0264A, 0xFFFF4D6D)
+val Aka: Color get() = pick(AkaHex[0], AkaHex[1], AkaHex[2], AkaHex[3], AkaHex[4], AkaHex[5])       // vermelho · rosa · carmim
+
+/** Cor de destaque (Aka) de um estilo e modo, sem tocar no [accentSet] global: serve às prévias de estilo. */
+fun previewAccent(style: com.zenkaigym.domain.AppStyle, dark: Boolean): Color = Color(
+    AkaHex[when (style) {
+        com.zenkaigym.domain.AppStyle.SHONEN -> 0
+        com.zenkaigym.domain.AppStyle.KAWAII -> 2
+        com.zenkaigym.domain.AppStyle.ISEKAI -> 4
+    } + if (dark) 1 else 0]
+)
 val Ki: Color get() = pick(0xFFF8CC4A, 0xFFFFDB80, 0xFFD9C3F2, 0xFFE2D0F7, 0xFFF2A900, 0xFFFFC857)        // amarelo · lilás · ouro
 val Ao: Color get() = pick(0xFF45C0EE, 0xFF84D4F0, 0xFFA9D6F5, 0xFFB8DEF8, 0xFF0891D1, 0xFF2FD8FF)        // azul · azul-bebê · ciano
 val Daidai: Color get() = pick(0xFFF59A40, 0xFFFFA860, 0xFFF9C6D9, 0xFFFAD0E0, 0xFFE56A12, 0xFFFF9248)    // laranja · rosa-pêssego

@@ -77,38 +77,48 @@ import kotlin.math.sin
 
 private val BorderWidth = 3.dp
 
-/** Cartão estilo mangá: borda grossa, sombra sólida deslocada e faixa de destaque opcional. */
+/**
+ * Cartão estilo mangá: borda grossa, sombra sólida deslocada e faixa de destaque opcional.
+ * Com [onClick] o cartão inteiro vira botão (a área de toque e a ondulação seguem o formato do estilo);
+ * com [backdrop] o fundo decorativo do estilo aparece atrás do conteúdo, recortado pelo cartão.
+ */
 @Composable
 fun ZenCard(
     modifier: Modifier = Modifier,
     accent: Color? = null,
     entranceIndex: Int = 0,
+    onClick: (() -> Unit)? = null,
+    backdrop: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val p = Zen.p
     val look = Zen.look
-    Column(
+    Box(
         modifier
             .zenEntrance(entranceIndex)
             .padding(end = look.shadow, bottom = look.shadow)
             .zenShadow(look.shadow, p.shadow, look.shape)
             .clip(look.shape)
             .background(p.card)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .border(look.border, p.border, look.shape)
     ) {
-        if (accent != null) {
-            if (look.isekai) {
-                // Isekai: filete fino de neon no topo do painel, como o cabeçalho de uma janela de status.
-                Box(Modifier.fillMaxWidth().height(3.dp).background(accent))
-            } else if (look.kawaii) {
-                // Kawaii: faixa de cor mais fina e sem linha dura embaixo.
-                Box(Modifier.fillMaxWidth().height(8.dp).background(accent))
-            } else {
-                Box(Modifier.fillMaxWidth().height(10.dp).background(accent))
-                Box(Modifier.fillMaxWidth().height(BorderWidth).background(p.border))
+        if (backdrop) StyleBackdrop(Modifier.matchParentSize(), fadeTo = p.card)
+        Column(Modifier.fillMaxWidth()) {
+            if (accent != null) {
+                if (look.isekai) {
+                    // Isekai: filete fino de neon no topo do painel, como o cabeçalho de uma janela de status.
+                    Box(Modifier.fillMaxWidth().height(3.dp).background(accent))
+                } else if (look.kawaii) {
+                    // Kawaii: faixa de cor mais fina e sem linha dura embaixo.
+                    Box(Modifier.fillMaxWidth().height(8.dp).background(accent))
+                } else {
+                    Box(Modifier.fillMaxWidth().height(10.dp).background(accent))
+                    Box(Modifier.fillMaxWidth().height(BorderWidth).background(p.border))
+                }
             }
+            Column(Modifier.fillMaxWidth().padding(14.dp), content = content)
         }
-        Column(Modifier.fillMaxWidth().padding(14.dp), content = content)
     }
 }
 
@@ -213,7 +223,8 @@ fun ZenChip(
     modifier: Modifier = Modifier,
     accent: Color = Ki,
     compact: Boolean = false,
-    mark: ImageVector? = null
+    mark: ImageVector? = null,
+    border: Dp? = null
 ) {
     val p = Zen.p
     val interaction = remember { MutableInteractionSource() }
@@ -225,7 +236,7 @@ fun ZenChip(
             .pressScale(interaction)
             .clip(look.shape)
             .background(background)
-            .border(look.border, p.border, look.shape)
+            .border(border ?: look.border, p.border, look.shape)
             .defaultMinSize(minHeight = MIN_TOUCH)
             .semantics { this.selected = selected }
             .clickable(interaction, null, role = Role.Button, onClick = onClick)
@@ -312,7 +323,14 @@ fun KanjiBadge(kanji: String, modifier: Modifier = Modifier, color: Color = Aka,
 }
 
 @Composable
-fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subtitle: String? = null, accent: Color = Aka) {
+fun ZenHeader(
+    title: String,
+    kanji: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    accent: Color = Aka,
+    trailing: (@Composable () -> Unit)? = null
+) {
     val p = Zen.p
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -323,7 +341,8 @@ fun ZenHeader(title: String, kanji: String, modifier: Modifier = Modifier, subti
                 Text(subtitle, color = p.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        KanjiBadge(kanji, color = accent, size = 56.dp)
+        // [trailing] substitui o selo da direita (um bloco vazio o esconde).
+        if (trailing != null) trailing() else KanjiBadge(kanji, color = accent, size = 56.dp)
     }
 }
 
@@ -338,7 +357,8 @@ fun ZenFixedHeader(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     accent: Color = Aka,
-    back: (@Composable () -> Unit)? = null
+    back: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     val gutter = currentWindowLayout.gutter
     Column(modifier.fillMaxWidth().padding(start = gutter, end = gutter, top = gutter, bottom = 10.dp)) {
@@ -346,7 +366,7 @@ fun ZenFixedHeader(
             back()
             Spacer(Modifier.height(10.dp))
         }
-        ZenHeader(title, kanji, subtitle = subtitle, accent = accent)
+        ZenHeader(title, kanji, subtitle = subtitle, accent = accent, trailing = trailing)
     }
 }
 
@@ -444,11 +464,11 @@ fun DrawScope.drawSparkle(c: Offset, r: Float, color: Color) {
  * um brilho no topo, um feixe diagonal e cantos de mira.
  */
 @Composable
-fun HudGrid(modifier: Modifier = Modifier) {
+fun HudGrid(modifier: Modifier = Modifier, fadeTo: Color = Zen.p.bg) {
     val line = Ao.copy(alpha = 0.10f)
     val glow = Ao.copy(alpha = 0.18f)
     val beam = Ao.copy(alpha = 0.35f)
-    val bg = Zen.p.bg
+    val bg = fadeTo
     Canvas(modifier.fillMaxSize()) {
         val step = 28.dp.toPx()
         var x = 0f
@@ -492,14 +512,20 @@ fun Modifier.zenShadow(offset: Dp, color: Color, shape: Shape): Modifier = drawB
     translate(o, o) { drawPath(path, color) }
 }
 
+/** Fundo decorativo do estilo: brilhos (Kawaii), grade de HUD (Isekai) ou linhas de velocidade (Shōnen). */
+@Composable
+fun StyleBackdrop(modifier: Modifier = Modifier, fadeTo: Color = Zen.p.bg) {
+    when {
+        Zen.look.kawaii -> Sparkles(modifier)
+        Zen.look.isekai -> HudGrid(modifier, fadeTo)
+        else -> SpeedLines(modifier)
+    }
+}
+
 @Composable
 fun ZenPage(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().background(Zen.p.bg)) {
-        when {
-            Zen.look.kawaii -> Sparkles(Modifier.height(260.dp).fillMaxWidth())
-            Zen.look.isekai -> HudGrid(Modifier.height(320.dp).fillMaxWidth())
-            else -> SpeedLines(Modifier.height(260.dp).fillMaxWidth())
-        }
+        StyleBackdrop(Modifier.height(if (Zen.look.isekai) 320.dp else 260.dp).fillMaxWidth())
         // Em telas largas (tablet, dobrável, paisagem) o conteúdo fica numa coluna centralizada.
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = currentWindowLayout.contentMaxWidth).fillMaxSize()) { content() }
     }

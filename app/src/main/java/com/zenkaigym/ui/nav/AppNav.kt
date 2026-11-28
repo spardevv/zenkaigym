@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +36,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.Dp
-import com.zenkaigym.ui.components.WindowLayout
 import com.zenkaigym.ui.components.currentWindowLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -54,23 +52,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import com.zenkaigym.ui.components.ZenIcon
-import com.zenkaigym.ui.components.ZenIcons
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.zenkaigym.ui.ZenViewModel
 import com.zenkaigym.ui.screens.DietScreen
-import com.zenkaigym.ui.screens.FoodsScreen
-import com.zenkaigym.ui.screens.HistoryScreen
 import com.zenkaigym.ui.screens.HomeScreen
 import com.zenkaigym.ui.screens.LevelUpScene
+import com.zenkaigym.ui.screens.MenuScreen
 import com.zenkaigym.ui.screens.ProfileScreen
 import com.zenkaigym.ui.screens.ProgressScreen
 import com.zenkaigym.ui.screens.SettingsScreen
@@ -83,7 +77,6 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import com.zenkaigym.domain.Motion
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.zenkaigym.ui.theme.Aka
@@ -91,47 +84,35 @@ import com.zenkaigym.ui.theme.Daidai
 import com.zenkaigym.ui.theme.Ao
 import com.zenkaigym.ui.theme.Ki
 import com.zenkaigym.ui.theme.Midori
+import com.zenkaigym.ui.theme.Sakura
 import com.zenkaigym.ui.theme.Sumi
 import com.zenkaigym.ui.theme.Zen
 
 object Routes {
     const val HOME = "home"
+    const val MENU = "menu"
     const val WORKOUT = "workout"
     const val DIET = "diet"
-    const val FOODS = "foods"
-    const val HISTORY = "history"
     const val PROGRESS = "progress"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
 }
 
-private class Tab(val route: String, val icon: ImageVector, val label: String, val color: Color, val hero: Boolean = false)
+private class Tab(val route: String, val kanji: String, val label: String, val color: Color)
 
-// O Dojo (home) fica sempre no centro e com destaque maior.
+// Entradas da coluna lateral (telas largas); no celular o caminho é o selo do Dojo e o menu.
 private fun tabs() = listOf(
-    Tab(Routes.WORKOUT, ZenIcons.Workout, tr("Treino"), Ki),
-    Tab(Routes.DIET, ZenIcons.Diet, tr("Dieta"), Midori),
-    Tab(Routes.HOME, ZenIcons.Dojo, tr("Dojo"), Aka, hero = true),
-    Tab(Routes.PROFILE, ZenIcons.Profile, tr("Perfil"), Daidai),
-    Tab(Routes.SETTINGS, ZenIcons.Settings, tr("Ajustes"), Ao)
+    Tab(Routes.HOME, "道", tr("Dojo"), Aka),
+    Tab(Routes.WORKOUT, "体", tr("Treino"), Ki),
+    Tab(Routes.DIET, "食", tr("Dieta"), Midori),
+    Tab(Routes.PROGRESS, "進", tr("Evolução"), Daidai),
+    Tab(Routes.PROFILE, "己", tr("Perfil"), Sakura),
+    Tab(Routes.SETTINGS, "設", tr("Ajustes"), Ao)
 )
 
-/** Ordem das abas na barra, para saber de que lado a próxima tela entra. */
-private val TabOrder = listOf(Routes.WORKOUT, Routes.DIET, Routes.HOME, Routes.PROFILE, Routes.SETTINGS)
-
-/** 1 = entra pela direita, -1 = pela esquerda. "Meus alimentos" se comporta como uma subtela à direita da Dieta. */
-private fun navDirection(from: String?, to: String?): Int = when {
-    to == Routes.FOODS || to == Routes.HISTORY || to == Routes.PROGRESS -> 1
-    from == Routes.FOODS && to == Routes.DIET -> -1
-    from == Routes.HISTORY && to == Routes.PROFILE -> -1
-    from == Routes.PROGRESS && to == Routes.PROFILE -> -1
-    else -> Motion.tabDirection(TabOrder, from?.let(::parentTab), to?.let(::parentTab))
-}
-
-/** Subtelas pertencem à aba de onde são abertas: Alimentos à Dieta, Histórico ao Perfil. */
+/** Subtelas e o menu pertencem à entrada de onde são abertos: Menu ao Dojo. */
 private fun parentTab(route: String): String = when (route) {
-    Routes.FOODS -> Routes.DIET
-    Routes.HISTORY, Routes.PROGRESS -> Routes.PROFILE
+    Routes.MENU -> Routes.HOME
     else -> route
 }
 
@@ -160,15 +141,15 @@ fun AppNav(viewModel: ZenViewModel) {
         }
     }
 
+    // Sempre a partir do Dojo: o voltar de qualquer tela leva a ele, e cada tela abre do começo (sem salvar estado).
     fun go(route: String) {
-        // "Meus alimentos" é uma subtela da Dieta: ao trocar de aba ela sai da pilha, e a Dieta volta limpa.
-        navController.currentDestination?.route?.takeIf { it == Routes.FOODS || it == Routes.HISTORY || it == Routes.PROGRESS }?.let {
-            navController.popBackStack(it, inclusive = true)
-        }
-        navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+        if (route == Routes.HOME) {
+            navController.popBackStack(Routes.HOME, inclusive = false)
+        } else {
+            navController.navigate(route) {
+                popUpTo(Routes.HOME)
+                launchSingleTop = true
+            }
         }
     }
 
@@ -184,6 +165,11 @@ fun AppNav(viewModel: ZenViewModel) {
 
     val layout = currentWindowLayout
 
+    // Se a tela virar larga com o menu aberto, a coluna lateral assume o papel dele.
+    LaunchedEffect(layout.useRail) {
+        if (layout.useRail && navController.currentDestination?.route == Routes.MENU) go(Routes.HOME)
+    }
+
     Box(Modifier.fillMaxSize().background(Zen.p.bg).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
       Row(Modifier.fillMaxSize()) {
         // Tablets e celulares deitados: as abas ficam numa coluna à esquerda, liberando a altura para o conteúdo.
@@ -193,29 +179,25 @@ fun AppNav(viewModel: ZenViewModel) {
                 NavHost(
                     navController,
                     startDestination = Routes.HOME,
-                    enterTransition = { if (motion) tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) else EnterTransition.None },
-                    exitTransition = { if (motion) tabExit(navDirection(initialState.destination.route, targetState.destination.route)) else ExitTransition.None },
-                    popEnterTransition = { if (motion) tabEnter(navDirection(initialState.destination.route, targetState.destination.route)) else EnterTransition.None },
-                    popExitTransition = { if (motion) tabExit(navDirection(initialState.destination.route, targetState.destination.route)) else ExitTransition.None }
+                    // Entrar desliza da direita; voltar (e a volta ao Dojo) desliza da esquerda.
+                    enterTransition = { if (motion) tabEnter(if (targetState.destination.route == Routes.HOME) -1 else 1) else EnterTransition.None },
+                    exitTransition = { if (motion) tabExit(if (targetState.destination.route == Routes.HOME) -1 else 1) else ExitTransition.None },
+                    popEnterTransition = { if (motion) tabEnter(-1) else EnterTransition.None },
+                    popExitTransition = { if (motion) tabExit(-1) else ExitTransition.None }
                 ) {
-                    composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go) }
-                    composable(Routes.WORKOUT) { WorkoutScreen(viewModel) }
-                    composable(Routes.DIET) { DietScreen(viewModel, onOpenFoods = { navController.navigate(Routes.FOODS) { launchSingleTop = true } }) }
-                    composable(Routes.FOODS) { FoodsScreen(viewModel, onBack = { navController.popBackStack() }) }
-                    composable(Routes.PROFILE) {
-                        ProfileScreen(
-                            viewModel,
-                            onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
-                            onOpenProgress = { navController.navigate(Routes.PROGRESS) { launchSingleTop = true } }
-                        )
+                    composable(Routes.HOME) { HomeScreen(viewModel, onNavigate = ::go, showMenuSeal = !layout.useRail) }
+                    composable(Routes.MENU) { MenuScreen(viewModel, onOpen = ::go, onClose = { go(Routes.HOME) }) }
+                    composable(Routes.WORKOUT) { WorkoutScreen(viewModel, onBack = { go(Routes.HOME) }) }
+                    composable(Routes.DIET) {
+                        DietScreen(viewModel, onBack = { go(Routes.HOME) })
                     }
-                    composable(Routes.HISTORY) { HistoryScreen(viewModel, onBack = { navController.popBackStack() }) }
-                    composable(Routes.PROGRESS) { ProgressScreen(viewModel, onBack = { navController.popBackStack() }) }
-                    composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
+                    composable(Routes.PROFILE) {
+                        ProfileScreen(viewModel, onBack = { go(Routes.HOME) })
+                    }
+                    composable(Routes.PROGRESS) { ProgressScreen(viewModel, onBack = { go(Routes.HOME) }) }
+                    composable(Routes.SETTINGS) { SettingsScreen(viewModel, onBack = { go(Routes.HOME) }) }
                 }
             }
-            // Alimentos é aberto pela Dieta, então a aba Dieta segue destacada.
-            if (!layout.useRail) BottomBar(parentTab(current), layout, onSelect = ::go)
         }
       }
         AnimatedVisibility(
@@ -237,9 +219,9 @@ fun AppNav(viewModel: ZenViewModel) {
     }
 }
 
-/** Uma aba (ícone + rótulo), igual na barra inferior e na coluna lateral. */
+/** Uma entrada da coluna lateral (kanji + rótulo). */
 @Composable
-private fun TabItem(tab: Tab, selected: Boolean, narrow: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
+private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onSelect: (String) -> Unit) {
     val p = Zen.p
     val background by animateColorAsState(
         if (selected) tab.color else Color.Transparent, tween(220), label = "tab-bg"
@@ -258,38 +240,25 @@ private fun TabItem(tab: Tab, selected: Boolean, narrow: Boolean, modifier: Modi
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Altura fixa para o ícone: o do Dojo é maior e, sem isso, empurrava só o seu rótulo para baixo.
+        // Altura fixa para o kanji, para os rótulos ficarem alinhados.
         Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
-            ZenIcon(
-                tab.icon,
+            Text(
+                tab.kanji,
                 modifier = Modifier.graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 },
-                size = if (tab.hero) (if (narrow) 26.dp else 28.dp) else (if (narrow) 21.dp else 23.dp),
-                color = if (selected) Sumi else if (tab.hero) tab.color else p.ink
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                color = if (selected) Sumi else p.ink
             )
         }
         Text(
             tab.label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (tab.hero) FontWeight.Black else null,
             maxLines = 1,
-            color = if (selected) Sumi else if (tab.hero) tab.color else p.muted
+            color = if (selected) Sumi else p.muted
         )
-    }
-}
-
-@Composable
-private fun BottomBar(current: String, layout: WindowLayout, onSelect: (String) -> Unit) {
-    val p = Zen.p
-    Column(Modifier.background(p.card).navigationBarsPadding()) {
-        Box(Modifier.fillMaxWidth().height(3.dp).background(p.border))
-        Row(Modifier.align(Alignment.CenterHorizontally).widthIn(max = layout.contentMaxWidth).fillMaxWidth()) {
-            tabs().forEach { tab ->
-                TabItem(tab, tab.route == current, layout.narrow, Modifier.weight(if (tab.hero) 1.25f else 1f), onSelect)
-            }
-        }
     }
 }
 
@@ -301,7 +270,7 @@ private fun SideRail(current: String, width: Dp, onSelect: (String) -> Unit) {
         Box(Modifier.width(width).fillMaxHeight().statusBarsPadding().navigationBarsPadding(), contentAlignment = Alignment.Center) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 tabs().forEach { tab ->
-                    TabItem(tab, tab.route == current, narrow = false, Modifier.fillMaxWidth().padding(vertical = 2.dp), onSelect)
+                    TabItem(tab, tab.route == current, Modifier.fillMaxWidth().padding(vertical = 2.dp), onSelect)
                 }
             }
         }

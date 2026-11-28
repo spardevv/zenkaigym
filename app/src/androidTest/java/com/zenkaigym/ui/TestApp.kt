@@ -8,6 +8,7 @@ import com.zenkaigym.data.AppFlags
 import com.zenkaigym.data.IntroPrefs
 import com.zenkaigym.data.entity.Availability
 import com.zenkaigym.data.entity.Goal
+import com.zenkaigym.data.entity.SetLog
 import com.zenkaigym.data.entity.Sex
 import com.zenkaigym.data.entity.UserProfile
 import com.zenkaigym.data.repo.ZenRepository
@@ -15,6 +16,7 @@ import com.zenkaigym.domain.AppLanguage
 import com.zenkaigym.domain.I18n
 import com.zenkaigym.domain.IntroGate
 import com.zenkaigym.domain.RuleBasedEngine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -43,6 +45,37 @@ class TestApp private constructor(private val context: Context) {
         }
         flags.setupDone = true
     }
+
+    /** Perfil com treino ativo nos 7 dias da semana: assim há sessão hoje, qualquer que seja o dia. */
+    fun withWorkoutEveryDay(): TestApp = withProfile().apply {
+        runBlocking {
+            repo.saveAvailability((1..7).map { Availability(it, true, "18:00", "19:00") })
+            repo.generateWorkoutProposal()
+            repo.acceptWorkout(repo.proposedWorkout.first()!!.plan.id)
+        }
+    }
+
+    /** Perfil com dieta ativa (a sugestão aceita): assim o Dojo mostra as refeições do dia. */
+    fun withDiet(): TestApp = withProfile().apply {
+        runBlocking {
+            repo.ensureDietSuggestion()
+            val proposal = checkNotNull(repo.proposedDiet.first()) { "ensureDietSuggestion não gerou uma dieta" }
+            repo.acceptDiet(proposal.plan.id)
+        }
+    }
+
+    /** Treino ativo + uma série de trabalho registrada hoje no primeiro exercício. Devolve o nome dele. */
+    fun withLoggedSet(): TestApp = withWorkoutEveryDay().apply {
+        runBlocking {
+            val first = repo.exercises.first().first()
+            loggedExerciseName = first.name
+            repo.logSet(SetLog(epochDay = viewModel.clock.value.epochDay, exerciseId = first.id, setIndex = 1, reps = 10, weightKg = 20.0))
+        }
+    }
+
+    /** Nome do exercício registrado por [withLoggedSet]. */
+    var loggedExerciseName: String = ""
+        private set
 
     fun close() {
         db.close()

@@ -33,6 +33,7 @@ object ZenIcons {
     val Close = stroke("Close", "M6 6 L18 18 M18 6 L6 18")
     val Minus = stroke("Minus", "M5 12 H19")
     val Plus = stroke("Plus", "M12 5 V19 M5 12 H19")
+    val Cart = stroke("Cart", "M3 4.5 H5.5 L7.5 15.5 H18 L20 8 H6 M9 19.5 a1.2 1.2 0 1 0 0.01 0 M17 19.5 a1.2 1.2 0 1 0 0.01 0")
     val Swap = stroke("Swap", "M4 8 H19.5 M16 4.5 L19.5 8 L16 11.5 M20 16 H4.5 M8 12.5 L4.5 16 L8 19.5")
     val Edit = stroke("Edit", "M4.5 19.5 L5.5 15 L15.5 5 a2.1 2.1 0 0 1 3 0 l0.5 0.5 a2.1 2.1 0 0 1 0 3 L9 18.5 Z M13.5 7 L17 10.5")
     val Undo = stroke("Undo", "M4 4.5 V9 H8.5 M4.4 9 A8 8 0 1 1 4 12.5")
@@ -69,6 +70,13 @@ object ZenIcons {
         "Settings",
         "M4 7.5 H12.4 M17.6 7.5 H20 M12.4 7.5 a2.6 2.6 0 1 0 5.2 0 a2.6 2.6 0 1 0 -5.2 0 " +
             "M4 16.5 H6.4 M11.6 16.5 H20 M6.4 16.5 a2.6 2.6 0 1 0 5.2 0 a2.6 2.6 0 1 0 -5.2 0"
+    )
+
+    // Três pontos na horizontal (menu "mais opções").
+    val More = fill(
+        "More",
+        "M3.2 12 a1.8 1.8 0 1 0 3.6 0 a1.8 1.8 0 1 0 -3.6 0 M10.2 12 a1.8 1.8 0 1 0 3.6 0 a1.8 1.8 0 1 0 -3.6 0 " +
+            "M17.2 12 a1.8 1.8 0 1 0 3.6 0 a1.8 1.8 0 1 0 -3.6 0"
     )
 
     private fun stroke(name: String, path: String): ImageVector =

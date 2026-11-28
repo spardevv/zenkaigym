@@ -3,10 +3,8 @@ package com.zenkaigym.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,16 +13,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.zenkaigym.domain.LatestRelease
 import com.zenkaigym.domain.UpdateCheck
 import com.zenkaigym.domain.tr
-import com.zenkaigym.ui.components.SectionTitle
 import com.zenkaigym.ui.components.ZenButton
-import com.zenkaigym.ui.components.ZenCard
 import com.zenkaigym.ui.components.ZenIcons
 import com.zenkaigym.ui.theme.Midori
 import com.zenkaigym.ui.theme.Zen
@@ -40,9 +35,12 @@ private sealed interface UpdateState {
     data class Available(val release: LatestRelease) : UpdateState
 }
 
-/** Verifica a última versão do APK no GitHub (só ao toque) e leva ao download, que abre no navegador. */
+/**
+ * Linha "Atualização" de Ajustes: verifica a última versão do APK no GitHub (só ao toque) e leva ao download,
+ * que abre no navegador. O botão fica na linha; a frase do estado, embaixo do título.
+ */
 @Composable
-fun UpdateCard(entranceIndex: Int = 0) {
+fun UpdateRow() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val current = remember { versionName(context) }
@@ -60,9 +58,16 @@ fun UpdateCard(entranceIndex: Int = 0) {
         }
     }
 
-    ZenCard(accent = Midori, entranceIndex = entranceIndex) {
-        SectionTitle(tr("Atualização"), accent = Midori)
-        Spacer(Modifier.height(6.dp))
+    Column {
+        SettingsRow(tr("Atualização"), value = null, onClick = null, trailing = {
+            when (val s = state) {
+                is UpdateState.Available -> ZenButton(
+                    tr("Baixar"), { openUrl(context, s.release.downloadUrl) },
+                    accent = Midori, small = true, trailing = ZenIcons.ArrowRight
+                )
+                else -> ZenButton(tr("Verificar"), ::check, accent = Zen.p.card, small = true, enabled = state != UpdateState.Checking)
+            }
+        })
         Text(
             when (val s = state) {
                 UpdateState.Idle -> tr("Zenkaigym versão {0}", current)
@@ -71,25 +76,13 @@ fun UpdateCard(entranceIndex: Int = 0) {
                 UpdateState.UpToDate -> tr("Você já está na última versão ({0}).", current)
                 is UpdateState.Available -> tr("Nova versão {0} disponível (você tem {1}).", s.release.version, current)
             },
-            color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium
+            color = Zen.p.muted, style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            ZenButton(
-                tr("Verificar atualização"), ::check, accent = Zen.p.card, small = true,
-                enabled = state != UpdateState.Checking
-            )
-            (state as? UpdateState.Available)?.let { available ->
-                ZenButton(
-                    tr("Baixar"), { openUrl(context, available.release.downloadUrl) },
-                    accent = Midori, small = true, trailing = ZenIcons.ArrowRight
-                )
-            }
-        }
     }
 }
 
-private fun versionName(context: Context): String = runCatching {
+internal fun versionName(context: Context): String = runCatching {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName
 }.getOrNull() ?: "?"
 
